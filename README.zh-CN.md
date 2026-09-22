@@ -48,6 +48,10 @@ python tokenflow.py
 
 然后打开 <http://127.0.0.1:8765>。Windows 用户也可以双击 `start_tokenflow.cmd`。
 
+### Windows 可执行文件
+
+首次执行 `build_tokenflow_exe.cmd` 后，会生成 `dist/TokenFlow.exe`。该 EXE 无控制台窗口，会启动本地服务并自动打开默认浏览器中的 TokenFlow 控制台。`dist/` 被 Git 忽略，因为二进制文件应通过经过审查的 Release 附件分发，而不是提交到源码分支。
+
 ## FreeToken 集成
 
 FreeToken 是可选组件。TokenFlow 使用其本地 OpenAI 兼容接口：

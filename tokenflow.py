@@ -352,7 +352,7 @@ def _document_store() -> DocumentStore:
     return DocumentStore()
 
 
-PAGE = """<!doctype html>
+LEGACY_PAGE = """<!doctype html>
 <html lang="zh-CN">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -387,6 +387,8 @@ async function loadHarnesses(){try{const data=await fetch('/api/harnesses').then
 loadHarnesses();
 </script>
 """
+
+from ui_page import PAGE
 
 
 class TokenFlowHandler(BaseHTTPRequestHandler):
@@ -570,8 +572,12 @@ def main() -> None:
     if args.self_check:
         self_check()
         return
-    server = ThreadingHTTPServer((args.host, args.port), TokenFlowHandler)
-    print(f"TokenFlow running at http://{args.host}:{args.port}")
+    run_server(args.host, args.port)
+
+
+def run_server(host: str = "127.0.0.1", port: int = 8765) -> None:
+    server = ThreadingHTTPServer((host, port), TokenFlowHandler)
+    print(f"TokenFlow running at http://{host}:{port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

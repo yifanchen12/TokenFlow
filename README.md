@@ -48,6 +48,10 @@ python tokenflow.py
 
 Open <http://127.0.0.1:8765>. On Windows, double-click `start_tokenflow.cmd`.
 
+### Windows executable
+
+Run `build_tokenflow_exe.cmd` once to build `dist/TokenFlow.exe`. The generated executable is windowless, starts the local server, and opens the TokenFlow console in the default browser. The `dist/` directory is intentionally ignored by Git because binaries should be distributed through a reviewed release artifact rather than source commits.
+
 ## FreeToken integration
 
 FreeToken is optional. TokenFlow uses its local OpenAI-compatible API:

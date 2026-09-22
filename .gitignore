@@ -37,6 +37,9 @@ models/
 *.pth
 *.onnx
 FreeToken-Setup-*.exe
+build/
+dist/
+*.spec
 
 # OS/editor
 .DS_Store
