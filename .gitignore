@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.secret
+
+# Local runtime output
+*.log
+logs/
+tmp/
+.cache/
+
+# Local AI assets; do not publish model weights or large binaries
+models/
+*.ftw
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+FreeToken-Setup-*.exe
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
