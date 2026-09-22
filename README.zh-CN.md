@@ -65,6 +65,27 @@ python tokenflow.py
 
 Linux 用户请按照 FreeToken 官方文档安装并启动服务。
 
+## 真实 Token 计数
+
+TokenFlow 支持可选的本地 tokenizer 后端。未安装可选后端时，响应会明确标记为 `backend: "heuristic"` 和 `exact: false`。
+
+使用本地 Hugging Face `tokenizer.json`：
+
+```powershell
+python -m pip install tokenizers
+$env:TOKENFLOW_TOKENIZER_PATH = "<tokenizer目录或文件>"
+```
+
+使用 OpenAI 兼容编码：
+
+```powershell
+python -m pip install tiktoken
+$env:TOKENFLOW_TOKENIZER_BACKEND = "tiktoken"
+$env:TOKENFLOW_TIKTOKEN_ENCODING = "cl100k_base"
+```
+
+通过 `GET /api/tokenizer` 查看当前后端。Tokenizer 只从本地加载，TokenFlow 不会自动下载模型文件。
+
 ## Harness 执行
 
 页面可以把压缩后的任务交给 Codex、Claude 或 DSH。代码任务优先 Codex，其它任务优先 Claude；长文本和代码任务优先 quality 模型。
@@ -83,6 +104,7 @@ Invoke-RestMethod http://127.0.0.1:8765/api/execute `
 GET  /health
 GET  /api/harnesses
 GET  /api/freetoken
+GET  /api/tokenizer
 GET  /api/local-models
 POST /api/run
 POST /api/local-chat

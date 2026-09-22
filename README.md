@@ -65,6 +65,27 @@ python tokenflow.py
 
 Linux users should install and start FreeToken according to its official documentation.
 
+## Exact token counting
+
+TokenFlow supports optional local tokenizer backends. Without an optional backend, the response is explicitly marked `backend: "heuristic"` and `exact: false`.
+
+For a local Hugging Face `tokenizer.json`:
+
+```powershell
+python -m pip install tokenizers
+$env:TOKENFLOW_TOKENIZER_PATH = "<tokenizer-directory-or-file>"
+```
+
+For an OpenAI-compatible encoding:
+
+```powershell
+python -m pip install tiktoken
+$env:TOKENFLOW_TOKENIZER_BACKEND = "tiktoken"
+$env:TOKENFLOW_TIKTOKEN_ENCODING = "cl100k_base"
+```
+
+Use `GET /api/tokenizer` to inspect the active backend. Tokenizer loading is local-only; TokenFlow does not download model files automatically.
+
 ## Harness execution
 
 The page can pass the compressed task to Codex, Claude, or DSH. Code tasks prefer Codex; other tasks prefer Claude. Long and code tasks prefer the quality model.
@@ -83,6 +104,7 @@ Codex uses read-only mode and Claude uses plan mode by default. DSH requires a c
 GET  /health
 GET  /api/harnesses
 GET  /api/freetoken
+GET  /api/tokenizer
 GET  /api/local-models
 POST /api/run
 POST /api/local-chat

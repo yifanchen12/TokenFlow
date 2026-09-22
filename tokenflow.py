@@ -26,6 +26,7 @@ from freetoken_manager import (
     start_server as start_freetoken_server,
     status as freetoken_status,
 )
+from token_counter import count_tokens, self_check as token_counter_self_check, status as token_counter_status
 
 
 MAX_COMPRESSED_CHARS = 2400
@@ -40,8 +41,8 @@ DEFAULT_MODELS = {
 
 
 def estimate_tokens(text: str) -> int:
-    """Return a rough estimate; actual counts depend on the target model tokenizer."""
-    return max(1, (len(text) + 3) // 4)
+    """Compatibility wrapper returning the active token counter result."""
+    return count_tokens(text)["count"]
 
 
 def classify_task(task: str, content: str) -> str:
@@ -94,8 +95,10 @@ def run_workflow(task: str, content: str) -> dict[str, Any]:
 
     task_type = classify_task(task, content)
     compressed = compact_content(content)
-    baseline_tokens = estimate_tokens(content)
-    optimized_tokens = estimate_tokens(compressed)
+    baseline_count = count_tokens(content)
+    optimized_count = count_tokens(compressed)
+    baseline_tokens = baseline_count["count"]
+    optimized_tokens = optimized_count["count"]
     saved_tokens = max(0, baseline_tokens - optimized_tokens)
     saved_ratio = round(saved_tokens / baseline_tokens, 4) if baseline_tokens else 0
 
@@ -105,6 +108,12 @@ def run_workflow(task: str, content: str) -> dict[str, Any]:
         "steps": build_plan(task_type),
         "baseline": {"estimated_tokens": baseline_tokens},
         "optimized": {"estimated_tokens": optimized_tokens},
+        "token_counting": {
+            "backend": baseline_count["backend"],
+            "exact": baseline_count["exact"],
+            "tokenizer": baseline_count["tokenizer"],
+            "warning": baseline_count.get("warning"),
+        },
         "saved_tokens": saved_tokens,
         "saved_ratio": saved_ratio,
         "note": "Token 数为启发式估算，不等同于具体云端模型的实际计费 Token。",
@@ -355,7 +364,7 @@ async function localModel(){result.textContent='正在调用 FreeToken 本地模
 async function execute(){result.textContent='正在交给 Harness 执行...';const r=await request('/api/execute');result.textContent=JSON.stringify(r.data,null,2)}
 async function installFreeToken(){result.textContent='正在打开 FreeToken 安装器...';const r=await fetch('/api/freetoken/install',{method:'POST'}).then(async r=>({status:r.status,data:await r.json()}));result.textContent=JSON.stringify(r.data,null,2)}
 async function startFreeToken(){result.textContent='正在启动 FreeToken...';const r=await fetch('/api/freetoken/start',{method:'POST'}).then(async r=>({status:r.status,data:await r.json()}));result.textContent=JSON.stringify(r.data,null,2);setTimeout(loadHarnesses,1500)}
-async function loadHarnesses(){try{const data=await fetch('/api/harnesses').then(r=>r.json());const local=await fetch('/api/local-models').then(r=>r.json());const ft=await fetch('/api/freetoken').then(r=>r.json());const harnessText=Object.entries(data).map(([k,v])=>k+': '+(v.installed?'已安装':'未找到')+(v.note?'，'+v.note:'')).join(' | ');const localText=local.available?'FreeToken API: '+local.models.length+' 个模型':'FreeToken API: 未连接';const ftText=ft.installed?'ft '+(ft.version||'已安装')+(ft.running?'，服务运行中':'，服务未启动'):'ft 未安装';document.getElementById('status').textContent=harnessText+' | '+ftText+' | '+localText}catch(e){document.getElementById('status').textContent='本地后端检测失败：'+e}}
+async function loadHarnesses(){try{const data=await fetch('/api/harnesses').then(r=>r.json());const local=await fetch('/api/local-models').then(r=>r.json());const ft=await fetch('/api/freetoken').then(r=>r.json());const tokenizer=await fetch('/api/tokenizer').then(r=>r.json());const harnessText=Object.entries(data).map(([k,v])=>k+': '+(v.installed?'已安装':'未找到')+(v.note?'，'+v.note:'')).join(' | ');const localText=local.available?'FreeToken API: '+local.models.length+' 个模型':'FreeToken API: 未连接';const ftText=ft.installed?'ft '+(ft.version||'已安装')+(ft.running?'，服务运行中':'，服务未启动'):'ft 未安装';const tokenizerText='Tokenizer: '+tokenizer.backend+(tokenizer.exact?'（exact）':'（heuristic）');document.getElementById('status').textContent=harnessText+' | '+ftText+' | '+localText+' | '+tokenizerText}catch(e){document.getElementById('status').textContent='本地后端检测失败：'+e}}
 loadHarnesses();
 </script>
 """
@@ -382,6 +391,9 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/api/freetoken":
             self._send_json(freetoken_status())
+            return
+        if self.path == "/api/tokenizer":
+            self._send_json(token_counter_status())
             return
         if self.path in ("/", "/index.html"):
             body = PAGE.encode("utf-8")
@@ -467,6 +479,7 @@ def self_check() -> None:
         raise AssertionError("invalid model must fail")
     freetoken_self_check()
     freetoken_manager_self_check()
+    token_counter_self_check()
     print("TokenFlow self-check: PASS")
 
 
