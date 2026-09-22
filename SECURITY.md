@@ -14,6 +14,9 @@ The following endpoints and capabilities can cause local side effects:
 2. `POST /api/freetoken/install` can open a local installer.
 3. `POST /api/freetoken/start` can start a local model server.
 4. Harnesses may read files, call tools, or execute commands according to their own configuration.
+5. `POST /api/parse` can read an explicitly supplied local path; prefer multipart upload when the caller should not grant path access.
+6. `POST /api/pc/execute` can control the local pointer and keyboard only after an explicit environment opt-in.
+7. `POST /api/jev/decision` sends the caller's decision payload to the configured Jev endpoint.
 
 ## Required deployment rules
 
@@ -23,6 +26,8 @@ The following endpoints and capabilities can cause local side effects:
 - Do not send secrets in task content. Treat prompts, documents, source code, and Harness output as sensitive data.
 - Use Codex read-only and Claude plan mode unless a human explicitly approves a change.
 - Review every command, file modification, or external side effect before accepting it.
+- Do not expose `/api/parse`, `/api/pc/execute`, or `/api/jev/decision` to untrusted callers.
+- Treat cloud, Laya, and Jev configuration as data egress configuration; review the endpoint and payload before enabling it.
 - Verify installer provenance and signatures where available. Do not disable antivirus or execution policy to bypass a warning.
 
 ## Secret handling
@@ -55,5 +60,7 @@ Maintainers should acknowledge a valid report within 7 days, provide a severity 
 TokenFlow does not redistribute FreeToken runtime wheels, model weights, Codex, Claude, DSH, or installer binaries. Users must obtain those artifacts from official sources and comply with their licenses and terms.
 
 The one-click Windows helper only locates a user-provided installer and opens it for explicit confirmation. It is not a signature verifier and does not silently install software.
+
+The PC Agent layer is allow-listed and dry-run by default. `TOKENFLOW_PC_AGENT_EXECUTE=1` is an explicit local opt-in, not a safety approval.
 
 Chinese version: [SECURITY.zh-CN.md](SECURITY.zh-CN.md).

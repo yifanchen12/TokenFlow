@@ -23,6 +23,9 @@ env/
 logs/
 tmp/
 .cache/
+*.db
+*.sqlite
+*.sqlite3
 
 # Local AI assets; do not publish model weights or large binaries
 models/

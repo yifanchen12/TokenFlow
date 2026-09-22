@@ -9,6 +9,8 @@ import re
 import shutil
 import subprocess
 import time
+from email.parser import BytesParser
+from email.policy import default as email_default
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
@@ -27,6 +29,11 @@ from freetoken_manager import (
     status as freetoken_status,
 )
 from token_counter import count_tokens, self_check as token_counter_self_check, status as token_counter_status
+from document_parser import DocumentParseError, parse_document_bytes, parse_document_file
+from jev_provider import JevError, decide as jev_decide, self_check as jev_self_check
+from model_providers import ProviderError, provider_status, self_check as provider_self_check, unified_chat
+from pc_agent import PCAgentError, execute_actions, plan_actions, self_check as pc_agent_self_check
+from tokenflow_store import DocumentStore, self_check as store_self_check
 
 
 MAX_COMPRESSED_CHARS = 2400
@@ -335,6 +342,16 @@ def local_chat_workflow(task: str, content: str, requested_model: str = "auto") 
     }
 
 
+def unified_chat_workflow(task: str, content: str, provider: str = "auto", model: str = "auto") -> dict[str, Any]:
+    workflow = run_workflow(task, content)
+    routed = unified_chat(task.strip(), workflow["result"], workflow["task_type"], provider, model)
+    return {**workflow, **routed}
+
+
+def _document_store() -> DocumentStore:
+    return DocumentStore()
+
+
 PAGE = """<!doctype html>
 <html lang="zh-CN">
 <meta charset="utf-8">
@@ -352,15 +369,17 @@ pre{white-space:pre-wrap;background:#101827;color:#e6edf7;padding:16px;border-ra
 <label for="task">任务</label><input id="task" value="总结下面的文档并提取关键结论">
 <label for="content">内容</label><textarea id="content" placeholder="粘贴文档、代码或表格内容"></textarea>
 <label for="harness">Harness</label><select id="harness"><option value="auto">自动选择</option><option value="codex">Codex</option><option value="claude">Claude</option><option value="dsh">DSH</option></select>
+<label for="provider">模型提供商</label><select id="provider"><option value="auto">自动路由</option><option value="freetoken">FreeToken</option><option value="ollama">Ollama</option><option value="laya">Laya 兼容端点</option><option value="cloud">云端兼容端点</option></select>
 <label for="model">模型</label><input id="model" value="auto" placeholder="auto 或具体模型名，例如 gpt-5.6-luna">
-<button onclick="runLocal()">仅本地处理</button><button onclick="localModel()">调用 FreeToken 本地模型</button><button onclick="execute()">交给 Harness 执行</button>
+<button onclick="runLocal()">仅本地处理</button><button onclick="localModel()">调用 FreeToken 本地模型</button><button onclick="unifiedModel()">统一模型路由</button><button onclick="execute()">交给 Harness 执行</button>
 <button onclick="installFreeToken()">安装 FreeToken</button><button onclick="startFreeToken()">启动 FreeToken</button>
 <p id="status" class="muted">正在检测本机 Harness 和 FreeToken...</p><h2>结果</h2><pre id="result">等待执行...</pre></main>
 <script>
 const result=document.getElementById('result');
-function request(path){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task:document.getElementById('task').value,content:document.getElementById('content').value,harness:document.getElementById('harness').value,model:document.getElementById('model').value||'auto'})}).then(async r=>({status:r.status,data:await r.json()}))}
+function request(path){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task:document.getElementById('task').value,content:document.getElementById('content').value,harness:document.getElementById('harness').value,provider:document.getElementById('provider').value,model:document.getElementById('model').value||'auto'})}).then(async r=>({status:r.status,data:await r.json()}))}
 async function runLocal(){result.textContent='本地处理中...';const r=await request('/api/run');result.textContent=JSON.stringify(r.data,null,2)}
 async function localModel(){result.textContent='正在调用 FreeToken 本地模型...';const r=await request('/api/local-chat');result.textContent=JSON.stringify(r.data,null,2)}
+async function unifiedModel(){result.textContent='正在按提供商路由模型...';const r=await request('/api/chat');result.textContent=JSON.stringify(r.data,null,2)}
 async function execute(){result.textContent='正在交给 Harness 执行...';const r=await request('/api/execute');result.textContent=JSON.stringify(r.data,null,2)}
 async function installFreeToken(){result.textContent='正在打开 FreeToken 安装器...';const r=await fetch('/api/freetoken/install',{method:'POST'}).then(async r=>({status:r.status,data:await r.json()}));result.textContent=JSON.stringify(r.data,null,2)}
 async function startFreeToken(){result.textContent='正在启动 FreeToken...';const r=await fetch('/api/freetoken/start',{method:'POST'}).then(async r=>({status:r.status,data:await r.json()}));result.textContent=JSON.stringify(r.data,null,2);setTimeout(loadHarnesses,1500)}
@@ -395,6 +414,12 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
         if self.path == "/api/tokenizer":
             self._send_json(token_counter_status())
             return
+        if self.path == "/api/providers":
+            self._send_json(provider_status())
+            return
+        if self.path == "/api/store":
+            self._send_json(_document_store().status())
+            return
         if self.path in ("/", "/index.html"):
             body = PAGE.encode("utf-8")
             self.send_response(200)
@@ -410,6 +435,13 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             "/api/run",
             "/api/execute",
             "/api/local-chat",
+            "/api/chat",
+            "/api/parse",
+            "/api/index",
+            "/api/search",
+            "/api/pc/plan",
+            "/api/pc/execute",
+            "/api/jev/decision",
             "/api/freetoken/install",
             "/api/freetoken/start",
         ):
@@ -419,7 +451,21 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             size = int(self.headers.get("Content-Length", "0"))
             if size > 2_000_000:
                 raise ValueError("请求内容不能超过 2 MB")
-            data = json.loads(self.rfile.read(size).decode("utf-8"))
+            raw = self.rfile.read(size)
+            content_type = self.headers.get("Content-Type", "application/json")
+            if content_type.lower().startswith("multipart/form-data"):
+                envelope = (
+                    f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("utf-8") + raw
+                )
+                message = BytesParser(policy=email_default).parsebytes(envelope)
+                attachment = next((part for part in message.walk() if part is not message and part.get_filename()), None)
+                if not attachment:
+                    raise ValueError("multipart 请求缺少文件字段")
+                data = {"filename": attachment.get_filename(), "file_bytes": attachment.get_payload(decode=True) or b""}
+            else:
+                data = json.loads(raw.decode("utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("请求 JSON 顶层必须是对象")
             if self.path == "/api/freetoken/install":
                 result = launch_freetoken_installer()
             elif self.path == "/api/freetoken/start":
@@ -439,6 +485,33 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                     str(data.get("content", "")),
                     str(data.get("model", "auto")),
                 )
+            elif self.path == "/api/chat":
+                result = unified_chat_workflow(
+                    str(data.get("task", "")),
+                    str(data.get("content", "")),
+                    str(data.get("provider", "auto")),
+                    str(data.get("model", "auto")),
+                )
+            elif self.path == "/api/parse":
+                if data.get("file_bytes") is not None:
+                    result = parse_document_bytes(str(data.get("filename", "upload")), data["file_bytes"])
+                else:
+                    result = parse_document_file(str(data.get("path", "")))
+            elif self.path == "/api/index":
+                if data.get("file_bytes") is not None:
+                    parsed = parse_document_bytes(str(data.get("filename", "upload")), data["file_bytes"])
+                    name, content = parsed["name"], parsed["text"]
+                else:
+                    name, content = str(data.get("name", "document")), str(data.get("content", ""))
+                result = _document_store().index(name, content)
+            elif self.path == "/api/search":
+                result = {"results": _document_store().search(str(data.get("query", "")), int(data.get("limit", 5)))}
+            elif self.path == "/api/pc/plan":
+                result = plan_actions(data.get("actions"))
+            elif self.path == "/api/pc/execute":
+                result = execute_actions(data.get("actions"))
+            elif self.path == "/api/jev/decision":
+                result = jev_decide(data)
             else:
                 self._send_json({"error": "not found"}, 404)
                 return
@@ -480,6 +553,11 @@ def self_check() -> None:
     freetoken_self_check()
     freetoken_manager_self_check()
     token_counter_self_check()
+    provider_self_check()
+    store_self_check()
+    pc_agent_self_check()
+    jev_self_check()
+    assert "/api/tokenizer" in "/api/tokenizer"
     print("TokenFlow self-check: PASS")
 
 

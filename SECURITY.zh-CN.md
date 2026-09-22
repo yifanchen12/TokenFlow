@@ -14,6 +14,9 @@ TokenFlow 是本地开发工具，不是多租户服务。默认信任边界是�
 2. `POST /api/freetoken/install` 可以打开本地安装器；
 3. `POST /api/freetoken/start` 可以启动本地模型服务；
 4. Harness 可能根据自身配置读取文件、调用工具或执行命令。
+5. `POST /api/parse` 可以读取请求中明确提供的本地路径；如果调用方不应授予路径访问权，优先使用 multipart 上传。
+6. `POST /api/pc/execute` 只有在显式环境开关开启后才能控制本地鼠标键盘。
+7. `POST /api/jev/decision` 会把调用方的决策 payload 发送到配置的 Jev 端点。
 
 ## 必须遵守的部署规则
 
@@ -23,6 +26,8 @@ TokenFlow 是本地开发工具，不是多租户服务。默认信任边界是�
 - 不要在任务内容中发送密钥；提示词、文档、源码和 Harness 输出都应视为敏感数据；
 - 除非人类明确批准变更，否则使用 Codex 只读模式和 Claude 计划模式；
 - 接受任何命令、文件修改或外部副作用前先人工复核；
+- 不要将 `/api/parse`、`/api/pc/execute` 或 `/api/jev/decision` 暴露给不可信调用方；
+- 将云端、Laya 和 Jev 配置视为数据外发配置，启用前审查端点和 payload；
 - 核验安装器来源和签名；不要为绕过安全警告而关闭杀毒软件或执行策略。
 
 ## 密钥处理
@@ -55,5 +60,7 @@ TokenFlow 是本地开发工具，不是多租户服务。默认信任边界是�
 TokenFlow 不再分发 FreeToken 运行时 wheel、模型权重、Codex、Claude、DSH 或安装器二进制。用户必须从官方来源获取这些内容，并遵守其许可证和使用条款。
 
 Windows 一键辅助脚本只负责定位用户提供的安装器并在用户确认下打开；它不是签名验证器，也不会静默安装软件。
+
+PC Agent 层采用白名单并默认 dry-run。`TOKENFLOW_PC_AGENT_EXECUTE=1` 只是本地显式开关，不等同于安全审批。
 
 English version: [SECURITY.md](SECURITY.md)。
