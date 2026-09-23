@@ -50,7 +50,9 @@ Open <http://127.0.0.1:8765>. On Windows, double-click `start_tokenflow.cmd`.
 
 ### Windows executable
 
-Run `build_tokenflow_exe.cmd` once to build `dist/TokenFlow.exe`. The generated executable is windowless, starts the local server, and opens the TokenFlow console in the default browser. The `dist/` directory is intentionally ignored by Git because binaries should be distributed through a reviewed release artifact rather than source commits.
+Download the ready-to-run [Windows executable from the latest GitHub Release](https://github.com/yifanchen12/TokenFlow/releases/latest/download/TokenFlow.exe), or run `build_tokenflow_exe.cmd` to build `dist/TokenFlow.exe` yourself. The executable starts the local server and opens the TokenFlow console in the default browser. Use **Close service** in the page to stop it. Generated binaries stay out of source commits and are distributed as release assets.
+
+The SQLite cache is stored in the current user's application-data directory by default (for example, `%LOCALAPPDATA%\TokenFlow\tokenflow.db` on Windows). Set `TOKENFLOW_DB_PATH` to use a different location. Opening the status page does not create the database; it is initialized when documents are indexed.
 
 ## FreeToken integration
 
@@ -96,6 +98,8 @@ TokenFlow never prints or stores provider keys. Laya has no assumed public endpo
 
 `POST /api/parse` accepts JSON with a local `path` or a `multipart/form-data` upload. Supported formats are TXT, Markdown, common source/text files, DOCX, XLSX, and PDF when `pypdf` is installed.
 
+JSON requests are limited to 2 MB. Uploaded files are limited to 20 MB per file.
+
 `POST /api/index` stores extracted text in SQLite and creates a deterministic hashing-vector cache. `POST /api/search` retrieves the highest-scoring chunks. This is a local lexical/vector cache, not a claim of embedding-model semantic quality.
 
 Optional parsers:
@@ -107,6 +111,8 @@ python -m pip install pypdf
 ## PC Agent safety boundary
 
 `POST /api/pc/plan` validates an allow-list of `move`, `click`, `type`, `key`, and `wait` actions and always returns a confirmation-required dry run. `POST /api/pc/execute` remains dry-run unless `TOKENFLOW_PC_AGENT_EXECUTE=1` is explicitly set and the optional `pyautogui` package is installed.
+
+The UI lets you edit the PC action JSON and preview the validated plan. Previewing never executes the actions. `POST /api/shutdown` stops the local server and is exposed by the UI's **Close service** button.
 
 There is no shell action, arbitrary executable action, or automatic screen decision loop. Review every action before enabling execution.
 
@@ -153,6 +159,7 @@ GET  /api/providers
 GET  /api/tokenizer
 GET  /api/store
 GET  /api/local-models
+POST /api/shutdown
 POST /api/run
 POST /api/local-chat
 POST /api/chat

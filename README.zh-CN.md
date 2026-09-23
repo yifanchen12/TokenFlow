@@ -50,7 +50,9 @@ python tokenflow.py
 
 ### Windows 可执行文件
 
-首次执行 `build_tokenflow_exe.cmd` 后，会生成 `dist/TokenFlow.exe`。该 EXE 无控制台窗口，会启动本地服务并自动打开默认浏览器中的 TokenFlow 控制台。`dist/` 被 Git 忽略，因为二进制文件应通过经过审查的 Release 附件分发，而不是提交到源码分支。
+可从 [GitHub 最新 Release 下载 Windows 可执行文件](https://github.com/yifanchen12/TokenFlow/releases/latest/download/TokenFlow.exe)，也可以执行 `build_tokenflow_exe.cmd` 自行生成 `dist/TokenFlow.exe`。程序会启动本地服务并在默认浏览器打开 TokenFlow 控制台；使用页面上的“关闭服务”按钮即可停止。二进制文件不提交到源码分支，而通过 Release 附件分发。
+
+SQLite 缓存默认保存在当前用户的应用数据目录（Windows 示例：`%LOCALAPPDATA%\TokenFlow\tokenflow.db`）。设置 `TOKENFLOW_DB_PATH` 可指定其他位置。打开状态页不会创建数据库；首次索引文档时才会初始化。
 
 ## FreeToken 集成
 
@@ -96,6 +98,8 @@ TokenFlow 不打印或保存提供商密钥。本仓库不猜测 Laya 的固定�
 
 `POST /api/parse` 支持带本地 `path` 的 JSON 请求，也支持 `multipart/form-data` 文件上传。支持 TXT、Markdown、常见源码/文本文件、DOCX、XLSX；安装 `pypdf` 后支持 PDF 文本提取。
 
+JSON 请求上限为 2 MB；上传文件上限为每个文件 20 MB。
+
 `POST /api/index` 将提取文本保存到 SQLite，并生成确定性的哈希向量缓存；`POST /api/search` 返回相似度最高的文本分块。这是本地词法/向量检索缓存，不宣称等同于语义 Embedding 模型。
 
 可选 PDF 解析依赖：
@@ -107,6 +111,8 @@ python -m pip install pypdf
 ## PC Agent 安全边界
 
 `POST /api/pc/plan` 只接受 `move`、`click`、`type`、`key`、`wait` 五类动作，并始终返回需要确认的 dry-run。`POST /api/pc/execute` 只有在显式设置 `TOKENFLOW_PC_AGENT_EXECUTE=1` 且安装可选依赖 `pyautogui` 后才会执行。
+
+页面允许编辑 PC 动作 JSON 并预览校验后的计划；预览不会执行动作。`POST /api/shutdown` 用于停止本地服务，页面的“关闭服务”按钮会调用该接口。
 
 系统不支持 Shell 动作、任意可执行文件动作或自动屏幕决策循环。启用执行前必须人工审查每个动作。
 
@@ -153,6 +159,7 @@ GET  /api/providers
 GET  /api/tokenizer
 GET  /api/store
 GET  /api/local-models
+POST /api/shutdown
 POST /api/run
 POST /api/local-chat
 POST /api/chat

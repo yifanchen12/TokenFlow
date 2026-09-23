@@ -8,6 +8,7 @@ import math
 import os
 import re
 import sqlite3
+import sys
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -15,7 +16,16 @@ from typing import Any
 
 
 def _db_path() -> Path:
-    return Path(os.environ.get("TOKENFLOW_DB_PATH", "tokenflow.db")).expanduser()
+    override = os.environ.get("TOKENFLOW_DB_PATH")
+    if override:
+        return Path(override).expanduser()
+    if os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    return base / "TokenFlow" / "tokenflow.db"
 
 
 def _vector(text: str, dimensions: int = 64) -> list[float]:
@@ -33,10 +43,11 @@ def _cosine(left: list[float], right: list[float]) -> float:
 
 
 class DocumentStore:
-    def __init__(self, path: str | None = None):
+    def __init__(self, path: str | None = None, initialize: bool = True):
         self.path = Path(path).expanduser() if path else _db_path()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._init()
+        if initialize:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self._init()
 
     @contextmanager
     def _connect(self):
@@ -104,9 +115,15 @@ class DocumentStore:
         return sorted(ranked, key=lambda item: item["score"], reverse=True)[: max(1, min(limit, 20))]
 
     def status(self) -> dict[str, Any]:
-        with self._connect() as db:
+        if not self.path.is_file():
+            return {"database": self.path.name, "documents": 0, "chunks": 0, "vector_backend": "hashing-64"}
+        db = sqlite3.connect(f"{self.path.resolve().as_uri()}?mode=ro", uri=True)
+        db.row_factory = sqlite3.Row
+        try:
             documents = db.execute("SELECT COUNT(*) AS count FROM documents").fetchone()["count"]
             chunks = db.execute("SELECT COUNT(*) AS count FROM chunks").fetchone()["count"]
+        finally:
+            db.close()
         return {"database": self.path.name, "documents": documents, "chunks": chunks, "vector_backend": "hashing-64"}
 
 

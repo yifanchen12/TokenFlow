@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 import time
 from email.parser import BytesParser
 from email.policy import default as email_default
@@ -420,7 +421,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             self._send_json(provider_status())
             return
         if self.path == "/api/store":
-            self._send_json(_document_store().status())
+            self._send_json(DocumentStore(initialize=False).status())
             return
         if self.path in ("/", "/index.html"):
             body = PAGE.encode("utf-8")
@@ -433,6 +434,10 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
         self._send_json({"error": "not found"}, 404)
 
     def do_POST(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+        if self.path == "/api/shutdown":
+            self._send_json({"status": "shutting_down"})
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
+            return
         if self.path not in (
             "/api/run",
             "/api/execute",
@@ -451,11 +456,19 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             return
         try:
             size = int(self.headers.get("Content-Length", "0"))
-            if size > 2_000_000:
-                raise ValueError("请求内容不能超过 2 MB")
-            raw = self.rfile.read(size)
+            if size < 0:
+                raise ValueError("Content-Length 无效")
             content_type = self.headers.get("Content-Type", "application/json")
-            if content_type.lower().startswith("multipart/form-data"):
+            is_multipart = content_type.lower().startswith("multipart/form-data")
+            if is_multipart:
+                if self.path not in ("/api/parse", "/api/index"):
+                    raise ValueError("multipart/form-data 仅支持文件解析和索引")
+                if size > 20 * 1024 * 1024 + 64 * 1024:
+                    raise ValueError("上传请求不能超过 20 MB（不含少量封装开销）")
+            elif size > 2_000_000:
+                raise ValueError("JSON 请求内容不能超过 2 MB")
+            raw = self.rfile.read(size)
+            if is_multipart:
                 envelope = (
                     f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("utf-8") + raw
                 )
@@ -463,7 +476,10 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                 attachment = next((part for part in message.walk() if part is not message and part.get_filename()), None)
                 if not attachment:
                     raise ValueError("multipart 请求缺少文件字段")
-                data = {"filename": attachment.get_filename(), "file_bytes": attachment.get_payload(decode=True) or b""}
+                file_bytes = attachment.get_payload(decode=True) or b""
+                if len(file_bytes) > 20 * 1024 * 1024:
+                    raise ValueError("上传文件不能超过 20 MB")
+                data = {"filename": attachment.get_filename(), "file_bytes": file_bytes}
             else:
                 data = json.loads(raw.decode("utf-8"))
             if not isinstance(data, dict):
