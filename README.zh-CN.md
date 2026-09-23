@@ -80,7 +80,9 @@ Linux 用户请按照 FreeToken 官方文档安装并启动服务。
 
 ## 提供商路由
 
-`POST /api/chat` 支持 `provider: "auto" | "freetoken" | "ollama" | "laya" | "cloud"`。自动路由遵循 `TOKENFLOW_PROVIDER_ORDER`，默认顺序为 `freetoken,ollama,laya,cloud`。
+`POST /api/chat` 支持 `provider: "auto" | "freetoken" | "ollama" | "laya" | "cloud"`。自动路由遵循 `TOKENFLOW_PROVIDER_ORDER`，默认顺序为 `freetoken,ollama,laya,cloud`，但**只尝试 HTTP(S) 回环地址，且始终排除 `cloud`**；即使把 FreeToken、Ollama 或 Laya 配置为远程地址，也不会自动向其发送任务。没有可用本机端点时会报错，不会静默回退云端。明确指定提供商才允许使用其远程地址；页面会在显式选择时再次确认，直接调用 API 的客户端须自行确认外发。
+
+`POST /api/local-chat` 也只允许本机 FreeToken 地址；如果有意使用远程 FreeToken，请通过 `/api/chat` 明确指定 `provider: "freetoken"`。
 
 通过环境变量配置：
 
@@ -139,9 +141,27 @@ $env:TOKENFLOW_TIKTOKEN_ENCODING = "cl100k_base"
 
 通过 `GET /api/tokenizer` 查看当前后端。Tokenizer 只从本地加载，TokenFlow 不会自动下载模型文件。
 
+### 收益统计与质量评测
+
+`/api/run` 估算正文 Token；模型和 Harness 执行接口会把实际使用的可见提示词或消息文本计入基线与处理后估算。若候选内容没有降低该估算值，则直接发送原文，并返回 `compression_applied: false`。`token_counting.scope` 标明统计范围；数字不包含模型隐藏开销，不等同于账单用量。
+
+运行内置的三类示例基准，不会连接模型或上传内容：
+
+```powershell
+python eval_workflow.py
+```
+
+需要比较同一模型对原文和候选压缩文本的答案时，明确指定已配置的提供商；这会向该端点发送两份提示词：
+
+```powershell
+python eval_workflow.py --provider freetoken --model <已安装模型名>
+```
+
+也可用 `--cases <JSON文件>` 提供自己的样本数组，每项包含 `task`、`content`、`must_keep`（关键原文片段数组）和模型评测时使用的 `expected_answer`。默认样本是人工构造的回归示例，不能证明一般任务的答案质量；当前固定首尾截取在这些样本中会丢掉中间关键事实。
+
 ## Harness 执行
 
-页面可以把压缩后的任务交给 Codex、Claude 或 DSH。代码任务优先 Codex，其它任务优先 Claude；长文本和代码任务优先 quality 模型。
+页面可以把处理后的任务交给 Codex、Claude 或 DSH；无估算收益时保留原文。代码任务优先 Codex，其它任务优先 Claude；长文本和代码任务优先 quality 模型。
 
 ```powershell
 $body = @{task="分析这段代码"; content="print('hello')"; harness="auto"; model="auto"} | ConvertTo-Json
@@ -191,13 +211,14 @@ POST /api/freetoken/start
 ```powershell
 python -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py
 python tokenflow.py --self-check
+python eval_workflow.py --self-check
 ```
 
 提交 Pull Request 前，请检查 diff 中是否包含密钥、绝对路径、日志、模型文件、凭据或未经审查的子进程行为。详见 [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md)。
 
 ## 当前边界
 
-- Token 数是启发式估算值，与具体模型无关；
+- Token 数可能是启发式估算；即使使用可选 tokenizer，可见提示词估算也不是账单用量；
 - 预处理是确定性清洗和首尾截取，不是语义摘要；
 - 本地 HTTP 接口没有用户认证、配额和多用户隔离；进程级写令牌仅用于降低浏览器跨站请求风险；
 - TokenFlow 不再分发 FreeToken 运行时、模型权重或第三方 Harness；

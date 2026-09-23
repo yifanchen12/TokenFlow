@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
 
 
 class ProviderError(RuntimeError):
@@ -34,6 +36,29 @@ PROVIDERS = {
 def _base_url(spec: ProviderSpec) -> str | None:
     value = os.environ.get(spec.url_env, spec.default_url)
     return value.strip().rstrip("/") if value else None
+
+
+def is_loopback_url(url: str | None) -> bool:
+    if not url:
+        return False
+    try:
+        parsed = urlsplit(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+            return False
+        return parsed.hostname.lower() == "localhost" or ipaddress.ip_address(parsed.hostname).is_loopback
+    except ValueError:
+        return False
+
+
+def _auto_candidates(order: list[str]) -> list[str]:
+    return [name for name in order if name in PROVIDERS and name != "cloud" and is_loopback_url(_base_url(PROVIDERS[name]))]
+
+
+def chat_messages(task: str, content: str) -> list[dict[str, str]]:
+    return [
+        {"role": "system", "content": "你是 TokenFlow 的模型路由后端，请简洁、准确地完成任务。"},
+        {"role": "user", "content": f"任务：{task}\n\n内容：\n{content}"},
+    ]
 
 
 def _read_json(response: Any) -> dict[str, Any]:
@@ -147,13 +172,34 @@ def response_text(response: dict[str, Any]) -> str:
 
 
 def self_check() -> None:
+    from unittest.mock import patch
+
     assert choose_model(["Qwen3.6", "deepseek-coder"], "code") == "deepseek-coder"
     assert response_text({"choices": [{"message": {"content": "ok"}}]}) == "ok"
+    with patch.dict(os.environ, {
+        "TOKENFLOW_FREETOKEN_URL": "https://example.com",
+        "TOKENFLOW_OLLAMA_URL": "http://127.0.0.1:11434/v1",
+        "TOKENFLOW_LAYA_URL": "https://example.com",
+        "TOKENFLOW_CLOUD_URL": "http://127.0.0.1:9443/v1",
+    }):
+        assert _auto_candidates(["freetoken", "ollama", "laya", "cloud"]) == ["ollama"]
+        with patch("model_providers.OpenAICompatibleProvider") as client_class:
+            client_class.return_value.models.return_value = ["local-model"]
+            client_class.return_value.chat.return_value = {"choices": [{"message": {"content": "ok"}}]}
+            assert unified_chat("task", "content", "general")["provider"] == "ollama"
+            client_class.assert_called_once_with("ollama", timeout=20)
+            client_class.reset_mock()
+            assert unified_chat("task", "content", "general", provider="cloud")["provider"] == "cloud"
+            client_class.assert_called_once_with("cloud", timeout=20)
+    assert is_loopback_url("http://[::1]:1919/v1")
+    assert not is_loopback_url("http://127.0.0.1.example.com/v1")
 
 
 def unified_chat(task: str, content: str, task_type: str, provider: str = "auto", model: str = "auto") -> dict[str, Any]:
     order = [item.strip() for item in os.environ.get("TOKENFLOW_PROVIDER_ORDER", "freetoken,ollama,laya,cloud").split(",") if item.strip()]
-    candidates = [provider] if provider != "auto" else order
+    candidates = [provider] if provider != "auto" else _auto_candidates(order)
+    if provider == "auto" and not candidates:
+        raise ProviderError("自动路由未检测到本机模型端点；远程调用请明确选择提供商")
     errors: list[str] = []
     for name in candidates:
         if name not in PROVIDERS:
@@ -162,13 +208,7 @@ def unified_chat(task: str, content: str, task_type: str, provider: str = "auto"
         try:
             client = OpenAICompatibleProvider(name, timeout=20)
             selected = choose_model(client.models(), task_type, model)
-            response = client.chat(
-                selected,
-                [
-                    {"role": "system", "content": "你是 TokenFlow 的模型路由后端，请简洁、准确地完成任务。"},
-                    {"role": "user", "content": f"任务：{task}\n\n内容：\n{content}"},
-                ],
-            )
+            response = client.chat(selected, chat_messages(task, content))
             return {"provider": name, "model": selected, "result": response_text(response), "base_url": client.base_url}
         except ProviderError as exc:
             errors.append(f"{name}: {exc}")

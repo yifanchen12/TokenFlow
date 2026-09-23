@@ -16,7 +16,7 @@ import time
 from email.parser import BytesParser
 from email.policy import default as email_default
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlsplit
 
 from freetoken_provider import (
@@ -36,7 +36,7 @@ from freetoken_manager import (
 from token_counter import count_tokens, self_check as token_counter_self_check, status as token_counter_status
 from document_parser import DocumentParseError, parse_document_bytes, parse_document_file, self_check as document_parser_self_check
 from jev_provider import JevError, decide as jev_decide, self_check as jev_self_check
-from model_providers import ProviderError, provider_status, self_check as provider_self_check, unified_chat
+from model_providers import ProviderError, chat_messages, is_loopback_url, provider_status, self_check as provider_self_check, unified_chat
 from pc_agent import PCAgentError, execute_actions, plan_actions, self_check as pc_agent_self_check
 from tokenflow_store import DocumentStore, self_check as store_self_check
 
@@ -99,7 +99,7 @@ def build_plan(task_type: str) -> list[dict[str, str]]:
     ]
 
 
-def run_workflow(task: str, content: str) -> dict[str, Any]:
+def run_workflow(task: str, content: str, render_prompt: Callable[[str, str], str] | None = None) -> dict[str, Any]:
     task = task.strip()
     content = content.strip()
     if not task:
@@ -108,12 +108,16 @@ def run_workflow(task: str, content: str) -> dict[str, Any]:
         raise ValueError("content 不能为空")
 
     task_type = classify_task(task, content)
-    compressed = compact_content(content)
-    baseline_count = count_tokens(content)
-    optimized_count = count_tokens(compressed)
+    candidate = compact_content(content)
+    render = render_prompt or (lambda _task_type, value: value)
+    baseline_count = count_tokens(render(task_type, content))
+    candidate_count = count_tokens(render(task_type, candidate))
+    compression_applied = candidate != content and candidate_count["count"] < baseline_count["count"]
+    compressed = candidate if compression_applied else content
+    optimized_count = candidate_count if compression_applied else baseline_count
     baseline_tokens = baseline_count["count"]
     optimized_tokens = optimized_count["count"]
-    saved_tokens = max(0, baseline_tokens - optimized_tokens)
+    saved_tokens = baseline_tokens - optimized_tokens
     saved_ratio = round(saved_tokens / baseline_tokens, 4) if baseline_tokens else 0
 
     return {
@@ -127,10 +131,12 @@ def run_workflow(task: str, content: str) -> dict[str, Any]:
             "exact": baseline_count["exact"],
             "tokenizer": baseline_count["tokenizer"],
             "warning": baseline_count.get("warning"),
+            "scope": "visible_prompt" if render_prompt else "content",
         },
+        "compression_applied": compression_applied,
         "saved_tokens": saved_tokens,
         "saved_ratio": saved_ratio,
-        "note": "Token 数为启发式估算，不等同于具体云端模型的实际计费 Token。",
+        "note": "仅估算可见提示词文本；不包含模型隐藏开销，不等同于实际计费 Token。",
         "result": compressed,
     }
 
@@ -204,14 +210,14 @@ def choose_model(harness: str, task_type: str, content: str) -> str:
 
 def build_harness_prompt(task: str, task_type: str, compressed: str) -> str:
     return (
-        "你正在执行 TokenFlow 预处理后的任务。\n"
+        "你正在执行 TokenFlow 处理后的任务。\n"
         f"任务类型：{task_type}\n"
         f"用户任务：{task}\n\n"
-        "请基于以下已压缩内容完成任务。当前调用默认处于只读或计划模式，"
+        "请基于以下内容完成任务。当前调用默认处于只读或计划模式，"
         "除非用户明确要求，不要修改文件、删除数据或执行高风险操作。\n\n"
-        "--- 预处理内容 ---\n"
+        "--- 输入内容 ---\n"
         f"{compressed}\n"
-        "--- 预处理内容结束 ---"
+        "--- 输入内容结束 ---"
     )
 
 
@@ -322,7 +328,7 @@ def execute_harness(harness: str, model: str, prompt: str) -> dict[str, Any]:
 
 
 def execute_workflow(task: str, content: str, harness: str = "auto", model: str = "auto") -> dict[str, Any]:
-    workflow = run_workflow(task, content)
+    workflow = run_workflow(task, content, lambda task_type, value: build_harness_prompt(task.strip(), task_type, value))
     selected_harness = choose_harness(workflow["task_type"], workflow["result"]) if harness == "auto" else harness
     if selected_harness == "none":
         raise RuntimeError("没有检测到可用的 Codex、Claude 或 DSH Harness")
@@ -352,21 +358,24 @@ def local_models_status() -> dict[str, Any]:
     return {"available": True, "base_url": client.base_url, "models": model_ids(models)}
 
 
+def _local_messages(task: str, content: str) -> list[dict[str, str]]:
+    return [
+        {"role": "system", "content": "你是 TokenFlow 的本地预处理模型，请简洁、准确地完成任务。"},
+        {"role": "user", "content": f"任务：{task}\n\n内容：\n{content}"},
+    ]
+
+
 def local_chat_workflow(task: str, content: str, requested_model: str = "auto") -> dict[str, Any]:
-    workflow = run_workflow(task, content)
+    workflow = run_workflow(task, content, lambda _task_type, value: json.dumps(_local_messages(task.strip(), value), ensure_ascii=False))
     client = _freetoken_client()
+    if not is_loopback_url(client.base_url):
+        raise FreeTokenError("本地模型接口只允许本机地址；远程 FreeToken 请在统一模型路由中显式选择")
     health = client.health()
     if not health["available"]:
         raise FreeTokenError(health["error"])
     models = client.list_models()
     selected_model = choose_local_model(models, workflow["task_type"], requested_model)
-    response = client.chat(
-        selected_model,
-        [
-            {"role": "system", "content": "你是 TokenFlow 的本地预处理模型，请简洁、准确地完成任务。"},
-            {"role": "user", "content": f"任务：{task.strip()}\n\n内容：\n{workflow['result']}"},
-        ],
-    )
+    response = client.chat(selected_model, _local_messages(task.strip(), workflow["result"]))
     return {
         **workflow,
         "provider": "freetoken",
@@ -377,7 +386,7 @@ def local_chat_workflow(task: str, content: str, requested_model: str = "auto") 
 
 
 def unified_chat_workflow(task: str, content: str, provider: str = "auto", model: str = "auto") -> dict[str, Any]:
-    workflow = run_workflow(task, content)
+    workflow = run_workflow(task, content, lambda _task_type, value: json.dumps(chat_messages(task.strip(), value), ensure_ascii=False))
     routed = unified_chat(task.strip(), workflow["result"], workflow["task_type"], provider, model)
     return {**workflow, **routed}
 
@@ -591,6 +600,21 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
 
 
 def self_check() -> None:
+    from unittest.mock import patch
+
+    with patch.dict(os.environ, {"TOKENFLOW_FREETOKEN_URL": "https://example.invalid/v1"}):
+        try:
+            local_chat_workflow("task", "content")
+        except FreeTokenError:
+            pass
+        else:
+            raise AssertionError("local chat must reject remote endpoints")
+    unchanged = run_workflow("test", "x" * (MAX_COMPRESSED_CHARS + 1))
+    assert not unchanged["compression_applied"]
+    assert unchanged["baseline"] == unchanged["optimized"] and unchanged["saved_tokens"] == 0
+    assert unchanged["result"] == "x" * (MAX_COMPRESSED_CHARS + 1)
+    wrapped = run_workflow("test", "x" * 5000, lambda _task_type, value: "prefix:" + value)
+    assert wrapped["compression_applied"] and wrapped["token_counting"]["scope"] == "visible_prompt"
     code, out, err, out_cut, err_cut, timed_out = _run_bounded(
         [sys.executable, "-c", "import sys; print('x' * 100000); print('y' * 100000, file=sys.stderr)"],
         os.getcwd(), 5,

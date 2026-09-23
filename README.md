@@ -80,7 +80,9 @@ Linux users should install and start FreeToken according to its official documen
 
 ## Provider routing
 
-`POST /api/chat` accepts `provider: "auto" | "freetoken" | "ollama" | "laya" | "cloud"`. Automatic routing follows `TOKENFLOW_PROVIDER_ORDER`, which defaults to `freetoken,ollama,laya,cloud`.
+`POST /api/chat` accepts `provider: "auto" | "freetoken" | "ollama" | "laya" | "cloud"`. Automatic routing follows `TOKENFLOW_PROVIDER_ORDER`, which defaults to `freetoken,ollama,laya,cloud`, but **only tries HTTP(S) loopback endpoints and always excludes `cloud`**. Even a FreeToken, Ollama, or Laya endpoint configured with a remote URL is excluded from automatic routing. If no local endpoint works, TokenFlow returns an error rather than silently falling back to the cloud. Explicit provider selection can use its configured remote URL; the browser asks for confirmation, while direct API clients must manage that decision themselves.
+
+`POST /api/local-chat` also requires a loopback FreeToken URL. To intentionally use remote FreeToken, call `/api/chat` with `provider: "freetoken"`.
 
 Configure providers with environment variables:
 
@@ -139,9 +141,27 @@ $env:TOKENFLOW_TIKTOKEN_ENCODING = "cl100k_base"
 
 Use `GET /api/tokenizer` to inspect the active backend. Tokenizer loading is local-only; TokenFlow does not download model files automatically.
 
+### Savings and quality checks
+
+`/api/run` estimates content tokens. Model and Harness execution routes estimate the visible prompt/message text actually sent for both the baseline and processed candidate. If the candidate does not reduce that estimate, TokenFlow sends the original content and returns `compression_applied: false`. `token_counting.scope` identifies the measurement scope. These estimates exclude hidden model overhead and are not billable usage.
+
+Run the three illustrative offline cases without connecting to any model or uploading content:
+
+```powershell
+python eval_workflow.py
+```
+
+To compare answers from the same configured model on raw and candidate-compressed prompts, explicitly select a provider; this sends both prompts to that endpoint:
+
+```powershell
+python eval_workflow.py --provider freetoken --model <installed-model-id>
+```
+
+Supply your own JSON array with `--cases <JSON-file>`. Each case needs `task`, `content`, and a `must_keep` array of literal facts; model comparisons also need `expected_answer`. Built-in cases are synthetic regression examples, not evidence of general answer quality. The current head-tail compressor loses middle facts in those examples.
+
 ## Harness execution
 
-The page can pass the compressed task to Codex, Claude, or DSH. Code tasks prefer Codex; other tasks prefer Claude. Long and code tasks prefer the quality model.
+The page can pass the processed task to Codex, Claude, or DSH; it preserves the original when there is no estimated saving. Code tasks prefer Codex; other tasks prefer Claude. Long and code tasks prefer the quality model.
 
 ```powershell
 $body = @{task="Analyze this code"; content="print('hello')"; harness="auto"; model="auto"} | ConvertTo-Json
@@ -191,13 +211,14 @@ Read [SECURITY.md](SECURITY.md) before deployment. Keep the server on `127.0.0.1
 ```powershell
 python -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py
 python tokenflow.py --self-check
+python eval_workflow.py --self-check
 ```
 
 Before a pull request, scan the diff for secrets, absolute paths, generated logs, model files, credentials, and unintended subprocess changes. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Limitations
 
-- Token estimates are heuristic and model-independent.
+- Token estimates may be heuristic; even with an optional tokenizer, visible-prompt counts are not billable usage.
 - Preprocessing is deterministic cleaning and head-tail extraction, not semantic summarization.
 - The local HTTP API has no user authentication, quotas, or multi-user isolation; its per-process write token only mitigates browser-originated cross-site requests.
 - TokenFlow does not redistribute FreeToken runtime files, model weights, or third-party Harnesses.

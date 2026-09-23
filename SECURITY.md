@@ -29,6 +29,8 @@ The following endpoints and capabilities can cause local side effects:
 - Review every command, file modification, or external side effect before accepting it.
 - Do not expose `/api/parse`, `/api/pc/execute`, or `/api/jev/decision` to untrusted callers.
 - Treat cloud, Laya, and Jev configuration as data egress configuration; review the endpoint and payload before enabling it.
+- `/api/chat` in `auto` mode only tries loopback endpoints. Explicit provider selection may send task content to that provider's configured remote URL; the browser confirmation does not replace approval in direct API clients.
+- `/api/local-chat` only accepts a loopback FreeToken URL; remote FreeToken requires explicit `/api/chat` provider selection.
 - Verify installer provenance and signatures where available. Do not disable antivirus or execution policy to bypass a warning.
 
 ## Browser write token
