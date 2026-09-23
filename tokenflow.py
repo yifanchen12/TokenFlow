@@ -10,6 +10,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import sys
 import threading
 import time
 from email.parser import BytesParser
@@ -33,7 +34,7 @@ from freetoken_manager import (
     status as freetoken_status,
 )
 from token_counter import count_tokens, self_check as token_counter_self_check, status as token_counter_status
-from document_parser import DocumentParseError, parse_document_bytes, parse_document_file
+from document_parser import DocumentParseError, parse_document_bytes, parse_document_file, self_check as document_parser_self_check
 from jev_provider import JevError, decide as jev_decide, self_check as jev_self_check
 from model_providers import ProviderError, provider_status, self_check as provider_self_check, unified_chat
 from pc_agent import PCAgentError, execute_actions, plan_actions, self_check as pc_agent_self_check
@@ -43,6 +44,7 @@ from tokenflow_store import DocumentStore, self_check as store_self_check
 MAX_COMPRESSED_CHARS = 2400
 MAX_EXEC_SECONDS = 90
 MAX_OUTPUT_CHARS = 20000
+MAX_OUTPUT_BYTES = MAX_OUTPUT_CHARS * 4
 SESSION_TOKEN = secrets.token_urlsafe(32)
 HARNESS_NAMES = ("codex", "claude", "dsh")
 DEFAULT_MODELS = {
@@ -249,11 +251,47 @@ def build_harness_args(
     return executable + ["--profile", profile, "--model", model, prompt]
 
 
-def _clip_output(value: str) -> str:
+def _clip_output(value: str, truncated: bool = False) -> str:
     value = value.strip()
-    if len(value) <= MAX_OUTPUT_CHARS:
+    if len(value) <= MAX_OUTPUT_CHARS and not truncated:
         return value
     return value[:MAX_OUTPUT_CHARS] + "\n...[output truncated]..."
+
+
+def _run_bounded(command: list[str], cwd: str, timeout: float) -> tuple[int, str, str, bool, bool, bool]:
+    process = subprocess.Popen(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False, bufsize=0)
+    buffers = [bytearray(), bytearray()]
+    truncated = [False, False]
+
+    def drain(stream: Any, index: int) -> None:
+        try:
+            with stream:
+                while chunk := stream.read(8192):
+                    remaining = MAX_OUTPUT_BYTES - len(buffers[index])
+                    buffers[index].extend(chunk[:remaining])
+                    if len(chunk) > remaining:
+                        truncated[index] = True
+        except (OSError, ValueError):
+            pass
+
+    threads = [threading.Thread(target=drain, args=(stream, index), daemon=True)
+               for index, stream in enumerate((process.stdout, process.stderr))]
+    for thread in threads:
+        thread.start()
+    timed_out = False
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        process.kill()
+        process.wait()
+    for thread in threads:
+        thread.join(timeout=1)
+    for stream in (process.stdout, process.stderr):
+        if stream and not stream.closed:
+            stream.close()
+    return (process.returncode, buffers[0].decode(errors="replace"), buffers[1].decode(errors="replace"),
+            truncated[0], truncated[1], timed_out)
 
 
 def execute_harness(harness: str, model: str, prompt: str) -> dict[str, Any]:
@@ -262,33 +300,24 @@ def execute_harness(harness: str, model: str, prompt: str) -> dict[str, Any]:
         raise RuntimeError(f"未检测到可用的 {harness} 命令")
     command = build_harness_args(harness, model, prompt, os.getcwd(), executable)
     started = time.monotonic()
-    try:
-        completed = subprocess.run(
-            command,
-            cwd=os.getcwd(),
-            capture_output=True,
-            text=True,
-            timeout=MAX_EXEC_SECONDS,
-            check=False,
-            shell=False,
-        )
-    except subprocess.TimeoutExpired as exc:
+    exit_code, output, error, output_truncated, error_truncated, timed_out = _run_bounded(command, os.getcwd(), MAX_EXEC_SECONDS)
+    if timed_out:
         return {
             "ok": False,
             "harness": harness,
             "model": model,
             "duration_ms": round((time.monotonic() - started) * 1000),
             "error": f"执行超过 {MAX_EXEC_SECONDS} 秒，已终止",
-            "output": _clip_output(str(exc.stdout or "")),
+            "output": _clip_output(output, output_truncated),
         }
     return {
-        "ok": completed.returncode == 0,
+        "ok": exit_code == 0,
         "harness": harness,
         "model": model,
         "duration_ms": round((time.monotonic() - started) * 1000),
-        "exit_code": completed.returncode,
-        "output": _clip_output(completed.stdout),
-        "error": _clip_output(completed.stderr),
+        "exit_code": exit_code,
+        "output": _clip_output(output, output_truncated),
+        "error": _clip_output(error, error_truncated),
     }
 
 
@@ -562,6 +591,16 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
 
 
 def self_check() -> None:
+    code, out, err, out_cut, err_cut, timed_out = _run_bounded(
+        [sys.executable, "-c", "import sys; print('x' * 100000); print('y' * 100000, file=sys.stderr)"],
+        os.getcwd(), 5,
+    )
+    assert code == 0 and not timed_out and out_cut and err_cut
+    assert len(out.encode()) <= MAX_OUTPUT_BYTES and len(err.encode()) <= MAX_OUTPUT_BYTES
+    code, out, err, out_cut, err_cut, timed_out = _run_bounded(
+        [sys.executable, "-c", "import time; time.sleep(2)"], os.getcwd(), 0.1,
+    )
+    assert timed_out and code != 0
     result = run_workflow("分析这段 Python 代码", "def add(a, b):\n    return a + b\n" * 200)
     assert result["task_type"] == "code"
     assert result["saved_tokens"] > 0
@@ -592,6 +631,7 @@ def self_check() -> None:
     token_counter_self_check()
     provider_self_check()
     store_self_check()
+    document_parser_self_check()
     pc_agent_self_check()
     jev_self_check()
     assert "/api/tokenizer" in "/api/tokenizer"
