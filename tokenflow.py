@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import threading
@@ -14,6 +16,7 @@ from email.parser import BytesParser
 from email.policy import default as email_default
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
+from urllib.parse import urlsplit
 
 from freetoken_provider import (
     FreeTokenClient,
@@ -40,6 +43,7 @@ from tokenflow_store import DocumentStore, self_check as store_self_check
 MAX_COMPRESSED_CHARS = 2400
 MAX_EXEC_SECONDS = 90
 MAX_OUTPUT_CHARS = 20000
+SESSION_TOKEN = secrets.token_urlsafe(32)
 HARNESS_NAMES = ("codex", "claude", "dsh")
 DEFAULT_MODELS = {
     "codex": {"fast": "gpt-5.6-luna", "quality": "gpt-5.6-sol"},
@@ -353,43 +357,39 @@ def _document_store() -> DocumentStore:
     return DocumentStore()
 
 
-LEGACY_PAGE = """<!doctype html>
-<html lang="zh-CN">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TokenFlow MVP</title>
-<style>
-body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;max-width:960px;margin:40px auto;padding:0 20px;color:#172033;background:#f6f8fb}
-main{background:#fff;padding:28px;border-radius:14px;box-shadow:0 8px 30px #17203318}
-h1{margin-top:0}.muted{color:#5d6879}label{display:block;font-weight:600;margin:16px 0 6px}
-input,textarea,button{font:inherit;width:100%;box-sizing:border-box;border:1px solid #cbd3df;border-radius:8px;padding:10px}
-textarea{min-height:220px;resize:vertical}button{margin-top:18px;background:#2457d6;color:white;border:0;cursor:pointer}
-pre{white-space:pre-wrap;background:#101827;color:#e6edf7;padding:16px;border-radius:8px;overflow:auto}
-</style>
-<main><h1>TokenFlow</h1><p class="muted">本地低 Token 执行流程 V2。先压缩内容，再按需交给本机 Harness。</p>
-<label for="task">任务</label><input id="task" value="总结下面的文档并提取关键结论">
-<label for="content">内容</label><textarea id="content" placeholder="粘贴文档、代码或表格内容"></textarea>
-<label for="harness">Harness</label><select id="harness"><option value="auto">自动选择</option><option value="codex">Codex</option><option value="claude">Claude</option><option value="dsh">DSH</option></select>
-<label for="provider">模型提供商</label><select id="provider"><option value="auto">自动路由</option><option value="freetoken">FreeToken</option><option value="ollama">Ollama</option><option value="laya">Laya 兼容端点</option><option value="cloud">云端兼容端点</option></select>
-<label for="model">模型</label><input id="model" value="auto" placeholder="auto 或具体模型名，例如 gpt-5.6-luna">
-<button onclick="runLocal()">仅本地处理</button><button onclick="localModel()">调用 FreeToken 本地模型</button><button onclick="unifiedModel()">统一模型路由</button><button onclick="execute()">交给 Harness 执行</button>
-<button onclick="installFreeToken()">安装 FreeToken</button><button onclick="startFreeToken()">启动 FreeToken</button>
-<p id="status" class="muted">正在检测本机 Harness 和 FreeToken...</p><h2>结果</h2><pre id="result">等待执行...</pre></main>
-<script>
-const result=document.getElementById('result');
-function request(path){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task:document.getElementById('task').value,content:document.getElementById('content').value,harness:document.getElementById('harness').value,provider:document.getElementById('provider').value,model:document.getElementById('model').value||'auto'})}).then(async r=>({status:r.status,data:await r.json()}))}
-async function runLocal(){result.textContent='本地处理中...';const r=await request('/api/run');result.textContent=JSON.stringify(r.data,null,2)}
-async function localModel(){result.textContent='正在调用 FreeToken 本地模型...';const r=await request('/api/local-chat');result.textContent=JSON.stringify(r.data,null,2)}
-async function unifiedModel(){result.textContent='正在按提供商路由模型...';const r=await request('/api/chat');result.textContent=JSON.stringify(r.data,null,2)}
-async function execute(){result.textContent='正在交给 Harness 执行...';const r=await request('/api/execute');result.textContent=JSON.stringify(r.data,null,2)}
-async function installFreeToken(){result.textContent='正在打开 FreeToken 安装器...';const r=await fetch('/api/freetoken/install',{method:'POST'}).then(async r=>({status:r.status,data:await r.json()}));result.textContent=JSON.stringify(r.data,null,2)}
-async function startFreeToken(){result.textContent='正在启动 FreeToken...';const r=await fetch('/api/freetoken/start',{method:'POST'}).then(async r=>({status:r.status,data:await r.json()}));result.textContent=JSON.stringify(r.data,null,2);setTimeout(loadHarnesses,1500)}
-async function loadHarnesses(){try{const data=await fetch('/api/harnesses').then(r=>r.json());const local=await fetch('/api/local-models').then(r=>r.json());const ft=await fetch('/api/freetoken').then(r=>r.json());const tokenizer=await fetch('/api/tokenizer').then(r=>r.json());const harnessText=Object.entries(data).map(([k,v])=>k+': '+(v.installed?'已安装':'未找到')+(v.note?'，'+v.note:'')).join(' | ');const localText=local.available?'FreeToken API: '+local.models.length+' 个模型':'FreeToken API: 未连接';const ftText=ft.installed?'ft '+(ft.version||'已安装')+(ft.running?'，服务运行中':'，服务未启动'):'ft 未安装';const tokenizerText='Tokenizer: '+tokenizer.backend+(tokenizer.exact?'（exact）':'（heuristic）');document.getElementById('status').textContent=harnessText+' | '+ftText+' | '+localText+' | '+tokenizerText}catch(e){document.getElementById('status').textContent='本地后端检测失败：'+e}}
-loadHarnesses();
-</script>
-"""
-
 from ui_page import PAGE
+
+
+def _valid_write_request(origin: str | None, host: str, token: str, server_port: int) -> bool:
+    if not token.isascii() or not secrets.compare_digest(token, SESSION_TOKEN):
+        return False
+    if not origin:
+        return True
+    try:
+        source = urlsplit(origin)
+        request_host = urlsplit(f"//{host}")
+        hostname = source.hostname
+        source_port = source.port if source.port is not None else 80
+        request_port = request_host.port if request_host.port is not None else 80
+        if (
+            source.scheme != "http"
+            or source.path
+            or source.query
+            or source.fragment
+            or source.username
+            or source.password
+            or request_host.username
+            or request_host.password
+            or request_host.path
+            or not hostname
+            or hostname.lower() != (request_host.hostname or "").lower()
+            or source_port != server_port
+            or request_port != server_port
+        ):
+            return False
+        return hostname.lower() == "localhost" or ipaddress.ip_address(hostname).is_loopback
+    except ValueError:
+        return False
 
 
 class TokenFlowHandler(BaseHTTPRequestHandler):
@@ -397,6 +397,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -404,6 +405,9 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
         if self.path == "/health":
             self._send_json({"status": "ok"})
+            return
+        if self.path == "/api/session":
+            self._send_json({"token": SESSION_TOKEN})
             return
         if self.path == "/api/harnesses":
             self._send_json(detect_harnesses())
@@ -424,9 +428,10 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             self._send_json(DocumentStore(initialize=False).status())
             return
         if self.path in ("/", "/index.html"):
-            body = PAGE.encode("utf-8")
+            body = PAGE.replace("__TOKENFLOW_SESSION_TOKEN__", SESSION_TOKEN).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -434,6 +439,14 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
         self._send_json({"error": "not found"}, 404)
 
     def do_POST(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+        if not _valid_write_request(
+            self.headers.get("Origin"),
+            self.headers.get("Host", ""),
+            self.headers.get("X-TokenFlow-Token", ""),
+            self.server.server_address[1],
+        ):
+            self._send_json({"error": "请求来源或会话令牌无效"}, 403)
+            return
         if self.path == "/api/shutdown":
             self._send_json({"status": "shutting_down"})
             threading.Thread(target=self.server.shutdown, daemon=True).start()
@@ -445,6 +458,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             "/api/chat",
             "/api/parse",
             "/api/index",
+            "/api/store/migrate",
             "/api/search",
             "/api/pc/plan",
             "/api/pc/execute",
@@ -522,6 +536,8 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                 else:
                     name, content = str(data.get("name", "document")), str(data.get("content", ""))
                 result = _document_store().index(name, content)
+            elif self.path == "/api/store/migrate":
+                result = _document_store().import_legacy()
             elif self.path == "/api/search":
                 result = {"results": _document_store().search(str(data.get("query", "")), int(data.get("limit", 5)))}
             elif self.path == "/api/pc/plan":
@@ -560,6 +576,9 @@ def self_check() -> None:
     assert choose_model("codex", "code", "short") == "gpt-5.6-sol"
     assert choose_model("codex", "general", "short") == "gpt-5.6-luna"
     assert choose_model("claude", "document", "short") == "sonnet"
+    assert _valid_write_request("http://127.0.0.1:8765", "127.0.0.1:8765", SESSION_TOKEN, 8765)
+    assert not _valid_write_request("http://example.com:8765", "127.0.0.1:8765", SESSION_TOKEN, 8765)
+    assert not _valid_write_request(None, "127.0.0.1:8765", "invalid", 8765)
     command = build_harness_args("codex", "gpt-5.6-luna", "prompt", ".", ["codex"])
     assert "read-only" in command and "--ephemeral" in command
     try:

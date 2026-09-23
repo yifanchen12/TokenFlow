@@ -115,8 +115,9 @@ class DocumentStore:
         return sorted(ranked, key=lambda item: item["score"], reverse=True)[: max(1, min(limit, 20))]
 
     def status(self) -> dict[str, Any]:
+        legacy_available = bool(self.legacy_database_paths())
         if not self.path.is_file():
-            return {"database": self.path.name, "documents": 0, "chunks": 0, "vector_backend": "hashing-64"}
+            return {"database": self.path.name, "documents": 0, "chunks": 0, "vector_backend": "hashing-64", "legacy_database_available": legacy_available}
         db = sqlite3.connect(f"{self.path.resolve().as_uri()}?mode=ro", uri=True)
         db.row_factory = sqlite3.Row
         try:
@@ -124,7 +125,39 @@ class DocumentStore:
             chunks = db.execute("SELECT COUNT(*) AS count FROM chunks").fetchone()["count"]
         finally:
             db.close()
-        return {"database": self.path.name, "documents": documents, "chunks": chunks, "vector_backend": "hashing-64"}
+        return {"database": self.path.name, "documents": documents, "chunks": chunks, "vector_backend": "hashing-64", "legacy_database_available": legacy_available}
+
+    def legacy_database_paths(self) -> list[Path]:
+        candidates = [Path.cwd() / "tokenflow.db", Path(__file__).resolve().parent / "tokenflow.db"]
+        if getattr(sys, "frozen", False):
+            candidates.append(Path(sys.executable).resolve().parent / "tokenflow.db")
+        current = self.path.resolve()
+        return list(dict.fromkeys(path.resolve() for path in candidates if path.is_file() and path.resolve() != current))
+
+    def _import_legacy_database(self, source: Path) -> int:
+        db = sqlite3.connect(f"{source.resolve().as_uri()}?mode=ro", uri=True)
+        db.row_factory = sqlite3.Row
+        try:
+            documents = db.execute("SELECT id, name FROM documents ORDER BY id").fetchall()
+            for document in documents:
+                chunks = db.execute(
+                    "SELECT content FROM chunks WHERE document_id=? ORDER BY chunk_index",
+                    (document["id"],),
+                ).fetchall()
+                self.index(str(document["name"]), "".join(row["content"] or "" for row in chunks))
+            return len(documents)
+        finally:
+            db.close()
+
+    def import_legacy(self) -> dict[str, Any]:
+        sources = self.legacy_database_paths()
+        imported = 0
+        try:
+            for source in sources:
+                imported += self._import_legacy_database(source)
+        except sqlite3.Error:
+            raise ValueError("旧缓存无法读取；原数据库未修改") from None
+        return {"legacy_databases": len(sources), "documents_processed": imported, "source_preserved": True}
 
 
 def self_check() -> None:
@@ -134,3 +167,20 @@ def self_check() -> None:
         store = DocumentStore(str(Path(directory) / "test.db"))
         store.index("test.txt", "alpha beta gamma")
         assert store.search("alpha", 1)[0]["name"] == "test.txt"
+        absent = Path(directory) / "not-created.db"
+        assert DocumentStore(str(absent), initialize=False).status()["documents"] == 0
+        assert not absent.exists()
+        old_path = Path(directory) / "tokenflow.db"
+        old_store = DocumentStore(str(old_path))
+        old_store.index("legacy.txt", "keep this legacy document")
+        migrated = DocumentStore(str(Path(directory) / "new.db"))
+        previous_cwd = Path.cwd()
+        try:
+            os.chdir(directory)
+            assert migrated.status()["legacy_database_available"]
+            assert migrated.import_legacy()["documents_processed"] == 1
+            assert migrated.import_legacy()["documents_processed"] == 1
+            assert migrated.status()["documents"] == 1
+        finally:
+            os.chdir(previous_cwd)
+        assert old_path.is_file()

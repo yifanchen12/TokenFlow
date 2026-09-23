@@ -54,6 +54,8 @@ python tokenflow.py
 
 SQLite 缓存默认保存在当前用户的应用数据目录（Windows 示例：`%LOCALAPPDATA%\TokenFlow\tokenflow.db`）。设置 `TOKENFLOW_DB_PATH` 可指定其他位置。打开状态页不会创建数据库；首次索引文档时才会初始化。
 
+如果在旧版工作目录或程序目录发现 `tokenflow.db`，缓存卡片会提供手动导入入口。文档会按内容去重并合并到当前缓存；旧数据库文件保持不变。
+
 ## FreeToken 集成
 
 FreeToken 是可选组件。TokenFlow 使用其本地 OpenAI 兼容接口：
@@ -143,8 +145,10 @@ $env:TOKENFLOW_TIKTOKEN_ENCODING = "cl100k_base"
 
 ```powershell
 $body = @{task="分析这段代码"; content="print('hello')"; harness="auto"; model="auto"} | ConvertTo-Json
+$session = Invoke-RestMethod http://127.0.0.1:8765/api/session
+$headers = @{"X-TokenFlow-Token"=$session.token}
 Invoke-RestMethod http://127.0.0.1:8765/api/execute `
-  -Method Post -ContentType "application/json" -Body $body
+  -Method Post -ContentType "application/json" -Headers $headers -Body $body
 ```
 
 默认 Codex 使用只读模式，Claude 使用计划模式。DSH 需要配置 `DSH_HOME` 和 profile。
@@ -158,6 +162,7 @@ GET  /api/freetoken
 GET  /api/providers
 GET  /api/tokenizer
 GET  /api/store
+GET  /api/session
 GET  /api/local-models
 POST /api/shutdown
 POST /api/run
@@ -166,6 +171,7 @@ POST /api/chat
 POST /api/execute
 POST /api/parse
 POST /api/index
+POST /api/store/migrate
 POST /api/search
 POST /api/pc/plan
 POST /api/pc/execute
@@ -174,7 +180,7 @@ POST /api/freetoken/install
 POST /api/freetoken/start
 ```
 
-安装和启动接口可以控制本地进程，不要将它们转发到公网反向代理。
+所有 POST 请求都必须携带 `GET /api/session` 返回的进程级令牌；浏览器请求还必须来自匹配的本机 Origin。该令牌用于降低跨站请求风险，不是用户身份认证。安装和启动接口可以控制本地进程，不要将它们转发到公网反向代理。
 
 ## 安全与隐私
 
@@ -193,7 +199,7 @@ python tokenflow.py --self-check
 
 - Token 数是启发式估算值，与具体模型无关；
 - 预处理是确定性清洗和首尾截取，不是语义摘要；
-- 本地 HTTP 接口没有认证、配额和多用户隔离；
+- 本地 HTTP 接口没有用户认证、配额和多用户隔离；进程级写令牌仅用于降低浏览器跨站请求风险；
 - TokenFlow 不再分发 FreeToken 运行时、模型权重或第三方 Harness；
 - 提供商是否可用取决于用户配置和网络条件；
 - PDF 提取需要可选 `pypdf`，本地模型接入不代表仓库包含模型权重；

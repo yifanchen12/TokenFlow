@@ -54,6 +54,8 @@ Download the ready-to-run [Windows executable from the latest GitHub Release](ht
 
 The SQLite cache is stored in the current user's application-data directory by default (for example, `%LOCALAPPDATA%\TokenFlow\tokenflow.db` on Windows). Set `TOKENFLOW_DB_PATH` to use a different location. Opening the status page does not create the database; it is initialized when documents are indexed.
 
+If an earlier version's `tokenflow.db` is found in the old working or application directory, the cache card offers an explicit import. Imported documents are deduplicated into the current cache; the old database is left untouched.
+
 ## FreeToken integration
 
 FreeToken is optional. TokenFlow uses its local OpenAI-compatible API:
@@ -143,8 +145,10 @@ The page can pass the compressed task to Codex, Claude, or DSH. Code tasks prefe
 
 ```powershell
 $body = @{task="Analyze this code"; content="print('hello')"; harness="auto"; model="auto"} | ConvertTo-Json
+$session = Invoke-RestMethod http://127.0.0.1:8765/api/session
+$headers = @{"X-TokenFlow-Token"=$session.token}
 Invoke-RestMethod http://127.0.0.1:8765/api/execute `
-  -Method Post -ContentType "application/json" -Body $body
+  -Method Post -ContentType "application/json" -Headers $headers -Body $body
 ```
 
 Codex uses read-only mode and Claude uses plan mode by default. DSH requires a configured `DSH_HOME` and profile.
@@ -158,6 +162,7 @@ GET  /api/freetoken
 GET  /api/providers
 GET  /api/tokenizer
 GET  /api/store
+GET  /api/session
 GET  /api/local-models
 POST /api/shutdown
 POST /api/run
@@ -166,6 +171,7 @@ POST /api/chat
 POST /api/execute
 POST /api/parse
 POST /api/index
+POST /api/store/migrate
 POST /api/search
 POST /api/pc/plan
 POST /api/pc/execute
@@ -174,7 +180,7 @@ POST /api/freetoken/install
 POST /api/freetoken/start
 ```
 
-The install and start endpoints control local processes. Do not forward them through a public reverse proxy.
+All POST requests require the per-process token returned by `GET /api/session`; browser requests also require a matching loopback Origin. The token reduces cross-site request risk but is not user authentication. The install and start endpoints control local processes. Do not forward them through a public reverse proxy.
 
 ## Security and privacy
 
@@ -193,7 +199,7 @@ Before a pull request, scan the diff for secrets, absolute paths, generated logs
 
 - Token estimates are heuristic and model-independent.
 - Preprocessing is deterministic cleaning and head-tail extraction, not semantic summarization.
-- The local HTTP API has no authentication, quotas, or multi-user isolation.
+- The local HTTP API has no user authentication, quotas, or multi-user isolation; its per-process write token only mitigates browser-originated cross-site requests.
 - TokenFlow does not redistribute FreeToken runtime files, model weights, or third-party Harnesses.
 - Provider availability depends on user configuration and network access.
 - PDF extraction requires the optional `pypdf` package; local model integrations do not imply model weights are included.

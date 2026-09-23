@@ -21,6 +21,7 @@ The following endpoints and capabilities can cause local side effects:
 ## Required deployment rules
 
 - Keep TokenFlow bound to `127.0.0.1`.
+- Every POST requires the per-process token from `GET /api/session`; browser POSTs must also carry a matching loopback Origin. This is CSRF mitigation, not authentication.
 - Do not use `--host 0.0.0.0` on an untrusted network.
 - Do not expose the server through port forwarding, a public reverse proxy, or a shared LAN without authentication, authorization, request limits, and audit logging.
 - Do not send secrets in task content. Treat prompts, documents, source code, and Harness output as sensitive data.
@@ -29,6 +30,10 @@ The following endpoints and capabilities can cause local side effects:
 - Do not expose `/api/parse`, `/api/pc/execute`, or `/api/jev/decision` to untrusted callers.
 - Treat cloud, Laya, and Jev configuration as data egress configuration; review the endpoint and payload before enabling it.
 - Verify installer provenance and signatures where available. Do not disable antivirus or execution policy to bypass a warning.
+
+## Browser write token
+
+The UI receives a random token for the current server process and sends it in `X-TokenFlow-Token` on POST requests. Local command-line clients should first request `GET /api/session` and use the returned token for each POST. The token is not a login credential or protection from other programs running as the same user; keep the service on loopback and do not treat it as LAN access control.
 
 ## Secret handling
 
