@@ -35,7 +35,7 @@ def evaluate(cases: list[dict[str, Any]], provider: str | None = None, model: st
         if not isinstance(task, str) or not isinstance(content, str) or not isinstance(facts, list) or not facts or not all(isinstance(fact, str) and fact for fact in facts):
             raise ValueError("评测样本需要 task、content 字符串和非空 must_keep 字符串数组")
         raw = content.strip()
-        candidate = compact_content(raw)
+        candidate = compact_content(raw, task=task)
         prompt = lambda _task_type, value: json.dumps(chat_messages(task.strip(), value), ensure_ascii=False)
         workflow = run_workflow(task, content, prompt)
         row = {
@@ -82,7 +82,13 @@ def main() -> None:
 
         assert len(report["cases"]) == 3
         assert all(row["raw_retains_facts"] for row in report["cases"])
-        assert any(not row["candidate_retains_facts"] for row in report["cases"])
+        assert all(row["candidate_retains_facts"] and row["compression_applied"] for row in report["cases"])
+        no_match = run_workflow("查找 ZZZ999 的值", "无关记录\n" * 600)
+        assert not no_match["compression_applied"] and no_match["saved_tokens"] == 0
+        too_many_matches = run_workflow("退款期限是几天？", "退款期限为7天。\n" * 600)
+        assert not too_many_matches["compression_applied"]
+        table = run_workflow("表格中 A17 行的数量是多少？", "编号,数量\n" + "B01,0\n" * 400 + "A17,42\n" + "B02,0\n" * 400)
+        assert table["compression_applied"] and "编号,数量" in table["result"] and "A17,42" in table["result"]
         with patch(f"{__name__}.OpenAICompatibleProvider") as client_class:
             client_class.return_value.models.return_value = ["test-model"]
             client_class.return_value.chat.return_value = {"choices": [{"message": {"content": "7"}}]}

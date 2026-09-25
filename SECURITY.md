@@ -2,7 +2,7 @@
 
 ## Scope
 
-This policy covers the TokenFlow source code and its default local HTTP server. It does not automatically cover FreeToken, Codex, Claude, DSH, model weights, operating systems, GPU drivers, or third-party installers.
+This policy covers the TokenFlow source code and its default local HTTP server. It does not automatically cover FreeToken, OmniRoute, Codex, Claude, DSH, model weights, operating systems, GPU drivers, or third-party installers.
 
 TokenFlow is a local developer tool, not a multi-tenant service. Its default trust boundary is the current user account and the loopback interface.
 
@@ -28,8 +28,9 @@ The following endpoints and capabilities can cause local side effects:
 - Use Codex read-only and Claude plan mode unless a human explicitly approves a change.
 - Review every command, file modification, or external side effect before accepting it.
 - Do not expose `/api/parse`, `/api/pc/execute`, or `/api/jev/decision` to untrusted callers.
-- Treat cloud, Laya, and Jev configuration as data egress configuration; review the endpoint and payload before enabling it.
-- `/api/chat` in `auto` mode only tries loopback endpoints. Explicit provider selection may send task content to that provider's configured remote URL; the browser confirmation does not replace approval in direct API clients.
+- Treat cloud, OmniRoute, Laya, and Jev configuration as data egress configuration; review the endpoint, upstream providers, billing policy, and payload before enabling it.
+- `/api/chat` in `auto` mode only tries eligible loopback endpoints and always excludes OmniRoute, even when its gateway runs locally. Explicit provider selection may send task content to that provider's configured remote URL; the browser confirmation does not replace approval in direct API clients.
+- `/api/execute` with `harness_backend="omniroute"` is opt-in for an explicitly selected Codex CLI invocation. The gateway may forward data remotely and incur charges. TokenFlow does not inspect or guarantee the gateway's upstream routing, quota, or fallback. Never place gateway keys in task text or URLs; supply `TOKENFLOW_OMNIROUTE_API_KEY` via the environment. Remote gateway URLs require HTTPS and a key. Per-invocation Codex overrides do not protect against other settings or tools in the user's Codex installation.
 - `/api/local-chat` only accepts a loopback FreeToken URL; remote FreeToken requires explicit `/api/chat` provider selection.
 - Verify installer provenance and signatures where available. Do not disable antivirus or execution policy to bypass a warning.
 

@@ -80,7 +80,7 @@ Linux 用户请按照 FreeToken 官方文档安装并启动服务。
 
 ## 提供商路由
 
-`POST /api/chat` 支持 `provider: "auto" | "freetoken" | "ollama" | "laya" | "cloud"`。自动路由遵循 `TOKENFLOW_PROVIDER_ORDER`，默认顺序为 `freetoken,ollama,laya,cloud`，但**只尝试 HTTP(S) 回环地址，且始终排除 `cloud`**；即使把 FreeToken、Ollama 或 Laya 配置为远程地址，也不会自动向其发送任务。没有可用本机端点时会报错，不会静默回退云端。明确指定提供商才允许使用其远程地址；页面会在显式选择时再次确认，直接调用 API 的客户端须自行确认外发。
+`POST /api/chat` 支持 `provider: "auto" | "freetoken" | "ollama" | "omniroute" | "laya" | "cloud"`。自动路由遵循 `TOKENFLOW_PROVIDER_ORDER`，默认顺序为 `freetoken,ollama,laya,cloud`，但**只尝试 HTTP(S) 回环地址，且始终排除 `cloud` 和 `omniroute`**。即使 OmniRoute 运行在本机，也可能把内容转发给远程或付费模型，因此必须显式选择。远程 FreeToken、Ollama、Laya 端点同样不会进入自动路由。没有符合条件的端点时会报错。明确指定提供商才允许使用其远程地址；页面会在显式选择时再次确认，直接调用 API 的客户端须自行确认外发。
 
 `POST /api/local-chat` 也只允许本机 FreeToken 地址；如果有意使用远程 FreeToken，请通过 `/api/chat` 明确指定 `provider: "freetoken"`。
 
@@ -89,6 +89,8 @@ Linux 用户请按照 FreeToken 官方文档安装并启动服务。
 ```text
 TOKENFLOW_FREETOKEN_URL       本地 FreeToken 地址，默认 http://127.0.0.1:1919
 TOKENFLOW_OLLAMA_URL          Ollama OpenAI 兼容地址，默认 http://127.0.0.1:11434/v1
+TOKENFLOW_OMNIROUTE_URL       OmniRoute /v1 地址，默认 http://127.0.0.1:20128/v1
+TOKENFLOW_OMNIROUTE_API_KEY   OmniRoute 的 Endpoint Key；已测试的本机部署及远程网关均需提供
 TOKENFLOW_LAYA_URL            用户自行提供的 Laya 兼容端点
 TOKENFLOW_LAYA_API_KEY        可选 Laya 密钥，只从环境变量读取
 TOKENFLOW_CLOUD_URL           用户自行提供的云端 OpenAI 兼容端点
@@ -96,7 +98,9 @@ TOKENFLOW_CLOUD_API_KEY       云端密钥，只从环境变量读取
 TOKENFLOW_PROVIDER_ORDER      逗号分隔的提供商顺序
 ```
 
-TokenFlow 不打印或保存提供商密钥。本仓库不猜测 Laya 的固定公网地址，请按实际部署配置。Jev 通过 `POST /api/jev/decision` 显式调用，使用 `JEV_API_KEY` 和可选的 `TOKENFLOW_JEV_URL`，不会被静默当作普通聊天模型调用。
+TokenFlow 不打印或保存提供商密钥。OmniRoute 需要用户从[上游项目](https://github.com/diegosouzapw/OmniRoute)单独安装并配置，本项目不自动安装或捆绑；聊天接口调用 `/v1/models` 和 `/v1/chat/completions`。地址须以 `/v1` 结尾，不得嵌入凭据或查询参数；远程网关必须使用 HTTPS。本仓库不猜测 Laya 的固定公网地址，请按实际部署配置。Jev 通过 `POST /api/jev/decision` 显式调用，使用 `JEV_API_KEY` 和可选的 `TOKENFLOW_JEV_URL`，不会被静默当作普通聊天模型调用。
+
+如果 OmniRoute 的 `/v1/models` 目录未列出已经配置的本地模型，请在 `/api/chat` 显式填写模型 ID（例如 `ollama-local/qwen3.5:9b`）；TokenFlow 会把它交给网关校验。`model: "auto"` 仍根据网关返回的目录选择，不保证选中本地模型。使用 `auto` 前请核对网关的路由与计费设置。
 
 ## 文档解析与缓存
 
@@ -143,7 +147,7 @@ $env:TOKENFLOW_TIKTOKEN_ENCODING = "cl100k_base"
 
 ### 收益统计与质量评测
 
-`/api/run` 估算正文 Token；模型和 Harness 执行接口会把实际使用的可见提示词或消息文本计入基线与处理后估算。若候选内容没有降低该估算值，则直接发送原文，并返回 `compression_applied: false`。`token_counting.scope` 标明统计范围；数字不包含模型隐藏开销，不等同于账单用量。
+`/api/run` 估算正文 Token；模型和 Harness 执行接口会把实际使用的可见提示词或消息文本计入基线与处理后估算。长内容只摘取与任务词匹配的原文行和相邻上下文；找不到匹配片段、片段过多或候选内容未降低估算值时发送原文，并返回 `compression_applied: false`。这是一种保守的启发式方法，不保证所有相关事实都被找到。`token_counting.scope` 标明统计范围；数字不包含模型隐藏开销，不等同于账单用量。
 
 运行内置的三类示例基准，不会连接模型或上传内容：
 
@@ -157,7 +161,7 @@ python eval_workflow.py
 python eval_workflow.py --provider freetoken --model <已安装模型名>
 ```
 
-也可用 `--cases <JSON文件>` 提供自己的样本数组，每项包含 `task`、`content`、`must_keep`（关键原文片段数组）和模型评测时使用的 `expected_answer`。默认样本是人工构造的回归示例，不能证明一般任务的答案质量；当前固定首尾截取在这些样本中会丢掉中间关键事实。
+也可用 `--cases <JSON文件>` 提供自己的样本数组，每项包含 `task`、`content`、`must_keep`（关键原文片段数组）和模型评测时使用的 `expected_answer`。默认样本是人工构造的回归示例，仅用于检查中段关键事实是否保留，不能证明一般任务的答案质量；后者仍需真实样本和同模型答案对比。
 
 ## Harness 执行
 
@@ -172,6 +176,8 @@ Invoke-RestMethod http://127.0.0.1:8765/api/execute `
 ```
 
 默认 Codex 使用只读模式，Claude 使用计划模式。DSH 需要配置 `DSH_HOME` 和 profile。
+
+若只想让 **TokenFlow 本次启动的 Codex CLI** 走 OmniRoute，请在 `/api/execute` 显式设置 `harness: "codex"`、`harness_backend: "omniroute"`，或在页面选择相同选项。默认 `harness_backend: "direct"` 保留原 Codex 路由。OmniRoute 模式通过本次命令参数配置 Codex 的 `/v1/responses` 提供商，不修改全局 Codex 配置。`model: "auto"` 会原样交给网关；为可预期的路由，建议显式选择网关已配置的模型或组合。上游账号、费用和故障回退由网关决定。网关必须已启动并支持 Responses API；此选项不是 Codex 桌面应用的全局设置。直接调用 API 的客户端应自行取得外发与可能计费的授权。
 
 ## HTTP 接口
 

@@ -80,7 +80,7 @@ Linux users should install and start FreeToken according to its official documen
 
 ## Provider routing
 
-`POST /api/chat` accepts `provider: "auto" | "freetoken" | "ollama" | "laya" | "cloud"`. Automatic routing follows `TOKENFLOW_PROVIDER_ORDER`, which defaults to `freetoken,ollama,laya,cloud`, but **only tries HTTP(S) loopback endpoints and always excludes `cloud`**. Even a FreeToken, Ollama, or Laya endpoint configured with a remote URL is excluded from automatic routing. If no local endpoint works, TokenFlow returns an error rather than silently falling back to the cloud. Explicit provider selection can use its configured remote URL; the browser asks for confirmation, while direct API clients must manage that decision themselves.
+`POST /api/chat` accepts `provider: "auto" | "freetoken" | "ollama" | "omniroute" | "laya" | "cloud"`. Automatic routing follows `TOKENFLOW_PROVIDER_ORDER`, which defaults to `freetoken,ollama,laya,cloud`, but **only tries HTTP(S) loopback endpoints and always excludes `cloud` and `omniroute`**. OmniRoute is excluded even on loopback because the gateway can forward requests to remote or paid models. Remote FreeToken, Ollama, and Laya endpoints are also excluded from automatic routing. If no eligible endpoint works, TokenFlow returns an error. Explicit provider selection can use its configured remote URL; the browser asks for confirmation, while direct API clients must manage that decision themselves.
 
 `POST /api/local-chat` also requires a loopback FreeToken URL. To intentionally use remote FreeToken, call `/api/chat` with `provider: "freetoken"`.
 
@@ -89,6 +89,8 @@ Configure providers with environment variables:
 ```text
 TOKENFLOW_FREETOKEN_URL       Local FreeToken endpoint; default http://127.0.0.1:1919
 TOKENFLOW_OLLAMA_URL          Ollama OpenAI-compatible endpoint; default http://127.0.0.1:11434/v1
+TOKENFLOW_OMNIROUTE_URL       OmniRoute /v1 endpoint; default http://127.0.0.1:20128/v1
+TOKENFLOW_OMNIROUTE_API_KEY   Endpoint Key from OmniRoute; required by the tested local setup and for remote gateways
 TOKENFLOW_LAYA_URL            User-supplied Laya-compatible endpoint
 TOKENFLOW_LAYA_API_KEY        Optional Laya key, read only from the environment
 TOKENFLOW_CLOUD_URL           User-supplied cloud OpenAI-compatible endpoint
@@ -96,7 +98,9 @@ TOKENFLOW_CLOUD_API_KEY       Cloud key, read only from the environment
 TOKENFLOW_PROVIDER_ORDER      Comma-separated provider order
 ```
 
-TokenFlow never prints or stores provider keys. Laya has no assumed public endpoint in this repository; configure the endpoint supplied by the deployment. Jev is exposed separately through `POST /api/jev/decision` with `JEV_API_KEY` and optional `TOKENFLOW_JEV_URL`. It is an explicit typed-decision call and is never invoked silently as a general chat model.
+TokenFlow never prints or stores provider keys. To use OmniRoute, install and configure the [upstream gateway](https://github.com/diegosouzapw/OmniRoute) separately; TokenFlow does not install or bundle it. Its chat route uses `/v1/models` and `/v1/chat/completions`. The URL must end in `/v1`, cannot embed credentials or query parameters, and must use HTTPS if remote. Laya has no assumed public endpoint in this repository; configure the endpoint supplied by the deployment. Jev is exposed separately through `POST /api/jev/decision` with `JEV_API_KEY` and optional `TOKENFLOW_JEV_URL`. It is an explicit typed-decision call and is never invoked silently as a general chat model.
+
+For `/api/chat`, explicitly enter an OmniRoute model ID if the gateway's `/v1/models` catalog omits a configured local model (for example, `ollama-local/qwen3.5:9b`). TokenFlow sends that named model to OmniRoute for validation; `model: "auto"` still selects from the returned catalog and may not choose a configured local model. Check the gateway's routing and billing settings before using `auto`.
 
 ## Document parsing and cache
 
@@ -143,7 +147,7 @@ Use `GET /api/tokenizer` to inspect the active backend. Tokenizer loading is loc
 
 ### Savings and quality checks
 
-`/api/run` estimates content tokens. Model and Harness execution routes estimate the visible prompt/message text actually sent for both the baseline and processed candidate. If the candidate does not reduce that estimate, TokenFlow sends the original content and returns `compression_applied: false`. `token_counting.scope` identifies the measurement scope. These estimates exclude hidden model overhead and are not billable usage.
+`/api/run` estimates content tokens. Model and Harness execution routes estimate the visible prompt/message text actually sent for both the baseline and processed candidate. For long inputs, TokenFlow selects original source lines matching the task plus adjacent context. It sends the original when no relevant lines match, too many lines match, or the candidate does not reduce estimated tokens, returning `compression_applied: false`. This conservative heuristic cannot guarantee that every relevant fact is found. `token_counting.scope` identifies the measurement scope. These estimates exclude hidden model overhead and are not billable usage.
 
 Run the three illustrative offline cases without connecting to any model or uploading content:
 
@@ -157,7 +161,7 @@ To compare answers from the same configured model on raw and candidate-compresse
 python eval_workflow.py --provider freetoken --model <installed-model-id>
 ```
 
-Supply your own JSON array with `--cases <JSON-file>`. Each case needs `task`, `content`, and a `must_keep` array of literal facts; model comparisons also need `expected_answer`. Built-in cases are synthetic regression examples, not evidence of general answer quality. The current head-tail compressor loses middle facts in those examples.
+Supply your own JSON array with `--cases <JSON-file>`. Each case needs `task`, `content`, and a `must_keep` array of literal facts; model comparisons also need `expected_answer`. Built-in cases only check whether known middle facts survive; they are not evidence of general answer quality. That still requires representative cases and same-model answer comparisons.
 
 ## Harness execution
 
@@ -172,6 +176,8 @@ Invoke-RestMethod http://127.0.0.1:8765/api/execute `
 ```
 
 Codex uses read-only mode and Claude uses plan mode by default. DSH requires a configured `DSH_HOME` and profile.
+
+To route only a TokenFlow-launched Codex CLI invocation through OmniRoute, explicitly set `harness: "codex"` and `harness_backend: "omniroute"` on `/api/execute` (or select both controls on the page). The default is `harness_backend: "direct"`; it retains the normal Codex configuration. OmniRoute mode passes per-invocation Codex provider overrides for `/v1/responses` without editing global Codex files. `model: "auto"` is passed to the gateway as `auto`; for predictable routing, choose a gateway-configured model or combo explicitly. The gateway, not TokenFlow, decides the upstream account, cost, and fallback. The gateway must already be running and support the Responses API; this is not a Codex desktop-app setting. Direct API callers must obtain user consent for possible remote data transfer and charges.
 
 ## HTTP API
 

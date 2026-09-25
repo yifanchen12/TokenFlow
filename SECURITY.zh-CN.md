@@ -2,7 +2,7 @@
 
 ## 适用范围
 
-本协议覆盖 TokenFlow 源码及其默认本地 HTTP 服务。不自动覆盖 FreeToken、Codex、Claude、DSH、模型权重、操作系统、显卡驱动或第三方安装器。
+本协议覆盖 TokenFlow 源码及其默认本地 HTTP 服务。不自动覆盖 FreeToken、OmniRoute、Codex、Claude、DSH、模型权重、操作系统、显卡驱动或第三方安装器。
 
 TokenFlow 是本地开发工具，不是多租户服务。默认信任边界是当前用户账户和回环网络接口。
 
@@ -28,8 +28,9 @@ TokenFlow 是本地开发工具，不是多租户服务。默认信任边界是�
 - 除非人类明确批准变更，否则使用 Codex 只读模式和 Claude 计划模式；
 - 接受任何命令、文件修改或外部副作用前先人工复核；
 - 不要将 `/api/parse`、`/api/pc/execute` 或 `/api/jev/decision` 暴露给不可信调用方；
-- 将云端、Laya 和 Jev 配置视为数据外发配置，启用前审查端点和 payload；
-- `/api/chat` 的 `auto` 只尝试回环地址；显式指定任何提供商都可能把任务发送到其配置的远程地址。页面确认不能代替 API 客户端自己的外发审批；
+- 将云端、OmniRoute、Laya 和 Jev 配置视为数据外发配置，启用前审查端点、上游提供商、计费策略和 payload；
+- `/api/chat` 的 `auto` 只尝试符合条件的回环地址，且始终排除 OmniRoute，即使网关运行在本机。显式指定提供商可能把任务发送到远程地址。页面确认不能代替 API 客户端自己的外发审批；
+- `/api/execute` 的 `harness_backend="omniroute"` 仅对显式选择的本次 Codex CLI 调用生效；网关可能远程转发并产生费用。TokenFlow 不审计或保证其上游路由、额度或故障回退。不得把密钥放进任务文本或 URL；通过环境变量 `TOKENFLOW_OMNIROUTE_API_KEY` 提供。远程网关必须使用 HTTPS 和密钥。本次 Codex 参数覆盖也不能约束用户已有安装中的其他设置或工具；
 - `/api/local-chat` 仅接受回环 FreeToken 地址；远程 FreeToken 必须通过 `/api/chat` 显式选择；
 - 核验安装器来源和签名；不要为绕过安全警告而关闭杀毒软件或执行策略。
 

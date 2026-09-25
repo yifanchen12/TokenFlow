@@ -36,7 +36,7 @@ from freetoken_manager import (
 from token_counter import count_tokens, self_check as token_counter_self_check, status as token_counter_status
 from document_parser import DocumentParseError, parse_document_bytes, parse_document_file, self_check as document_parser_self_check
 from jev_provider import JevError, decide as jev_decide, self_check as jev_self_check
-from model_providers import ProviderError, chat_messages, is_loopback_url, provider_status, self_check as provider_self_check, unified_chat
+from model_providers import ProviderError, chat_messages, is_loopback_url, omniroute_base_url, provider_status, self_check as provider_self_check, unified_chat
 from pc_agent import PCAgentError, execute_actions, plan_actions, self_check as pc_agent_self_check
 from tokenflow_store import DocumentStore, self_check as store_self_check
 
@@ -70,19 +70,47 @@ def classify_task(task: str, content: str) -> str:
     return "general"
 
 
-def compact_content(content: str, limit: int = MAX_COMPRESSED_CHARS) -> str:
-    """Normalize whitespace and keep the most useful edges for a small MVP.
+def compact_content(content: str, limit: int = MAX_COMPRESSED_CHARS, *, task: str = "") -> str:
+    """Keep task-matching source lines; never guess which unmatched lines matter."""
+    source = content.strip()
+    if len(source) <= limit:
+        return source
+    if any(intent in task for intent in ("总结", "概括", "摘要", "全文", "完整", "全面", "逐行", "翻译", "改写", "润色", "校对", "重构")):
+        return source
 
-    ponytail: head-tail extraction is intentionally heuristic; replace with a
-    local summarizer when measured quality justifies model cost.
-    """
-    normalized = re.sub(r"[ \t]+", " ", content.replace("\r\n", "\n")).strip()
-    normalized = re.sub(r"\n{3,}", "\n\n", normalized)
-    if len(normalized) <= limit:
-        return normalized
-    left = limit // 2
-    right = limit - left
-    return normalized[:left].rstrip() + "\n\n...[TokenFlow compressed middle]...\n\n" + normalized[-right:].lstrip()
+    generic_words = {"python", "code", "csv", "tsv", "json", "pdf", "docx", "sql", "bug"}
+    words = {word.lower() for word in re.findall(r"[A-Za-z_][A-Za-z_0-9]*", task)
+             if len(word) >= 3 and word.lower() not in generic_words}
+    han = {phrase[i:i + size] for phrase in re.findall(r"[\u3400-\u9fff]+", task)
+           for size in (3, 4) for i in range(len(phrase) - size + 1)}
+    if not words and not han:
+        return source
+
+    word_patterns = [re.compile(rf"(?<![A-Za-z_0-9]){re.escape(word)}(?![A-Za-z_0-9])", re.I)
+                     for word in words]
+    lines = source.splitlines(keepends=True)
+    # ponytail: linear line scanning is enough for one input; index only if large-corpus latency demands it.
+    hits = [i for i, line in enumerate(lines)
+            if any(phrase in line for phrase in han) or any(pattern.search(line) for pattern in word_patterns)]
+    if not hits:
+        return source
+
+    keep = {index for hit in hits for index in (hit - 1, hit, hit + 1) if 0 <= index < len(lines)}
+    if "表格" in task or "csv" in task.lower() or "tsv" in task.lower():
+        keep.add(0)
+    ordered = sorted(keep)
+    parts = []
+    marker = "\n[... omitted source ...]\n"
+    if ordered[0] > 0:
+        parts.append(marker.lstrip())
+    for previous, index in zip([ordered[0] - 1] + ordered[:-1], ordered):
+        if index > previous + 1:
+            parts.append(marker)
+        parts.append(lines[index])
+    if ordered[-1] < len(lines) - 1:
+        parts.append(marker)
+    candidate = "".join(parts).strip()
+    return candidate if len(candidate) <= limit else source
 
 
 def build_plan(task_type: str) -> list[dict[str, str]]:
@@ -108,7 +136,7 @@ def run_workflow(task: str, content: str, render_prompt: Callable[[str, str], st
         raise ValueError("content 不能为空")
 
     task_type = classify_task(task, content)
-    candidate = compact_content(content)
+    candidate = compact_content(content, task=task)
     render = render_prompt or (lambda _task_type, value: value)
     baseline_count = count_tokens(render(task_type, content))
     candidate_count = count_tokens(render(task_type, candidate))
@@ -222,15 +250,31 @@ def build_harness_prompt(task: str, task_type: str, compressed: str) -> str:
 
 
 def build_harness_args(
-    harness: str, model: str, prompt: str, cwd: str, executable: list[str]
+    harness: str, model: str, prompt: str, cwd: str, executable: list[str], backend: str = "direct"
 ) -> list[str]:
     if harness not in HARNESS_NAMES:
         raise ValueError(f"不支持的 Harness：{harness}")
+    if backend not in {"direct", "omniroute"} or (backend == "omniroute" and harness != "codex"):
+        raise ValueError("OmniRoute Harness 后端仅支持显式选择 Codex")
     if not _valid_model(model):
         raise ValueError("模型名只能包含字母、数字、点、下划线、冒号、斜线、加号和连字符")
     if harness == "codex":
+        config: list[str] = []
+        if backend == "omniroute":
+            base_url = omniroute_base_url()
+            settings = {
+                "model_provider": "omniroute",
+                "model_providers.omniroute.name": "OmniRoute",
+                "model_providers.omniroute.base_url": base_url,
+                "model_providers.omniroute.wire_api": "responses",
+            }
+            if os.environ.get("TOKENFLOW_OMNIROUTE_API_KEY", "").strip():
+                settings["model_providers.omniroute.env_key"] = "TOKENFLOW_OMNIROUTE_API_KEY"
+            for key, value in settings.items():
+                config.extend(["-c", f"{key}={json.dumps(value)}"])
         return executable + [
             "exec",
+            *config,
             "--ephemeral",
             "--skip-git-repo-check",
             "-m",
@@ -300,11 +344,11 @@ def _run_bounded(command: list[str], cwd: str, timeout: float) -> tuple[int, str
             truncated[0], truncated[1], timed_out)
 
 
-def execute_harness(harness: str, model: str, prompt: str) -> dict[str, Any]:
+def execute_harness(harness: str, model: str, prompt: str, backend: str = "direct") -> dict[str, Any]:
     executable = _resolve_harness_command(harness)
     if not executable:
         raise RuntimeError(f"未检测到可用的 {harness} 命令")
-    command = build_harness_args(harness, model, prompt, os.getcwd(), executable)
+    command = build_harness_args(harness, model, prompt, os.getcwd(), executable, backend)
     started = time.monotonic()
     exit_code, output, error, output_truncated, error_truncated, timed_out = _run_bounded(command, os.getcwd(), MAX_EXEC_SECONDS)
     if timed_out:
@@ -327,19 +371,21 @@ def execute_harness(harness: str, model: str, prompt: str) -> dict[str, Any]:
     }
 
 
-def execute_workflow(task: str, content: str, harness: str = "auto", model: str = "auto") -> dict[str, Any]:
+def execute_workflow(task: str, content: str, harness: str = "auto", model: str = "auto", harness_backend: str = "direct") -> dict[str, Any]:
+    if harness_backend not in {"direct", "omniroute"} or (harness_backend == "omniroute" and harness != "codex"):
+        raise ValueError("OmniRoute Harness 后端仅支持显式选择 Codex")
     workflow = run_workflow(task, content, lambda task_type, value: build_harness_prompt(task.strip(), task_type, value))
     selected_harness = choose_harness(workflow["task_type"], workflow["result"]) if harness == "auto" else harness
     if selected_harness == "none":
         raise RuntimeError("没有检测到可用的 Codex、Claude 或 DSH Harness")
     selected_model = (
-        choose_model(selected_harness, workflow["task_type"], workflow["result"])
+        ("auto" if harness_backend == "omniroute" else choose_model(selected_harness, workflow["task_type"], workflow["result"]))
         if model == "auto"
         else model
     )
     prompt = build_harness_prompt(task.strip(), workflow["task_type"], workflow["result"])
-    execution = execute_harness(selected_harness, selected_model, prompt)
-    return {**workflow, "harness": selected_harness, "model": selected_model, "execution": execution}
+    execution = execute_harness(selected_harness, selected_model, prompt, harness_backend)
+    return {**workflow, "harness": selected_harness, "model": selected_model, "harness_backend": harness_backend, "execution": execution}
 
 
 def _freetoken_client() -> FreeTokenClient:
@@ -548,6 +594,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                     str(data.get("content", "")),
                     str(data.get("harness", "auto")),
                     str(data.get("model", "auto")),
+                    str(data.get("harness_backend", "direct")),
                 )
             elif self.path == "/api/local-chat":
                 result = local_chat_workflow(
@@ -613,8 +660,10 @@ def self_check() -> None:
     assert not unchanged["compression_applied"]
     assert unchanged["baseline"] == unchanged["optimized"] and unchanged["saved_tokens"] == 0
     assert unchanged["result"] == "x" * (MAX_COMPRESSED_CHARS + 1)
-    wrapped = run_workflow("test", "x" * 5000, lambda _task_type, value: "prefix:" + value)
+    wrapped = run_workflow("代码中 ANSWER 的值是多少？", ("# unrelated\n" * 250) + "ANSWER = 42\n" + ("# unrelated\n" * 250),
+                           lambda _task_type, value: "prefix:" + value)
     assert wrapped["compression_applied"] and wrapped["token_counting"]["scope"] == "visible_prompt"
+    assert "ANSWER = 42" in wrapped["result"]
     code, out, err, out_cut, err_cut, timed_out = _run_bounded(
         [sys.executable, "-c", "import sys; print('x' * 100000); print('y' * 100000, file=sys.stderr)"],
         os.getcwd(), 5,
@@ -625,7 +674,11 @@ def self_check() -> None:
         [sys.executable, "-c", "import time; time.sleep(2)"], os.getcwd(), 0.1,
     )
     assert timed_out and code != 0
-    result = run_workflow("分析这段 Python 代码", "def add(a, b):\n    return a + b\n" * 200)
+    broad = run_workflow("分析这段 Python 代码", "def add(a, b):\n    return a + b\n" * 200)
+    assert not broad["compression_applied"]
+    summary = run_workflow("总结这篇文章", ("这篇文章很长。\n" + "其他段落。\n" * 400))
+    assert not summary["compression_applied"]
+    result = run_workflow("代码中 ANSWER 的值是多少？", ("# unrelated\n" * 250) + "ANSWER = 42\n" + ("# unrelated\n" * 250))
     assert result["task_type"] == "code"
     assert result["saved_tokens"] > 0
     assert 0 < result["saved_ratio"] < 1
@@ -644,6 +697,28 @@ def self_check() -> None:
     assert not _valid_write_request(None, "127.0.0.1:8765", "invalid", 8765)
     command = build_harness_args("codex", "gpt-5.6-luna", "prompt", ".", ["codex"])
     assert "read-only" in command and "--ephemeral" in command
+    assert "model_provider" not in " ".join(command)
+    with patch.dict(os.environ, {"TOKENFLOW_OMNIROUTE_URL": "http://127.0.0.1:20128/v1", "TOKENFLOW_OMNIROUTE_API_KEY": "test-secret"}):
+        routed = build_harness_args("codex", "auto", "prompt", ".", ["codex"], "omniroute")
+        assert 'model_provider="omniroute"' in routed and 'model_providers.omniroute.wire_api="responses"' in routed
+        assert "test-secret" not in " ".join(routed) and "read-only" in routed
+    with patch(__name__ + ".execute_harness") as run_harness:
+        run_harness.return_value = {"ok": True}
+        routed_workflow = execute_workflow("回答问题", "输入", "codex", "auto", "omniroute")
+        assert routed_workflow["model"] == "auto" and routed_workflow["harness_backend"] == "omniroute"
+        assert run_harness.call_args.args[-1] == "omniroute"
+    try:
+        execute_workflow("回答问题", "输入", "auto", "auto", "omniroute")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("OmniRoute backend must require explicit Codex selection")
+    try:
+        build_harness_args("claude", "sonnet", "prompt", ".", ["claude"], "omniroute")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("OmniRoute backend must reject non-Codex harnesses")
     try:
         build_harness_args("codex", "bad model", "prompt", ".", ["codex"])
     except ValueError:

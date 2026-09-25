@@ -28,6 +28,7 @@ class ProviderSpec:
 PROVIDERS = {
     "freetoken": ProviderSpec("freetoken", "TOKENFLOW_FREETOKEN_URL", None, "http://127.0.0.1:1919", "local"),
     "ollama": ProviderSpec("ollama", "TOKENFLOW_OLLAMA_URL", None, "http://127.0.0.1:11434/v1", "local"),
+    "omniroute": ProviderSpec("omniroute", "TOKENFLOW_OMNIROUTE_URL", "TOKENFLOW_OMNIROUTE_API_KEY", "http://127.0.0.1:20128/v1", "local_or_remote"),
     "laya": ProviderSpec("laya", "TOKENFLOW_LAYA_URL", "TOKENFLOW_LAYA_API_KEY", None, "local_or_remote"),
     "cloud": ProviderSpec("cloud", "TOKENFLOW_CLOUD_URL", "TOKENFLOW_CLOUD_API_KEY", None, "cloud"),
 }
@@ -50,8 +51,26 @@ def is_loopback_url(url: str | None) -> bool:
         return False
 
 
+def omniroute_base_url() -> str:
+    url = _base_url(PROVIDERS["omniroute"])
+    if not url:
+        raise ProviderError("未配置 OmniRoute 地址：TOKENFLOW_OMNIROUTE_URL")
+    try:
+        parsed = urlsplit(url)
+        valid = (parsed.scheme in {"http", "https"} and bool(parsed.hostname)
+                 and parsed.port != 0 and not parsed.username and not parsed.password
+                 and not parsed.query and not parsed.fragment and parsed.path == "/v1")
+    except ValueError:
+        valid = False
+    if not valid or (not is_loopback_url(url) and parsed.scheme != "https"):
+        raise ProviderError("OmniRoute 地址必须是本机 HTTP(S) 或远程 HTTPS 的 /v1 地址，且不能包含凭据、查询或片段")
+    if not is_loopback_url(url) and not os.environ.get("TOKENFLOW_OMNIROUTE_API_KEY", "").strip():
+        raise ProviderError("远程 OmniRoute 必须设置 TOKENFLOW_OMNIROUTE_API_KEY")
+    return url
+
+
 def _auto_candidates(order: list[str]) -> list[str]:
-    return [name for name in order if name in PROVIDERS and name != "cloud" and is_loopback_url(_base_url(PROVIDERS[name]))]
+    return [name for name in order if name in PROVIDERS and name not in {"cloud", "omniroute"} and is_loopback_url(_base_url(PROVIDERS[name]))]
 
 
 def chat_messages(task: str, content: str) -> list[dict[str, str]]:
@@ -76,7 +95,7 @@ class OpenAICompatibleProvider:
         if name not in PROVIDERS:
             raise ProviderError(f"未知提供商：{name}")
         self.spec = PROVIDERS[name]
-        self.base_url = _base_url(self.spec)
+        self.base_url = omniroute_base_url() if name == "omniroute" else _base_url(self.spec)
         self.timeout = timeout
 
     def _request(self, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -120,6 +139,13 @@ def provider_status() -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     for name, spec in PROVIDERS.items():
         url = _base_url(spec)
+        if name == "omniroute":
+            try:
+                url = omniroute_base_url()
+            except ProviderError as exc:
+                result[name] = {"configured": False, "key_configured": bool(os.environ.get(spec.key_env, "")),
+                                "url": None, "kind": spec.kind, "models": [], "available": False, "error": str(exc)}
+                continue
         configured = bool(url)
         key_configured = bool(os.environ.get(spec.key_env, "")) if spec.key_env else True
         result[name] = {
@@ -181,8 +207,9 @@ def self_check() -> None:
         "TOKENFLOW_OLLAMA_URL": "http://127.0.0.1:11434/v1",
         "TOKENFLOW_LAYA_URL": "https://example.com",
         "TOKENFLOW_CLOUD_URL": "http://127.0.0.1:9443/v1",
+        "TOKENFLOW_OMNIROUTE_URL": "http://127.0.0.1:20128/v1",
     }):
-        assert _auto_candidates(["freetoken", "ollama", "laya", "cloud"]) == ["ollama"]
+        assert _auto_candidates(["freetoken", "ollama", "laya", "cloud", "omniroute"]) == ["ollama"]
         with patch("model_providers.OpenAICompatibleProvider") as client_class:
             client_class.return_value.models.return_value = ["local-model"]
             client_class.return_value.chat.return_value = {"choices": [{"message": {"content": "ok"}}]}
@@ -191,6 +218,22 @@ def self_check() -> None:
             client_class.reset_mock()
             assert unified_chat("task", "content", "general", provider="cloud")["provider"] == "cloud"
             client_class.assert_called_once_with("cloud", timeout=20)
+            client_class.reset_mock()
+            assert unified_chat("task", "content", "general", provider="omniroute")["provider"] == "omniroute"
+            client_class.assert_called_once_with("omniroute", timeout=90)
+            client_class.reset_mock()
+            routed = unified_chat("task", "content", "general", provider="omniroute", model="ollama-local/qwen3.5:9b")
+            assert routed["model"] == "ollama-local/qwen3.5:9b"
+            client_class.return_value.models.assert_not_called()
+            client_class.return_value.chat.assert_called_once()
+        assert omniroute_base_url() == "http://127.0.0.1:20128/v1"
+    with patch.dict(os.environ, {"TOKENFLOW_OMNIROUTE_URL": "http://remote.example/v1", "TOKENFLOW_OMNIROUTE_API_KEY": ""}):
+        try:
+            omniroute_base_url()
+        except ProviderError:
+            pass
+        else:
+            raise AssertionError("remote OmniRoute HTTP must fail")
     assert is_loopback_url("http://[::1]:1919/v1")
     assert not is_loopback_url("http://127.0.0.1.example.com/v1")
 
@@ -206,8 +249,8 @@ def unified_chat(task: str, content: str, task_type: str, provider: str = "auto"
             errors.append(f"未知提供商：{name}")
             continue
         try:
-            client = OpenAICompatibleProvider(name, timeout=20)
-            selected = choose_model(client.models(), task_type, model)
+            client = OpenAICompatibleProvider(name, timeout=90 if name == "omniroute" else 20)
+            selected = model if name == "omniroute" and model != "auto" else choose_model(client.models(), task_type, model)
             response = client.chat(selected, chat_messages(task, content))
             return {"provider": name, "model": selected, "result": response_text(response), "base_url": client.base_url}
         except ProviderError as exc:
