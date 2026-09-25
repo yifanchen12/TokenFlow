@@ -17,6 +17,7 @@ TokenFlow 是本地开发工具，不是多租户服务。默认信任边界是�
 5. `POST /api/parse` 可以读取请求中明确提供的本地路径；如果调用方不应授予路径访问权，优先使用 multipart 上传。
 6. `POST /api/pc/execute` 只有在显式环境开关开启后才能控制本地鼠标键盘。
 7. `POST /api/jev/decision` 会把调用方的决策 payload 发送到配置的 Jev 端点。
+8. `POST /api/omniroute/install` 会在 Windows 打开可见的 npm 安装窗口；`POST /api/omniroute/start` 启动本机网关进程；`POST /api/omniroute/config` 更改当前进程的网关地址和 Key。
 
 ## 必须遵守的部署规则
 
@@ -30,7 +31,8 @@ TokenFlow 是本地开发工具，不是多租户服务。默认信任边界是�
 - 不要将 `/api/parse`、`/api/pc/execute` 或 `/api/jev/decision` 暴露给不可信调用方；
 - 将云端、OmniRoute、Laya 和 Jev 配置视为数据外发配置，启用前审查端点、上游提供商、计费策略和 payload；
 - `/api/chat` 的 `auto` 只尝试符合条件的回环地址，且始终排除 OmniRoute，即使网关运行在本机。显式指定提供商可能把任务发送到远程地址。页面确认不能代替 API 客户端自己的外发审批；
-- `/api/execute` 的 `harness_backend="omniroute"` 仅对显式选择的本次 Codex CLI 调用生效；网关可能远程转发并产生费用。TokenFlow 不审计或保证其上游路由、额度或故障回退。不得把密钥放进任务文本或 URL；通过环境变量 `TOKENFLOW_OMNIROUTE_API_KEY` 提供。远程网关必须使用 HTTPS 和密钥。本次 Codex 参数覆盖也不能约束用户已有安装中的其他设置或工具；
+- `/api/execute` 的 `harness_backend="omniroute"` 仅对显式选择的本次 Codex CLI 调用生效；网关可能远程转发并产生费用。TokenFlow 不审计或保证其上游路由、额度或故障回退。不得把密钥放进任务文本或 URL；通过页面中的进程内存输入框或环境变量 `TOKENFLOW_OMNIROUTE_API_KEY` 提供。远程网关必须使用 HTTPS 和 Key。只有显式选择的 Codex 子进程通过环境变量收到内存中的 Key，命令参数不包含 Key。本次 Codex 参数覆盖也不能约束用户已有安装中的其他设置或工具；
+- OmniRoute 设置接口除常规写令牌外还要求回环地址客户端；同一用户账户下的本地程序仍可调用，不能把它当作身份认证。状态接口只返回是否配置了 Key，不返回其内容。不要将设置接口暴露到共享网络；
 - `/api/local-chat` 仅接受回环 FreeToken 地址；远程 FreeToken 必须通过 `/api/chat` 显式选择；
 - 核验安装器来源和签名；不要为绕过安全警告而关闭杀毒软件或执行策略。
 
@@ -67,7 +69,7 @@ TokenFlow 是本地开发工具，不是多租户服务。默认信任边界是�
 
 TokenFlow 不再分发 FreeToken 运行时 wheel、模型权重、Codex、Claude、DSH 或安装器二进制。用户必须从官方来源获取这些内容，并遵守其许可证和使用条款。
 
-Windows 一键辅助脚本只负责定位用户提供的安装器并在用户确认下打开；它不是签名验证器，也不会静默安装软件。
+FreeToken 的 Windows 一键脚本只负责定位用户提供的安装器，并在用户确认下打开。OmniRoute 安装按钮不同：浏览器确认后，它会打开可见窗口执行 `npm install -g omniroute`，从 npm 注册表下载第三方代码。这两项操作都不验证软件包签名。请先核对上游项目、npm 软件包来源和安装权限；TokenFlow 不捆绑 OmniRoute。
 
 PC Agent 层采用白名单并默认 dry-run。`TOKENFLOW_PC_AGENT_EXECUTE=1` 只是本地显式开关，不等同于安全审批。
 

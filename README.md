@@ -20,6 +20,7 @@ Chinese documentation: [README.zh-CN.md](README.zh-CN.md).
 - Provides explicit Jev decision requests as a routing/guardrail backend, not as a chat-model replacement.
 - Provides allow-listed PC actions with dry-run and explicit execution opt-in.
 - Provides a user-confirmed Windows installer launcher and local FreeToken engine starter.
+- Offers an opt-in OmniRoute setup panel for installation, local startup, and an in-memory Endpoint Key.
 
 ## Architecture
 
@@ -41,7 +42,7 @@ The server binds to `127.0.0.1` by default. It is not an authentication gateway 
 Requirements: Python 3.10 or newer.
 
 ```powershell
-python -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py
+python -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py omniroute_manager.py
 python tokenflow.py --self-check
 python tokenflow.py
 ```
@@ -98,7 +99,9 @@ TOKENFLOW_CLOUD_API_KEY       Cloud key, read only from the environment
 TOKENFLOW_PROVIDER_ORDER      Comma-separated provider order
 ```
 
-TokenFlow never prints or stores provider keys. To use OmniRoute, install and configure the [upstream gateway](https://github.com/diegosouzapw/OmniRoute) separately; TokenFlow does not install or bundle it. Its chat route uses `/v1/models` and `/v1/chat/completions`. The URL must end in `/v1`, cannot embed credentials or query parameters, and must use HTTPS if remote. Laya has no assumed public endpoint in this repository; configure the endpoint supplied by the deployment. Jev is exposed separately through `POST /api/jev/decision` with `JEV_API_KEY` and optional `TOKENFLOW_JEV_URL`. It is an explicit typed-decision call and is never invoked silently as a general chat model.
+The page's **OmniRoute setup** panel detects an existing CLI, can start the default loopback gateway, and, on Windows, offers a confirmed **Install OmniRoute** action. Installation requires Node.js/npm and opens a visible window running `npm install -g omniroute` from the [upstream package](https://github.com/diegosouzapw/OmniRoute). TokenFlow does not bundle OmniRoute or install Node.js. Review the upstream project and package before accepting the install; other platforms should follow its official instructions. An already installed CLI is not reinstalled.
+
+Enter a `/v1` URL and Endpoint Key in the panel, then save. The Key remains only in this TokenFlow process's memory (or can be supplied through `TOKENFLOW_OMNIROUTE_API_KEY`); it is never returned by the API, written to disk, or included in CLI arguments. A blank Key field preserves the existing Key. Closing TokenFlow discards the page-supplied Key. The gateway URL must not contain credentials, a query, or a fragment; remote URLs require HTTPS and a Key. The **Start** button controls only the default loopback gateway, not a custom or remote gateway. TokenFlow's chat adapter uses `/v1/models` and `/v1/chat/completions`. Laya has no assumed public endpoint in this repository; configure the endpoint supplied by the deployment. Jev is exposed separately through `POST /api/jev/decision` with `JEV_API_KEY` and optional `TOKENFLOW_JEV_URL`. It is an explicit typed-decision call and is never invoked silently as a general chat model.
 
 For `/api/chat`, explicitly enter an OmniRoute model ID if the gateway's `/v1/models` catalog omits a configured local model (for example, `ollama-local/qwen3.5:9b`). TokenFlow sends that named model to OmniRoute for validation; `model: "auto"` still selects from the returned catalog and may not choose a configured local model. Check the gateway's routing and billing settings before using `auto`.
 
@@ -185,6 +188,7 @@ To route only a TokenFlow-launched Codex CLI invocation through OmniRoute, expli
 GET  /health
 GET  /api/harnesses
 GET  /api/freetoken
+GET  /api/omniroute
 GET  /api/providers
 GET  /api/tokenizer
 GET  /api/store
@@ -204,9 +208,12 @@ POST /api/pc/execute
 POST /api/jev/decision
 POST /api/freetoken/install
 POST /api/freetoken/start
+POST /api/omniroute/config
+POST /api/omniroute/install
+POST /api/omniroute/start
 ```
 
-All POST requests require the per-process token returned by `GET /api/session`; browser requests also require a matching loopback Origin. The token reduces cross-site request risk but is not user authentication. The install and start endpoints control local processes. Do not forward them through a public reverse proxy.
+All POST requests require the per-process token returned by `GET /api/session`; browser requests also require a matching loopback Origin. The OmniRoute setup endpoints additionally require a loopback client. The token reduces cross-site request risk but is not user authentication. Install and start endpoints control local processes. Do not forward them through a public reverse proxy.
 
 ## Security and privacy
 
@@ -215,7 +222,7 @@ Read [SECURITY.md](SECURITY.md) before deployment. Keep the server on `127.0.0.1
 ## Development
 
 ```powershell
-python -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py
+python -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py omniroute_manager.py
 python tokenflow.py --self-check
 python eval_workflow.py --self-check
 ```
@@ -227,7 +234,7 @@ Before a pull request, scan the diff for secrets, absolute paths, generated logs
 - Token estimates may be heuristic; even with an optional tokenizer, visible-prompt counts are not billable usage.
 - Preprocessing is deterministic cleaning and head-tail extraction, not semantic summarization.
 - The local HTTP API has no user authentication, quotas, or multi-user isolation; its per-process write token only mitigates browser-originated cross-site requests.
-- TokenFlow does not redistribute FreeToken runtime files, model weights, or third-party Harnesses.
+- TokenFlow does not redistribute FreeToken or OmniRoute runtime files, model weights, or third-party Harnesses.
 - Provider availability depends on user configuration and network access.
 - PDF extraction requires the optional `pypdf` package; local model integrations do not imply model weights are included.
 - The hashing-vector cache is deterministic retrieval infrastructure, not a trained embedding model.

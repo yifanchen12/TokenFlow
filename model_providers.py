@@ -6,6 +6,7 @@ import ipaddress
 import json
 import os
 from dataclasses import dataclass
+from threading import Lock
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -33,6 +34,9 @@ PROVIDERS = {
     "cloud": ProviderSpec("cloud", "TOKENFLOW_CLOUD_URL", "TOKENFLOW_CLOUD_API_KEY", None, "cloud"),
 }
 
+_omniroute_session: tuple[str, str] | None = None
+_omniroute_lock = Lock()
+
 
 def _base_url(spec: ProviderSpec) -> str | None:
     value = os.environ.get(spec.url_env, spec.default_url)
@@ -51,22 +55,58 @@ def is_loopback_url(url: str | None) -> bool:
         return False
 
 
-def omniroute_base_url() -> str:
-    url = _base_url(PROVIDERS["omniroute"])
+def _validate_omniroute(url: str | None, key: str) -> str:
     if not url:
         raise ProviderError("未配置 OmniRoute 地址：TOKENFLOW_OMNIROUTE_URL")
     try:
         parsed = urlsplit(url)
         valid = (parsed.scheme in {"http", "https"} and bool(parsed.hostname)
                  and parsed.port != 0 and not parsed.username and not parsed.password
-                 and not parsed.query and not parsed.fragment and parsed.path == "/v1")
+                 and not parsed.query and not parsed.fragment and parsed.path == "/v1"
+                 and not any(char.isspace() for char in url) and "\\" not in url)
     except ValueError:
         valid = False
     if not valid or (not is_loopback_url(url) and parsed.scheme != "https"):
         raise ProviderError("OmniRoute 地址必须是本机 HTTP(S) 或远程 HTTPS 的 /v1 地址，且不能包含凭据、查询或片段")
-    if not is_loopback_url(url) and not os.environ.get("TOKENFLOW_OMNIROUTE_API_KEY", "").strip():
+    if not is_loopback_url(url) and not key:
         raise ProviderError("远程 OmniRoute 必须设置 TOKENFLOW_OMNIROUTE_API_KEY")
     return url
+
+
+def omniroute_key() -> str:
+    with _omniroute_lock:
+        session = _omniroute_session
+    return session[1] if session is not None else os.environ.get("TOKENFLOW_OMNIROUTE_API_KEY", "").strip()
+
+
+def omniroute_config() -> tuple[str, str]:
+    with _omniroute_lock:
+        session = _omniroute_session
+    if session is not None:
+        return session
+    key = os.environ.get("TOKENFLOW_OMNIROUTE_API_KEY", "").strip()
+    return _validate_omniroute(_base_url(PROVIDERS["omniroute"]), key), key
+
+
+def omniroute_base_url() -> str:
+    return omniroute_config()[0]
+
+
+def configure_omniroute(url: str, key: str | None = None) -> None:
+    if not isinstance(url, str) or len(url) > 2048 or not url.strip():
+        raise ValueError("OmniRoute 地址不能为空且不能超过 2048 字符")
+    if key is not None and (not isinstance(key, str) or len(key) > 8192):
+        raise ValueError("OmniRoute Key 格式无效")
+    url = url.strip().rstrip("/")
+    global _omniroute_session
+    with _omniroute_lock:
+        previous_key = _omniroute_session[1] if _omniroute_session is not None else os.environ.get("TOKENFLOW_OMNIROUTE_API_KEY", "").strip()
+        selected_key = key.strip() if key and key.strip() else previous_key
+        try:
+            _validate_omniroute(url, selected_key)
+        except ProviderError as exc:
+            raise ValueError(str(exc)) from exc
+        _omniroute_session = (url, selected_key)
 
 
 def _auto_candidates(order: list[str]) -> list[str]:
@@ -95,7 +135,10 @@ class OpenAICompatibleProvider:
         if name not in PROVIDERS:
             raise ProviderError(f"未知提供商：{name}")
         self.spec = PROVIDERS[name]
-        self.base_url = omniroute_base_url() if name == "omniroute" else _base_url(self.spec)
+        if name == "omniroute":
+            self.base_url, self._omniroute_key = omniroute_config()
+        else:
+            self.base_url, self._omniroute_key = _base_url(self.spec), None
         self.timeout = timeout
 
     def _request(self, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -109,7 +152,7 @@ class OpenAICompatibleProvider:
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             headers["Content-Type"] = "application/json"
         if self.spec.key_env:
-            key = os.environ.get(self.spec.key_env, "").strip()
+            key = self._omniroute_key if self.spec.name == "omniroute" else os.environ.get(self.spec.key_env, "").strip()
             if key:
                 headers["Authorization"] = f"Bearer {key}"
         request = Request(self.base_url + path, data=body, headers=headers, method=method)
@@ -141,13 +184,13 @@ def provider_status() -> dict[str, dict[str, Any]]:
         url = _base_url(spec)
         if name == "omniroute":
             try:
-                url = omniroute_base_url()
+                url, key = omniroute_config()
             except ProviderError as exc:
-                result[name] = {"configured": False, "key_configured": bool(os.environ.get(spec.key_env, "")),
+                result[name] = {"configured": False, "key_configured": bool(omniroute_key()),
                                 "url": None, "kind": spec.kind, "models": [], "available": False, "error": str(exc)}
                 continue
         configured = bool(url)
-        key_configured = bool(os.environ.get(spec.key_env, "")) if spec.key_env else True
+        key_configured = bool(key) if name == "omniroute" else bool(os.environ.get(spec.key_env, "")) if spec.key_env else True
         result[name] = {
             "configured": configured,
             "key_configured": key_configured,
@@ -231,6 +274,19 @@ def self_check() -> None:
         try:
             omniroute_base_url()
         except ProviderError:
+            pass
+        else:
+            raise AssertionError("remote OmniRoute HTTP must fail")
+    with patch(__name__ + "._omniroute_session", None):
+        configure_omniroute("http://127.0.0.1:20128/v1", "session-secret")
+        client = OpenAICompatibleProvider("omniroute")
+        assert client.base_url == "http://127.0.0.1:20128/v1" and client._omniroute_key == "session-secret"
+        configure_omniroute("https://gateway.example/v1", "")
+        assert omniroute_config() == ("https://gateway.example/v1", "session-secret")
+        assert client.base_url == "http://127.0.0.1:20128/v1"  # a request keeps one URL/Key snapshot
+        try:
+            configure_omniroute("http://gateway.example/v1", "another-secret")
+        except ValueError:
             pass
         else:
             raise AssertionError("remote OmniRoute HTTP must fail")

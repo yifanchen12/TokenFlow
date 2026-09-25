@@ -20,6 +20,7 @@ English documentation: [README.md](README.md)。
 - 通过显式接口调用 Jev 决策/路由能力，不把 Jev 当作普通聊天模型；
 - 提供白名单 PC Agent 动作，默认 dry-run，执行需要显式授权；
 - 提供需要用户确认的 Windows 安装器入口和 FreeToken 启动入口。
+- 提供可选的 OmniRoute 安装、本机启动和仅存于进程内存的 Endpoint Key 配置入口。
 
 ## 架构
 
@@ -41,7 +42,7 @@ TokenFlow HTTP 服务 :8765
 要求：Python 3.10 或更高版本。
 
 ```powershell
-python -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py
+python -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py omniroute_manager.py
 python tokenflow.py --self-check
 python tokenflow.py
 ```
@@ -98,7 +99,9 @@ TOKENFLOW_CLOUD_API_KEY       云端密钥，只从环境变量读取
 TOKENFLOW_PROVIDER_ORDER      逗号分隔的提供商顺序
 ```
 
-TokenFlow 不打印或保存提供商密钥。OmniRoute 需要用户从[上游项目](https://github.com/diegosouzapw/OmniRoute)单独安装并配置，本项目不自动安装或捆绑；聊天接口调用 `/v1/models` 和 `/v1/chat/completions`。地址须以 `/v1` 结尾，不得嵌入凭据或查询参数；远程网关必须使用 HTTPS。本仓库不猜测 Laya 的固定公网地址，请按实际部署配置。Jev 通过 `POST /api/jev/decision` 显式调用，使用 `JEV_API_KEY` 和可选的 `TOKENFLOW_JEV_URL`，不会被静默当作普通聊天模型调用。
+页面的“OmniRoute 下载与连接设置”会检测已安装的 CLI、启动默认本机网关；Windows 上还可在确认后打开可见窗口，执行上游包的 `npm install -g omniroute`。安装前须自行准备 Node.js/npm，并核对[上游项目](https://github.com/diegosouzapw/OmniRoute)和软件包来源；TokenFlow 不捆绑 OmniRoute，也不安装 Node.js。其他系统请按上游说明安装；已经安装的 CLI 不会重复安装。
+
+在页面输入 `/v1` 地址和 Endpoint Key 后保存。页面输入的 Key 只留在当前 TokenFlow 进程的内存中（也可通过 `TOKENFLOW_OMNIROUTE_API_KEY` 提供），不会在接口响应中回显、写入磁盘或放进命令参数；关闭 TokenFlow 后该页面配置失效。Key 输入框留空表示保留现有 Key。地址不得包含凭据、查询或片段；远程网关必须使用 HTTPS 并提供 Key。“启动本地网关”只适用于默认回环地址，不管理自定义或远程网关。聊天接口调用 `/v1/models` 和 `/v1/chat/completions`。本仓库不猜测 Laya 的固定公网地址，请按实际部署配置。Jev 通过 `POST /api/jev/decision` 显式调用，使用 `JEV_API_KEY` 和可选的 `TOKENFLOW_JEV_URL`，不会被静默当作普通聊天模型调用。
 
 如果 OmniRoute 的 `/v1/models` 目录未列出已经配置的本地模型，请在 `/api/chat` 显式填写模型 ID（例如 `ollama-local/qwen3.5:9b`）；TokenFlow 会把它交给网关校验。`model: "auto"` 仍根据网关返回的目录选择，不保证选中本地模型。使用 `auto` 前请核对网关的路由与计费设置。
 
@@ -185,6 +188,7 @@ Invoke-RestMethod http://127.0.0.1:8765/api/execute `
 GET  /health
 GET  /api/harnesses
 GET  /api/freetoken
+GET  /api/omniroute
 GET  /api/providers
 GET  /api/tokenizer
 GET  /api/store
@@ -204,9 +208,12 @@ POST /api/pc/execute
 POST /api/jev/decision
 POST /api/freetoken/install
 POST /api/freetoken/start
+POST /api/omniroute/config
+POST /api/omniroute/install
+POST /api/omniroute/start
 ```
 
-所有 POST 请求都必须携带 `GET /api/session` 返回的进程级令牌；浏览器请求还必须来自匹配的本机 Origin。该令牌用于降低跨站请求风险，不是用户身份认证。安装和启动接口可以控制本地进程，不要将它们转发到公网反向代理。
+所有 POST 请求都必须携带 `GET /api/session` 返回的进程级令牌；浏览器请求还必须来自匹配的本机 Origin。OmniRoute 设置接口额外要求请求来自回环地址。该令牌用于降低跨站请求风险，不是用户身份认证。安装和启动接口可以控制本地进程，不要将它们转发到公网反向代理。
 
 ## 安全与隐私
 
@@ -215,7 +222,7 @@ POST /api/freetoken/start
 ## 开发
 
 ```powershell
-python -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py
+python -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py omniroute_manager.py
 python tokenflow.py --self-check
 python eval_workflow.py --self-check
 ```
@@ -227,7 +234,7 @@ python eval_workflow.py --self-check
 - Token 数可能是启发式估算；即使使用可选 tokenizer，可见提示词估算也不是账单用量；
 - 预处理是确定性清洗和首尾截取，不是语义摘要；
 - 本地 HTTP 接口没有用户认证、配额和多用户隔离；进程级写令牌仅用于降低浏览器跨站请求风险；
-- TokenFlow 不再分发 FreeToken 运行时、模型权重或第三方 Harness；
+- TokenFlow 不分发 FreeToken、OmniRoute 运行时、模型权重或第三方 Harness；
 - 提供商是否可用取决于用户配置和网络条件；
 - PDF 提取需要可选 `pypdf`，本地模型接入不代表仓库包含模型权重；
 - 哈希向量缓存是确定性检索基础设施，不是训练得到的 Embedding 模型；

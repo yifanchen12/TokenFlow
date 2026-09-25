@@ -17,6 +17,7 @@ The following endpoints and capabilities can cause local side effects:
 5. `POST /api/parse` can read an explicitly supplied local path; prefer multipart upload when the caller should not grant path access.
 6. `POST /api/pc/execute` can control the local pointer and keyboard only after an explicit environment opt-in.
 7. `POST /api/jev/decision` sends the caller's decision payload to the configured Jev endpoint.
+8. `POST /api/omniroute/install` opens a visible npm installation window on Windows; `POST /api/omniroute/start` starts a local gateway process; `POST /api/omniroute/config` changes this process's gateway URL and Key.
 
 ## Required deployment rules
 
@@ -30,7 +31,8 @@ The following endpoints and capabilities can cause local side effects:
 - Do not expose `/api/parse`, `/api/pc/execute`, or `/api/jev/decision` to untrusted callers.
 - Treat cloud, OmniRoute, Laya, and Jev configuration as data egress configuration; review the endpoint, upstream providers, billing policy, and payload before enabling it.
 - `/api/chat` in `auto` mode only tries eligible loopback endpoints and always excludes OmniRoute, even when its gateway runs locally. Explicit provider selection may send task content to that provider's configured remote URL; the browser confirmation does not replace approval in direct API clients.
-- `/api/execute` with `harness_backend="omniroute"` is opt-in for an explicitly selected Codex CLI invocation. The gateway may forward data remotely and incur charges. TokenFlow does not inspect or guarantee the gateway's upstream routing, quota, or fallback. Never place gateway keys in task text or URLs; supply `TOKENFLOW_OMNIROUTE_API_KEY` via the environment. Remote gateway URLs require HTTPS and a key. Per-invocation Codex overrides do not protect against other settings or tools in the user's Codex installation.
+- `/api/execute` with `harness_backend="omniroute"` is opt-in for an explicitly selected Codex CLI invocation. The gateway may forward data remotely and incur charges. TokenFlow does not inspect or guarantee the gateway's upstream routing, quota, or fallback. Never place gateway keys in task text or URLs; supply the Key via the page's process-memory field or `TOKENFLOW_OMNIROUTE_API_KEY`. Remote gateway URLs require HTTPS and a Key. Only that explicit Codex child receives the in-memory Key through its environment, never a command argument. Per-invocation Codex overrides do not protect against other settings or tools in the user's Codex installation.
+- OmniRoute setup endpoints require both the normal write token and a loopback client. A same-user local process can still call them; do not treat this as authentication. The status API returns only whether a Key is configured, not its value. Do not expose setup endpoints on a shared network.
 - `/api/local-chat` only accepts a loopback FreeToken URL; remote FreeToken requires explicit `/api/chat` provider selection.
 - Verify installer provenance and signatures where available. Do not disable antivirus or execution policy to bypass a warning.
 
@@ -67,7 +69,7 @@ Maintainers should acknowledge a valid report within 7 days, provide a severity 
 
 TokenFlow does not redistribute FreeToken runtime wheels, model weights, Codex, Claude, DSH, or installer binaries. Users must obtain those artifacts from official sources and comply with their licenses and terms.
 
-The one-click Windows helper only locates a user-provided installer and opens it for explicit confirmation. It is not a signature verifier and does not silently install software.
+The FreeToken Windows helper only locates a user-provided installer and opens it for explicit confirmation. The OmniRoute install button is different: after a browser confirmation it launches a visible `npm install -g omniroute` window and therefore downloads third-party code from the npm registry. Neither action verifies package signatures. Review the official upstream package, npm registry access, and installation privileges before proceeding; OmniRoute is not bundled in TokenFlow.
 
 The PC Agent layer is allow-listed and dry-run by default. `TOKENFLOW_PC_AGENT_EXECUTE=1` is an explicit local opt-in, not a safety approval.
 

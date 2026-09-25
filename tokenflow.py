@@ -36,7 +36,8 @@ from freetoken_manager import (
 from token_counter import count_tokens, self_check as token_counter_self_check, status as token_counter_status
 from document_parser import DocumentParseError, parse_document_bytes, parse_document_file, self_check as document_parser_self_check
 from jev_provider import JevError, decide as jev_decide, self_check as jev_self_check
-from model_providers import ProviderError, chat_messages, is_loopback_url, omniroute_base_url, provider_status, self_check as provider_self_check, unified_chat
+from model_providers import ProviderError, chat_messages, configure_omniroute, is_loopback_url, omniroute_config, provider_status, self_check as provider_self_check, unified_chat
+from omniroute_manager import install as install_omniroute, self_check as omniroute_manager_self_check, start as start_omniroute, status as omniroute_status
 from pc_agent import PCAgentError, execute_actions, plan_actions, self_check as pc_agent_self_check
 from tokenflow_store import DocumentStore, self_check as store_self_check
 
@@ -250,7 +251,8 @@ def build_harness_prompt(task: str, task_type: str, compressed: str) -> str:
 
 
 def build_harness_args(
-    harness: str, model: str, prompt: str, cwd: str, executable: list[str], backend: str = "direct"
+    harness: str, model: str, prompt: str, cwd: str, executable: list[str], backend: str = "direct",
+    gateway: tuple[str, str] | None = None,
 ) -> list[str]:
     if harness not in HARNESS_NAMES:
         raise ValueError(f"不支持的 Harness：{harness}")
@@ -261,14 +263,14 @@ def build_harness_args(
     if harness == "codex":
         config: list[str] = []
         if backend == "omniroute":
-            base_url = omniroute_base_url()
+            base_url, gateway_key = gateway if gateway is not None else omniroute_config()
             settings = {
                 "model_provider": "omniroute",
                 "model_providers.omniroute.name": "OmniRoute",
                 "model_providers.omniroute.base_url": base_url,
                 "model_providers.omniroute.wire_api": "responses",
             }
-            if os.environ.get("TOKENFLOW_OMNIROUTE_API_KEY", "").strip():
+            if gateway_key:
                 settings["model_providers.omniroute.env_key"] = "TOKENFLOW_OMNIROUTE_API_KEY"
             for key, value in settings.items():
                 config.extend(["-c", f"{key}={json.dumps(value)}"])
@@ -308,8 +310,8 @@ def _clip_output(value: str, truncated: bool = False) -> str:
     return value[:MAX_OUTPUT_CHARS] + "\n...[output truncated]..."
 
 
-def _run_bounded(command: list[str], cwd: str, timeout: float) -> tuple[int, str, str, bool, bool, bool]:
-    process = subprocess.Popen(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False, bufsize=0)
+def _run_bounded(command: list[str], cwd: str, timeout: float, env: dict[str, str] | None = None) -> tuple[int, str, str, bool, bool, bool]:
+    process = subprocess.Popen(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False, bufsize=0, env=env)
     buffers = [bytearray(), bytearray()]
     truncated = [False, False]
 
@@ -348,9 +350,18 @@ def execute_harness(harness: str, model: str, prompt: str, backend: str = "direc
     executable = _resolve_harness_command(harness)
     if not executable:
         raise RuntimeError(f"未检测到可用的 {harness} 命令")
-    command = build_harness_args(harness, model, prompt, os.getcwd(), executable, backend)
+    gateway = omniroute_config() if backend == "omniroute" else None
+    command = build_harness_args(harness, model, prompt, os.getcwd(), executable, backend, gateway)
+    child_env = os.environ.copy() if gateway is not None else None
+    if child_env is not None:
+        child_env.pop("TOKENFLOW_OMNIROUTE_API_KEY", None)
+        if gateway[1]:
+            child_env["TOKENFLOW_OMNIROUTE_API_KEY"] = gateway[1]
     started = time.monotonic()
-    exit_code, output, error, output_truncated, error_truncated, timed_out = _run_bounded(command, os.getcwd(), MAX_EXEC_SECONDS)
+    exit_code, output, error, output_truncated, error_truncated, timed_out = _run_bounded(command, os.getcwd(), MAX_EXEC_SECONDS, child_env)
+    if gateway is not None and gateway[1]:
+        output = output.replace(gateway[1], "<REDACTED>")
+        error = error.replace(gateway[1], "<REDACTED>")
     if timed_out:
         return {
             "ok": False,
@@ -476,6 +487,13 @@ def _valid_write_request(origin: str | None, host: str, token: str, server_port:
         return False
 
 
+def _loopback_client(address: str) -> bool:
+    try:
+        return ipaddress.ip_address(address).is_loopback
+    except ValueError:
+        return False
+
+
 class TokenFlowHandler(BaseHTTPRequestHandler):
     def _send_json(self, payload: dict[str, Any], status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -501,6 +519,9 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/api/freetoken":
             self._send_json(freetoken_status())
+            return
+        if self.path == "/api/omniroute":
+            self._send_json(omniroute_status())
             return
         if self.path == "/api/tokenizer":
             self._send_json(token_counter_status())
@@ -531,6 +552,10 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
         ):
             self._send_json({"error": "请求来源或会话令牌无效"}, 403)
             return
+        if self.path in {"/api/omniroute/config", "/api/omniroute/install", "/api/omniroute/start"} \
+                and not _loopback_client(self.client_address[0]):
+            self._send_json({"error": "OmniRoute 安装和配置仅允许本机操作"}, 403)
+            return
         if self.path == "/api/shutdown":
             self._send_json({"status": "shutting_down"})
             threading.Thread(target=self.server.shutdown, daemon=True).start()
@@ -549,6 +574,9 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             "/api/jev/decision",
             "/api/freetoken/install",
             "/api/freetoken/start",
+            "/api/omniroute/config",
+            "/api/omniroute/install",
+            "/api/omniroute/start",
         ):
             self._send_json({"error": "not found"}, 404)
             return
@@ -586,6 +614,13 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                 result = launch_freetoken_installer()
             elif self.path == "/api/freetoken/start":
                 result = start_freetoken_server()
+            elif self.path == "/api/omniroute/config":
+                configure_omniroute(data.get("url"), data.get("api_key"))
+                result = omniroute_status()
+            elif self.path == "/api/omniroute/install":
+                result = install_omniroute()
+            elif self.path == "/api/omniroute/start":
+                result = start_omniroute()
             elif self.path == "/api/run":
                 result = run_workflow(str(data.get("task", "")), str(data.get("content", "")))
             elif self.path == "/api/execute":
@@ -647,6 +682,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
 
 
 def self_check() -> None:
+    from http.client import HTTPConnection
     from unittest.mock import patch
 
     with patch.dict(os.environ, {"TOKENFLOW_FREETOKEN_URL": "https://example.invalid/v1"}):
@@ -695,6 +731,40 @@ def self_check() -> None:
     assert _valid_write_request("http://127.0.0.1:8765", "127.0.0.1:8765", SESSION_TOKEN, 8765)
     assert not _valid_write_request("http://example.com:8765", "127.0.0.1:8765", SESSION_TOKEN, 8765)
     assert not _valid_write_request(None, "127.0.0.1:8765", "invalid", 8765)
+    assert _loopback_client("127.0.0.1") and _loopback_client("::1") and not _loopback_client("192.0.2.1")
+    server = ThreadingHTTPServer(("127.0.0.1", 0), TokenFlowHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+        headers = {"Content-Type": "application/json", "X-TokenFlow-Token": SESSION_TOKEN}
+        with patch("model_providers._omniroute_session", None), \
+             patch(__name__ + ".install_omniroute", return_value={"action": "installer_launched"}) as installer, \
+             patch(__name__ + ".start_omniroute", return_value={"action": "already_running"}) as starter:
+            connection.request("POST", "/api/omniroute/config", '{"url":"http://127.0.0.1:20128/v1"}')
+            response = connection.getresponse()
+            assert response.status == 403
+            response.read()
+            connection.request("POST", "/api/omniroute/config", json.dumps({"url": "http://127.0.0.1:20128/v1", "api_key": "dummy-secret"}), headers)
+            response = connection.getresponse()
+            body = response.read()
+            assert response.status == 200 and b"dummy-secret" not in body
+            assert json.loads(body)["key_configured"]
+            connection.request("GET", "/api/omniroute")
+            response = connection.getresponse()
+            body = response.read()
+            assert response.status == 200 and b"dummy-secret" not in body
+            for path, mocked in (("install", installer), ("start", starter)):
+                connection.request("POST", "/api/omniroute/" + path, "{}", headers)
+                response = connection.getresponse()
+                assert response.status == 200
+                response.read()
+                mocked.assert_called_once()
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
     command = build_harness_args("codex", "gpt-5.6-luna", "prompt", ".", ["codex"])
     assert "read-only" in command and "--ephemeral" in command
     assert "model_provider" not in " ".join(command)
@@ -702,6 +772,13 @@ def self_check() -> None:
         routed = build_harness_args("codex", "auto", "prompt", ".", ["codex"], "omniroute")
         assert 'model_provider="omniroute"' in routed and 'model_providers.omniroute.wire_api="responses"' in routed
         assert "test-secret" not in " ".join(routed) and "read-only" in routed
+    with patch("model_providers._omniroute_session", ("http://127.0.0.1:20128/v1", "session-secret")), \
+         patch(__name__ + "._resolve_harness_command", return_value=["codex"]), \
+         patch(__name__ + "._run_bounded", return_value=(0, "session-secret", "", False, False, False)) as run_bounded:
+        execution = execute_harness("codex", "auto", "prompt", "omniroute")
+        assert run_bounded.call_args.args[0].count("session-secret") == 0
+        assert run_bounded.call_args.args[-1]["TOKENFLOW_OMNIROUTE_API_KEY"] == "session-secret"
+        assert "session-secret" not in str(execution)
     with patch(__name__ + ".execute_harness") as run_harness:
         run_harness.return_value = {"ok": True}
         routed_workflow = execute_workflow("回答问题", "输入", "codex", "auto", "omniroute")
@@ -727,6 +804,7 @@ def self_check() -> None:
         raise AssertionError("invalid model must fail")
     freetoken_self_check()
     freetoken_manager_self_check()
+    omniroute_manager_self_check()
     token_counter_self_check()
     provider_self_check()
     store_self_check()

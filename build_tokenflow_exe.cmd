@@ -15,7 +15,7 @@ if errorlevel 1 (
 )
 
 echo Compiling TokenFlow modules...
-%PYTHON% -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py token_counter.py model_providers.py document_parser.py tokenflow_store.py pc_agent.py jev_provider.py ui_page.py launcher.py
+%PYTHON% -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py omniroute_manager.py token_counter.py model_providers.py document_parser.py tokenflow_store.py pc_agent.py jev_provider.py ui_page.py launcher.py
 if errorlevel 1 goto :compile_failed
 
 echo Building dist\TokenFlow.exe...
