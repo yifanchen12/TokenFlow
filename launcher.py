@@ -12,7 +12,8 @@ import tokenflow
 def main() -> None:
     host = os.environ.get("TOKENFLOW_HOST", "127.0.0.1")
     port = int(os.environ.get("TOKENFLOW_PORT", "8765"))
-    threading.Timer(0.8, lambda: webbrowser.open(f"http://{host}:{port}")).start()
+    if os.environ.get("TOKENFLOW_OPEN_BROWSER", "1") != "0":
+        threading.Timer(0.8, lambda: webbrowser.open(f"http://{host}:{port}")).start()
     tokenflow.run_server(host, port)
 
 

@@ -42,6 +42,10 @@ The UI receives a random token for the current server process and sends it in `X
 
 ## Secret handling
 
+OmniRoute chat, evaluation and Codex invocations require an explicit model; `auto` is rejected. `TOKENFLOW_OMNIROUTE_ALLOWED_MODELS` or the page's process-scoped allow-list restricts requested model IDs. The preview sends no task and reports cost as unknown. These controls do not constrain a gateway combo's internal fallback or guarantee local execution or a spending cap. Configure those policies in the gateway.
+
+Evaluation reports can contain model answers from the supplied documents. Reports default to user-selected local files; review them before publication. Built-in repository QA uses public project sources, not private documents. Existing SQLite vectors are rebuilt in a transaction without deleting documents; status reads remain read-only.
+
 Never commit API keys, OAuth tokens, cookies, SSH keys, certificates, local environment files, private model repository credentials, or personal absolute paths.
 
 If a secret is exposed:

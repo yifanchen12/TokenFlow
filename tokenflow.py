@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import ipaddress
 import json
 import os
@@ -36,7 +37,7 @@ from freetoken_manager import (
 from token_counter import count_tokens, self_check as token_counter_self_check, status as token_counter_status
 from document_parser import DocumentParseError, parse_document_bytes, parse_document_file, self_check as document_parser_self_check
 from jev_provider import JevError, decide as jev_decide, self_check as jev_self_check
-from model_providers import ProviderError, chat_messages, configure_omniroute, is_loopback_url, omniroute_config, provider_status, self_check as provider_self_check, unified_chat
+from model_providers import ProviderError, chat_messages, configure_omniroute, is_loopback_url, omniroute_config, omniroute_model, omniroute_preview, provider_status, self_check as provider_self_check, unified_chat
 from omniroute_manager import install as install_omniroute, self_check as omniroute_manager_self_check, start as start_omniroute, status as omniroute_status
 from pc_agent import PCAgentError, execute_actions, plan_actions, self_check as pc_agent_self_check
 from tokenflow_store import DocumentStore, self_check as store_self_check
@@ -97,6 +98,36 @@ def compact_content(content: str, limit: int = MAX_COMPRESSED_CHARS, *, task: st
         return source
 
     keep = {index for hit in hits for index in (hit - 1, hit, hit + 1) if 0 <= index < len(lines)}
+    if sum(len(lines[index]) for index in keep) > limit:
+        return source
+    scopes = []
+    try:
+        tree = ast.parse(source)
+    except (SyntaxError, ValueError, RecursionError):
+        tree = None
+    if tree is not None:
+        scopes = [(node.lineno - 1, node.end_lineno) for node in ast.walk(tree)
+                  if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.end_lineno]
+    else:
+        headings = [(index, len(match.group(1))) for index, line in enumerate(lines)
+                    if (match := re.match(r"^(#{1,6})\s", line))]
+        if headings:
+            scopes = [(start, next((other for other, depth in headings if other > start and depth <= level), len(lines)))
+                      for start, level in headings]
+        else:
+            start = 0
+            for index, line in enumerate(lines + ["\n"]):
+                if not line.strip():
+                    if index > start:
+                        scopes.append((start, index))
+                    start = index + 1
+    for hit in hits:
+        containing = [(start, end) for start, end in scopes if start <= hit < end]
+        if containing:
+            start, end = min(containing, key=lambda scope: scope[1] - scope[0])
+            keep.update(range(start, end))
+            if sum(len(lines[index]) for index in keep) > limit:
+                return source
     if "表格" in task or "csv" in task.lower() or "tsv" in task.lower():
         keep.add(0)
     ordered = sorted(keep)
@@ -263,6 +294,7 @@ def build_harness_args(
     if harness == "codex":
         config: list[str] = []
         if backend == "omniroute":
+            model = omniroute_model(model)
             base_url, gateway_key = gateway if gateway is not None else omniroute_config()
             settings = {
                 "model_provider": "omniroute",
@@ -347,6 +379,8 @@ def _run_bounded(command: list[str], cwd: str, timeout: float, env: dict[str, st
 
 
 def execute_harness(harness: str, model: str, prompt: str, backend: str = "direct") -> dict[str, Any]:
+    if backend == "omniroute":
+        model = omniroute_model(model)
     executable = _resolve_harness_command(harness)
     if not executable:
         raise RuntimeError(f"未检测到可用的 {harness} 命令")
@@ -385,12 +419,14 @@ def execute_harness(harness: str, model: str, prompt: str, backend: str = "direc
 def execute_workflow(task: str, content: str, harness: str = "auto", model: str = "auto", harness_backend: str = "direct") -> dict[str, Any]:
     if harness_backend not in {"direct", "omniroute"} or (harness_backend == "omniroute" and harness != "codex"):
         raise ValueError("OmniRoute Harness 后端仅支持显式选择 Codex")
+    if harness_backend == "omniroute":
+        model = omniroute_model(model)
     workflow = run_workflow(task, content, lambda task_type, value: build_harness_prompt(task.strip(), task_type, value))
     selected_harness = choose_harness(workflow["task_type"], workflow["result"]) if harness == "auto" else harness
     if selected_harness == "none":
         raise RuntimeError("没有检测到可用的 Codex、Claude 或 DSH Harness")
     selected_model = (
-        ("auto" if harness_backend == "omniroute" else choose_model(selected_harness, workflow["task_type"], workflow["result"]))
+        choose_model(selected_harness, workflow["task_type"], workflow["result"])
         if model == "auto"
         else model
     )
@@ -552,7 +588,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
         ):
             self._send_json({"error": "请求来源或会话令牌无效"}, 403)
             return
-        if self.path in {"/api/omniroute/config", "/api/omniroute/install", "/api/omniroute/start"} \
+        if self.path in {"/api/omniroute/config", "/api/omniroute/install", "/api/omniroute/start", "/api/omniroute/preview"} \
                 and not _loopback_client(self.client_address[0]):
             self._send_json({"error": "OmniRoute 安装和配置仅允许本机操作"}, 403)
             return
@@ -577,6 +613,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             "/api/omniroute/config",
             "/api/omniroute/install",
             "/api/omniroute/start",
+            "/api/omniroute/preview",
         ):
             self._send_json({"error": "not found"}, 404)
             return
@@ -615,8 +652,10 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             elif self.path == "/api/freetoken/start":
                 result = start_freetoken_server()
             elif self.path == "/api/omniroute/config":
-                configure_omniroute(data.get("url"), data.get("api_key"))
+                configure_omniroute(data.get("url"), data.get("api_key"), data.get("allowed_models"))
                 result = omniroute_status()
+            elif self.path == "/api/omniroute/preview":
+                result = omniroute_preview(data.get("model", "auto"))
             elif self.path == "/api/omniroute/install":
                 result = install_omniroute()
             elif self.path == "/api/omniroute/start":
@@ -739,13 +778,15 @@ def self_check() -> None:
         connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
         headers = {"Content-Type": "application/json", "X-TokenFlow-Token": SESSION_TOKEN}
         with patch("model_providers._omniroute_session", None), \
+             patch("model_providers._omniroute_allowed", None), \
+             patch("omniroute_manager._health", return_value=False), \
              patch(__name__ + ".install_omniroute", return_value={"action": "installer_launched"}) as installer, \
              patch(__name__ + ".start_omniroute", return_value={"action": "already_running"}) as starter:
             connection.request("POST", "/api/omniroute/config", '{"url":"http://127.0.0.1:20128/v1"}')
             response = connection.getresponse()
             assert response.status == 403
             response.read()
-            connection.request("POST", "/api/omniroute/config", json.dumps({"url": "http://127.0.0.1:20128/v1", "api_key": "dummy-secret"}), headers)
+            connection.request("POST", "/api/omniroute/config", json.dumps({"url": "http://127.0.0.1:20128/v1", "api_key": "dummy-secret", "allowed_models": ["local-model"]}), headers)
             response = connection.getresponse()
             body = response.read()
             assert response.status == 200 and b"dummy-secret" not in body
@@ -754,6 +795,14 @@ def self_check() -> None:
             response = connection.getresponse()
             body = response.read()
             assert response.status == 200 and b"dummy-secret" not in body
+            connection.request("POST", "/api/omniroute/preview", '{"model":"local-model"}', headers)
+            response = connection.getresponse()
+            body = response.read()
+            assert response.status == 200 and b"dummy-secret" not in body and json.loads(body)["cost"] == "unknown"
+            connection.request("POST", "/api/omniroute/preview", '{"model":"auto"}', headers)
+            response = connection.getresponse()
+            assert response.status == 503
+            response.read()
             for path, mocked in (("install", installer), ("start", starter)):
                 connection.request("POST", "/api/omniroute/" + path, "{}", headers)
                 response = connection.getresponse()
@@ -769,21 +818,31 @@ def self_check() -> None:
     assert "read-only" in command and "--ephemeral" in command
     assert "model_provider" not in " ".join(command)
     with patch.dict(os.environ, {"TOKENFLOW_OMNIROUTE_URL": "http://127.0.0.1:20128/v1", "TOKENFLOW_OMNIROUTE_API_KEY": "test-secret"}):
-        routed = build_harness_args("codex", "auto", "prompt", ".", ["codex"], "omniroute")
+        routed = build_harness_args("codex", "local-model", "prompt", ".", ["codex"], "omniroute")
         assert 'model_provider="omniroute"' in routed and 'model_providers.omniroute.wire_api="responses"' in routed
         assert "test-secret" not in " ".join(routed) and "read-only" in routed
     with patch("model_providers._omniroute_session", ("http://127.0.0.1:20128/v1", "session-secret")), \
          patch(__name__ + "._resolve_harness_command", return_value=["codex"]), \
          patch(__name__ + "._run_bounded", return_value=(0, "session-secret", "", False, False, False)) as run_bounded:
-        execution = execute_harness("codex", "auto", "prompt", "omniroute")
+        execution = execute_harness("codex", "local-model", "prompt", "omniroute")
         assert run_bounded.call_args.args[0].count("session-secret") == 0
         assert run_bounded.call_args.args[-1]["TOKENFLOW_OMNIROUTE_API_KEY"] == "session-secret"
         assert "session-secret" not in str(execution)
     with patch(__name__ + ".execute_harness") as run_harness:
         run_harness.return_value = {"ok": True}
-        routed_workflow = execute_workflow("回答问题", "输入", "codex", "auto", "omniroute")
-        assert routed_workflow["model"] == "auto" and routed_workflow["harness_backend"] == "omniroute"
+        routed_workflow = execute_workflow("回答问题", "输入", "codex", "local-model", "omniroute")
+        assert routed_workflow["model"] == "local-model" and routed_workflow["harness_backend"] == "omniroute"
         assert run_harness.call_args.args[-1] == "omniroute"
+    with patch("model_providers._omniroute_allowed", ("local-model",)), \
+         patch(__name__ + "._run_bounded") as run_bounded:
+        for blocked in ("auto", "blocked-model"):
+            try:
+                execute_harness("codex", blocked, "prompt", "omniroute")
+            except ProviderError:
+                pass
+            else:
+                raise AssertionError("model policy must fail before spawning a child")
+        run_bounded.assert_not_called()
     try:
         execute_workflow("回答问题", "输入", "auto", "auto", "omniroute")
     except ValueError:

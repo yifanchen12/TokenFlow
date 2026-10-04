@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import heapq
 import json
 import math
 import os
@@ -13,6 +14,9 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
+
+VECTOR_VERSION = 2
+VECTOR_BACKEND = "hashing-64-cjk-v2"
 
 
 def _db_path() -> Path:
@@ -30,7 +34,12 @@ def _db_path() -> Path:
 
 def _vector(text: str, dimensions: int = 64) -> list[float]:
     values = [0.0] * dimensions
-    for token in re.findall(r"[\w]+", text.lower()):
+    tokens = re.findall(r"[^\W\u3400-\u9fff]+", text.lower())
+    for phrase in re.findall(r"[\u3400-\u9fff]+", text):
+        tokens.extend(phrase[i:i + size] for size in (2, 3) for i in range(len(phrase) - size + 1))
+        if len(phrase) == 1:
+            tokens.append(phrase)
+    for token in tokens:
         digest = hashlib.blake2b(token.encode("utf-8"), digest_size=8).digest()
         index = int.from_bytes(digest[:4], "big") % dimensions
         values[index] += 1.0 if digest[4] % 2 else -1.0
@@ -52,6 +61,7 @@ class DocumentStore:
     @contextmanager
     def _connect(self):
         connection = sqlite3.connect(self.path)
+        connection.execute("PRAGMA foreign_keys=ON")
         connection.row_factory = sqlite3.Row
         try:
             yield connection
@@ -83,6 +93,14 @@ class DocumentStore:
                 );
                 """
             )
+            db.execute("BEGIN IMMEDIATE")
+            if db.execute("PRAGMA user_version").fetchone()[0] < VECTOR_VERSION:
+                # ponytail: rebuild this small local index in one transaction; batch jobs if measured size requires it.
+                rows = db.execute("SELECT id, content FROM chunks")
+                while batch := rows.fetchmany(256):
+                    db.executemany("UPDATE chunks SET vector_json=? WHERE id=?",
+                                   [(json.dumps(_vector(row["content"])), row["id"]) for row in batch])
+                db.execute(f"PRAGMA user_version={VECTOR_VERSION}")
 
     def index(self, name: str, content: str, chunk_size: int = 1200) -> dict[str, Any]:
         digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
@@ -102,30 +120,35 @@ class DocumentStore:
         return {"document_id": document_id, "name": name, "chunks": len(chunks), "content_hash": digest}
 
     def search(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+        if not query.strip():
+            raise ValueError("检索词不能为空")
         target = _vector(query)
         with self._connect() as db:
             rows = db.execute(
                 "SELECT documents.name, chunks.chunk_index, chunks.content, chunks.vector_json "
                 "FROM chunks JOIN documents ON documents.id=chunks.document_id"
-            ).fetchall()
-        ranked = []
-        for row in rows:
-            score = _cosine(target, json.loads(row["vector_json"]))
-            ranked.append({"name": row["name"], "chunk_index": row["chunk_index"], "content": row["content"], "score": round(score, 6)})
-        return sorted(ranked, key=lambda item: item["score"], reverse=True)[: max(1, min(limit, 20))]
+            )
+            def scored():
+                for row in rows:
+                    score = _cosine(target, json.loads(row["vector_json"]))
+                    if score > 0:
+                        yield {"name": row["name"], "chunk_index": row["chunk_index"], "content": row["content"], "score": round(score, 6)}
+            # ponytail: O(N) scan with O(k) result memory; add an index when corpus latency justifies it.
+            return heapq.nlargest(max(1, min(limit, 20)), scored(), key=lambda item: item["score"])
 
     def status(self) -> dict[str, Any]:
         legacy_available = bool(self.legacy_database_paths())
         if not self.path.is_file():
-            return {"database": self.path.name, "documents": 0, "chunks": 0, "vector_backend": "hashing-64", "legacy_database_available": legacy_available}
+            return {"database": self.path.name, "documents": 0, "chunks": 0, "vector_backend": VECTOR_BACKEND, "legacy_database_available": legacy_available}
         db = sqlite3.connect(f"{self.path.resolve().as_uri()}?mode=ro", uri=True)
         db.row_factory = sqlite3.Row
         try:
             documents = db.execute("SELECT COUNT(*) AS count FROM documents").fetchone()["count"]
             chunks = db.execute("SELECT COUNT(*) AS count FROM chunks").fetchone()["count"]
+            version = db.execute("PRAGMA user_version").fetchone()[0]
         finally:
             db.close()
-        return {"database": self.path.name, "documents": documents, "chunks": chunks, "vector_backend": "hashing-64", "legacy_database_available": legacy_available}
+        return {"database": self.path.name, "documents": documents, "chunks": chunks, "vector_backend": VECTOR_BACKEND if version >= VECTOR_VERSION else "hashing-64-legacy", "legacy_database_available": legacy_available}
 
     def legacy_database_paths(self) -> list[Path]:
         candidates = [Path.cwd() / "tokenflow.db", Path(__file__).resolve().parent / "tokenflow.db"]
@@ -167,6 +190,18 @@ def self_check() -> None:
         store = DocumentStore(str(Path(directory) / "test.db"))
         store.index("test.txt", "alpha beta gamma")
         assert store.search("alpha", 1)[0]["name"] == "test.txt"
+        store.index("退款规则.txt", "退款期限为7天。逾期不予退款。")
+        store.index("天气.txt", "今天晴天，明天气温下降。")
+        assert store.search("退款期限", 1)[0]["name"] == "退款规则.txt"
+        assert _cosine(_vector("退款期限为7天"), _vector("退款期限")) > 0
+        with store._connect() as db:
+            db.execute("UPDATE chunks SET vector_json=?", (json.dumps([0.0] * 64),))
+            db.execute("PRAGMA user_version=1")
+        assert DocumentStore(str(store.path), initialize=False).status()["vector_backend"] == "hashing-64-legacy"
+        upgraded = DocumentStore(str(store.path))
+        assert upgraded.status()["documents"] == 3
+        assert upgraded.search("退款期限", 1)[0]["name"] == "退款规则.txt"
+        assert DocumentStore(str(store.path)).status()["vector_backend"] == VECTOR_BACKEND
         absent = Path(directory) / "not-created.db"
         assert DocumentStore(str(absent), initialize=False).status()["documents"] == 0
         assert not absent.exists()

@@ -1,0 +1,668 @@
+[
+  {
+    "name": "compression-limit",
+    "task": "MAX_COMPRESSED_CHARS 的值是多少？只回答数字。",
+    "source_file": "tokenflow.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "MAX_COMPRESSED_CHARS = 2400"
+    ],
+    "expected_answer": "2400",
+    "answer_match": "exact"
+  },
+  {
+    "name": "execution-timeout",
+    "task": "MAX_EXEC_SECONDS 的值是多少秒？只回答数字。",
+    "source_file": "tokenflow.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "MAX_EXEC_SECONDS = 90"
+    ],
+    "expected_answer": "90",
+    "answer_match": "exact"
+  },
+  {
+    "name": "output-limit",
+    "task": "MAX_OUTPUT_CHARS 的值是多少？只回答数字。",
+    "source_file": "tokenflow.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "MAX_OUTPUT_CHARS = 20000"
+    ],
+    "expected_answer": "20000",
+    "answer_match": "exact"
+  },
+  {
+    "name": "harness-sandbox",
+    "task": "build_harness_args 中 Codex 的 -s 参数值是什么？只回答参数值。",
+    "source_file": "tokenflow.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "\"read-only\""
+    ],
+    "expected_answer": "read-only",
+    "answer_match": "exact"
+  },
+  {
+    "name": "session-randomness",
+    "task": "SESSION_TOKEN 使用 secrets.token_urlsafe 的参数是多少？只回答数字。",
+    "source_file": "tokenflow.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "secrets.token_urlsafe(32)"
+    ],
+    "expected_answer": "32",
+    "answer_match": "exact"
+  },
+  {
+    "name": "local-binding",
+    "task": "run_server 的默认 host 是什么？只回答地址。",
+    "source_file": "tokenflow.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "host: str = \"127.0.0.1\""
+    ],
+    "expected_answer": "127.0.0.1",
+    "answer_match": "exact"
+  },
+  {
+    "name": "zip-entry-limit",
+    "task": "MAX_ZIP_ENTRIES 的值是多少？只回答数字。",
+    "source_file": "document_parser.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "MAX_ZIP_ENTRIES = 1024"
+    ],
+    "expected_answer": "1024",
+    "answer_match": "exact"
+  },
+  {
+    "name": "single-xml-limit",
+    "task": "MAX_XML_BYTES 限制是多少 MB？只回答数字。",
+    "source_file": "document_parser.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "MAX_XML_BYTES = 32 * 1024 * 1024"
+    ],
+    "expected_answer": "32",
+    "answer_match": "exact"
+  },
+  {
+    "name": "total-xml-limit",
+    "task": "MAX_TOTAL_XML_BYTES 限制是多少 MB？只回答数字。",
+    "source_file": "document_parser.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "MAX_TOTAL_XML_BYTES = 64 * 1024 * 1024"
+    ],
+    "expected_answer": "64",
+    "answer_match": "exact"
+  },
+  {
+    "name": "pdf-library",
+    "task": "_pdf 使用哪个 Python 包导入 PdfReader？只回答包名。",
+    "source_file": "document_parser.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "from pypdf import PdfReader"
+    ],
+    "expected_answer": "pypdf",
+    "answer_match": "exact"
+  },
+  {
+    "name": "file-size-limit",
+    "task": "parse_document_file 的文件上限是多少 MB？只回答数字。",
+    "source_file": "document_parser.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "20 * 1024 * 1024"
+    ],
+    "expected_answer": "20",
+    "answer_match": "exact"
+  },
+  {
+    "name": "text-encoding",
+    "task": "parse_document_bytes 解码普通文本使用什么编码？只回答编码名。",
+    "source_file": "document_parser.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "\"utf-8-sig\""
+    ],
+    "expected_answer": "utf-8-sig",
+    "answer_match": "exact"
+  },
+  {
+    "name": "pc-action-limit",
+    "task": "validate_actions 接受的 actions 最多有多少项？只回答数字。",
+    "source_file": "pc_agent.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "len(actions) > 50"
+    ],
+    "expected_answer": "50",
+    "answer_match": "exact"
+  },
+  {
+    "name": "pc-coordinate-limit",
+    "task": "validate_actions 允许的 x/y 坐标最大值是多少？只回答数字。",
+    "source_file": "pc_agent.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "0 <= item[\"x\"] <= 10000"
+    ],
+    "expected_answer": "10000",
+    "answer_match": "exact"
+  },
+  {
+    "name": "pc-text-limit",
+    "task": "validate_actions 对 type 的 text 长度上限是多少字符？只回答数字。",
+    "source_file": "pc_agent.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "len(item[\"text\"]) > 2000"
+    ],
+    "expected_answer": "2000",
+    "answer_match": "exact"
+  },
+  {
+    "name": "pc-key-limit",
+    "task": "validate_actions 对 key 按键名长度上限是多少字符？只回答数字。",
+    "source_file": "pc_agent.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "len(item[\"key\"]) > 40"
+    ],
+    "expected_answer": "40",
+    "answer_match": "exact"
+  },
+  {
+    "name": "pc-wait-limit",
+    "task": "validate_actions 的 wait 等待秒数最大值是多少？只回答数字。",
+    "source_file": "pc_agent.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "item[\"seconds\"] <= 10"
+    ],
+    "expected_answer": "10",
+    "answer_match": "exact"
+  },
+  {
+    "name": "pc-opt-in",
+    "task": "execute_actions 要求 TOKENFLOW_PC_AGENT_EXECUTE 等于什么字符串才执行？只回答该值。",
+    "source_file": "pc_agent.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "os.environ.get(\"TOKENFLOW_PC_AGENT_EXECUTE\") != \"1\""
+    ],
+    "expected_answer": "1",
+    "answer_match": "exact"
+  },
+  {
+    "name": "ft-default-port",
+    "task": "DEFAULT_FREETOKEN_URL 的端口是多少？只回答数字。",
+    "source_file": "freetoken_provider.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "DEFAULT_FREETOKEN_URL = \"http://127.0.0.1:1919\""
+    ],
+    "expected_answer": "1919",
+    "answer_match": "exact"
+  },
+  {
+    "name": "ft-response-limit",
+    "task": "MAX_RESPONSE_BYTES 的响应上限是多少 MB？只回答数字。",
+    "source_file": "freetoken_provider.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "MAX_RESPONSE_BYTES = 4 * 1024 * 1024"
+    ],
+    "expected_answer": "4",
+    "answer_match": "exact"
+  },
+  {
+    "name": "ft-name-limit",
+    "task": "MODEL_NAME_RE 对模型名的最大长度是多少？只回答数字。",
+    "source_file": "freetoken_provider.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "{1,240}"
+    ],
+    "expected_answer": "240",
+    "answer_match": "exact"
+  },
+  {
+    "name": "ft-client-timeout",
+    "task": "FreeTokenClient 构造函数的默认 timeout 是多少秒？只回答数字。",
+    "source_file": "freetoken_provider.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "timeout: float = 8.0"
+    ],
+    "expected_answer": [
+      "8",
+      "8.0"
+    ],
+    "answer_match": "exact"
+  },
+  {
+    "name": "ft-output-tokens",
+    "task": "FreeTokenClient.chat 默认 max_tokens 是多少？只回答数字。",
+    "source_file": "freetoken_provider.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "max_tokens: int = 1024"
+    ],
+    "expected_answer": "1024",
+    "answer_match": "exact"
+  },
+  {
+    "name": "ft-chat-path",
+    "task": "FreeTokenClient.chat 请求哪个路径？只回答路径。",
+    "source_file": "freetoken_provider.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "\"/v1/chat/completions\""
+    ],
+    "expected_answer": "/v1/chat/completions",
+    "answer_match": "exact"
+  },
+  {
+    "name": "ft-engine-port",
+    "task": "DEFAULT_PORT 的值是多少？只回答数字。",
+    "source_file": "freetoken_manager.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "DEFAULT_PORT = 1919"
+    ],
+    "expected_answer": "1919",
+    "answer_match": "exact"
+  },
+  {
+    "name": "ft-model-default",
+    "task": "DEFAULT_MODEL_NAME 的字符串是什么？只回答模型名。",
+    "source_file": "freetoken_manager.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "DEFAULT_MODEL_NAME = \"Qwen3.6-35B-A3B-NVFP4\""
+    ],
+    "expected_answer": "Qwen3.6-35B-A3B-NVFP4",
+    "answer_match": "exact"
+  },
+  {
+    "name": "ft-discovery-env",
+    "task": "find_ft_executable 读取哪个环境变量作为可执行文件路径？只回答变量名。",
+    "source_file": "freetoken_manager.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "os.environ.get(\"TOKENFLOW_FT_PATH\")"
+    ],
+    "expected_answer": "TOKENFLOW_FT_PATH",
+    "answer_match": "exact"
+  },
+  {
+    "name": "ft-installer-env",
+    "task": "find_installer 读取哪个环境变量作为安装器路径？只回答变量名。",
+    "source_file": "freetoken_manager.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "os.environ.get(\"TOKENFLOW_FREETOKEN_INSTALLER\")"
+    ],
+    "expected_answer": "TOKENFLOW_FREETOKEN_INSTALLER",
+    "answer_match": "exact"
+  },
+  {
+    "name": "ft-model-env",
+    "task": "find_model 读取哪个环境变量作为模型路径？只回答变量名。",
+    "source_file": "freetoken_manager.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "os.environ.get(\"TOKENFLOW_FREETOKEN_MODEL\")"
+    ],
+    "expected_answer": "TOKENFLOW_FREETOKEN_MODEL",
+    "answer_match": "exact"
+  },
+  {
+    "name": "ft-version-timeout",
+    "task": "_version 中 subprocess.run 的 timeout 是多少秒？只回答数字。",
+    "source_file": "freetoken_manager.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "timeout=5"
+    ],
+    "expected_answer": "5",
+    "answer_match": "exact"
+  },
+  {
+    "name": "token-heuristic-divisor",
+    "task": "_heuristic_count 按字符数除以几来估算 Token？只回答数字。",
+    "source_file": "token_counter.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "(len(text) + 3) // 4"
+    ],
+    "expected_answer": "4",
+    "answer_match": "exact"
+  },
+  {
+    "name": "token-cache-size",
+    "task": "_load_tokenizers_file 的 lru_cache maxsize 是多少？只回答数字。",
+    "source_file": "token_counter.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "@lru_cache(maxsize=4)"
+    ],
+    "expected_answer": "4",
+    "answer_match": "exact"
+  },
+  {
+    "name": "token-file-name",
+    "task": "_count_with_local_path 在目录中查找哪个 tokenizer 文件？只回答文件名。",
+    "source_file": "token_counter.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "path / \"tokenizer.json\""
+    ],
+    "expected_answer": "tokenizer.json",
+    "answer_match": "exact"
+  },
+  {
+    "name": "token-local-flag",
+    "task": "_load_transformers_tokenizer 的 local_files_only 参数是多少？只回答 True 或 False。",
+    "source_file": "token_counter.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "local_files_only=True"
+    ],
+    "expected_answer": "True",
+    "answer_match": "exact"
+  },
+  {
+    "name": "token-encoding-default",
+    "task": "TOKENFLOW_TIKTOKEN_ENCODING 的默认值是什么？只回答编码名。",
+    "source_file": "token_counter.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "\"cl100k_base\""
+    ],
+    "expected_answer": "cl100k_base",
+    "answer_match": "exact"
+  },
+  {
+    "name": "token-transformers-special",
+    "task": "_count_with_local_path 的 transformers.encode 是否添加 special tokens？只回答 True 或 False。",
+    "source_file": "token_counter.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "add_special_tokens=False"
+    ],
+    "expected_answer": "False",
+    "answer_match": "exact"
+  },
+  {
+    "name": "omni-allowlist-size",
+    "task": "_model_allowlist 中最多允许多少个模型 ID？只回答数字。",
+    "source_file": "model_providers.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "len(models) > 64"
+    ],
+    "expected_answer": "64",
+    "answer_match": "exact"
+  },
+  {
+    "name": "omni-id-length",
+    "task": "omniroute_model 的模型 ID 最长允许多少字符？只回答数字。",
+    "source_file": "model_providers.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "{1,80}"
+    ],
+    "expected_answer": "80",
+    "answer_match": "exact"
+  },
+  {
+    "name": "ollama-default-port",
+    "task": "PROVIDERS 中默认 Ollama 地址的端口是多少？只回答数字。",
+    "source_file": "model_providers.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "11434/v1"
+    ],
+    "expected_answer": "11434",
+    "answer_match": "exact"
+  },
+  {
+    "name": "omni-default-port",
+    "task": "PROVIDERS 中默认 OmniRoute 地址的端口是多少？只回答数字。",
+    "source_file": "model_providers.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "20128/v1"
+    ],
+    "expected_answer": "20128",
+    "answer_match": "exact"
+  },
+  {
+    "name": "omni-url-limit",
+    "task": "configure_omniroute 允许的 URL 最大长度是多少？只回答数字。",
+    "source_file": "model_providers.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "len(url) > 2048"
+    ],
+    "expected_answer": "2048",
+    "answer_match": "exact"
+  },
+  {
+    "name": "omni-key-limit",
+    "task": "configure_omniroute 允许的 Key 最大长度是多少？只回答数字。",
+    "source_file": "model_providers.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "len(key) > 8192"
+    ],
+    "expected_answer": "8192",
+    "answer_match": "exact"
+  },
+  {
+    "name": "store-vector-version",
+    "task": "VECTOR_VERSION 的值是多少？只回答数字。",
+    "source_file": "tokenflow_store.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "VECTOR_VERSION = 2"
+    ],
+    "expected_answer": "2",
+    "answer_match": "exact"
+  },
+  {
+    "name": "store-vector-dimensions",
+    "task": "_vector 的默认 dimensions 是多少？只回答数字。",
+    "source_file": "tokenflow_store.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "dimensions: int = 64"
+    ],
+    "expected_answer": "64",
+    "answer_match": "exact"
+  },
+  {
+    "name": "store-chunk-size",
+    "task": "DocumentStore.index 默认 chunk_size 是多少字符？只回答数字。",
+    "source_file": "tokenflow_store.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "chunk_size: int = 1200"
+    ],
+    "expected_answer": "1200",
+    "answer_match": "exact"
+  },
+  {
+    "name": "store-search-default",
+    "task": "DocumentStore.search 默认 limit 是多少？只回答数字。",
+    "source_file": "tokenflow_store.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "limit: int = 5"
+    ],
+    "expected_answer": "5",
+    "answer_match": "exact"
+  },
+  {
+    "name": "store-search-maximum",
+    "task": "DocumentStore.search 最多返回多少条结果？只回答数字。",
+    "source_file": "tokenflow_store.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "min(limit, 20)"
+    ],
+    "expected_answer": "20",
+    "answer_match": "exact"
+  },
+  {
+    "name": "store-content-digest",
+    "task": "DocumentStore.index 使用 hashlib 中哪种摘要算法判断文档内容重复？只回答算法名。",
+    "source_file": "tokenflow_store.py",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "hashlib.sha256(content.encode"
+    ],
+    "expected_answer": "sha256",
+    "answer_match": "exact"
+  },
+  {
+    "name": "docs-python-version",
+    "task": "快速开始要求的 Python 最低版本是多少？只回答版本号。",
+    "source_file": "README.zh-CN.md",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "Python 3.10"
+    ],
+    "expected_answer": "3.10",
+    "answer_match": "exact"
+  },
+  {
+    "name": "docs-ui-port",
+    "task": "TokenFlow 页面默认使用哪个端口？只回答数字。",
+    "source_file": "README.zh-CN.md",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "127.0.0.1:8765"
+    ],
+    "expected_answer": "8765",
+    "answer_match": "exact"
+  },
+  {
+    "name": "docs-json-limit",
+    "task": "JSON 请求上限是多少 MB？只回答数字。",
+    "source_file": "README.zh-CN.md",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "JSON 请求上限为 2 MB"
+    ],
+    "expected_answer": "2",
+    "answer_match": "exact"
+  },
+  {
+    "name": "docs-upload-limit",
+    "task": "上传文件上限是多少 MB？只回答数字。",
+    "source_file": "README.zh-CN.md",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "每个文件 20 MB"
+    ],
+    "expected_answer": "20",
+    "answer_match": "exact"
+  },
+  {
+    "name": "docs-license",
+    "task": "项目采用什么许可证？只回答许可证简称。",
+    "source_file": "README.zh-CN.md",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "MIT 许可证"
+    ],
+    "expected_answer": "MIT",
+    "answer_match": "exact"
+  },
+  {
+    "name": "docs-pdf-dependency",
+    "task": "可选 PDF 解析依赖的包名是什么？只回答包名。",
+    "source_file": "README.zh-CN.md",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "python -m pip install pypdf"
+    ],
+    "expected_answer": "pypdf",
+    "answer_match": "exact"
+  },
+  {
+    "name": "security-ack-days",
+    "task": "维护者目标是在多少天内确认有效漏洞报告？只回答数字。",
+    "source_file": "SECURITY.zh-CN.md",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "7 天内确认有效报告"
+    ],
+    "expected_answer": "7",
+    "answer_match": "exact"
+  },
+  {
+    "name": "security-plan-days",
+    "task": "维护者目标是在多少天内给出漏洞评估或缓解计划？只回答数字。",
+    "source_file": "SECURITY.zh-CN.md",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "14 天内给出严重性评估或缓解计划"
+    ],
+    "expected_answer": "14",
+    "answer_match": "exact"
+  },
+  {
+    "name": "security-loopback",
+    "task": "安全协议要求 TokenFlow 绑定哪个 IPv4 地址？只回答地址。",
+    "source_file": "SECURITY.zh-CN.md",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "绑定 `127.0.0.1`"
+    ],
+    "expected_answer": "127.0.0.1",
+    "answer_match": "exact"
+  },
+  {
+    "name": "security-write-header",
+    "task": "浏览器写操作令牌通过哪个 HTTP 请求头发送？只回答请求头名称。",
+    "source_file": "SECURITY.zh-CN.md",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "X-TokenFlow-Token"
+    ],
+    "expected_answer": "X-TokenFlow-Token",
+    "answer_match": "exact"
+  },
+  {
+    "name": "security-secret-action",
+    "task": "如果密钥已经泄露，第一步应该怎么做？只回答原文中的第一步短语。",
+    "source_file": "SECURITY.zh-CN.md",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "立即吊销或轮换"
+    ],
+    "expected_answer": [
+      "立即吊销或轮换",
+      "立即吊销或轮换密钥"
+    ],
+    "answer_match": "exact"
+  },
+  {
+    "name": "security-pc-switch",
+    "task": "PC Agent 层执行的环境开关名称是什么？只回答环境变量名。",
+    "source_file": "SECURITY.zh-CN.md",
+    "source_kind": "repository_qa",
+    "must_keep": [
+      "TOKENFLOW_PC_AGENT_EXECUTE=1"
+    ],
+    "expected_answer": "TOKENFLOW_PC_AGENT_EXECUTE",
+    "answer_match": "exact"
+  }
+]

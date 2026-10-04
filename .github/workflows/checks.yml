@@ -1,0 +1,43 @@
+name: Windows checks and executable
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install build tools
+        run: python -m pip install pyinstaller==6.22.3 pypdf
+      - name: Run checks
+        shell: pwsh
+        run: |
+          python -m compileall -q .
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -c "import ui_page; print(ui_page.PAGE.split('<script>',1)[1].split('</script>',1)[0])" | node --check
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tokenflow.py --self-check
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python eval_workflow.py --self-check
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python eval_workflow.py --cases eval_cases.repository.json --report tmp/offline.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -c "import json; r=json.load(open('tmp/offline.json',encoding='utf-8')); assert r['summary']['cases']==60 and r['summary']['critical_fact_loss_rate']==0"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Build and smoke-test EXE
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name TokenFlow launcher.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ./scripts/smoke_exe.ps1
+          $hash = (Get-FileHash dist/TokenFlow.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  TokenFlow.exe" | Set-Content dist/SHA256SUMS.txt -Encoding ascii
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TokenFlow-windows
+          path: |
+            dist/TokenFlow.exe
+            dist/SHA256SUMS.txt

@@ -9,7 +9,7 @@ Chinese documentation: [README.zh-CN.md](README.zh-CN.md).
 ## Highlights
 
 - Classifies tasks as code, table, document, or general.
-- Compresses long text with a deterministic head-tail policy.
+- Extracts task-matching text with complete Python functions, Markdown sections or prose paragraphs; retains the original when extraction is uncertain or too large.
 - Estimates before/after tokens for routing feedback. Estimates are not billing-grade tokenizer counts.
 - Detects local Codex, Claude, and DSH commands and selects a default Harness/model pair.
 - Uses Codex read-only mode and Claude plan mode by default.
@@ -92,6 +92,7 @@ TOKENFLOW_FREETOKEN_URL       Local FreeToken endpoint; default http://127.0.0.1
 TOKENFLOW_OLLAMA_URL          Ollama OpenAI-compatible endpoint; default http://127.0.0.1:11434/v1
 TOKENFLOW_OMNIROUTE_URL       OmniRoute /v1 endpoint; default http://127.0.0.1:20128/v1
 TOKENFLOW_OMNIROUTE_API_KEY   Endpoint Key from OmniRoute; required by the tested local setup and for remote gateways
+TOKENFLOW_OMNIROUTE_ALLOWED_MODELS  Optional comma-separated exact model IDs; OmniRoute always requires an explicit model
 TOKENFLOW_LAYA_URL            User-supplied Laya-compatible endpoint
 TOKENFLOW_LAYA_API_KEY        Optional Laya key, read only from the environment
 TOKENFLOW_CLOUD_URL           User-supplied cloud OpenAI-compatible endpoint
@@ -103,7 +104,7 @@ The page's **OmniRoute setup** panel detects an existing CLI, can start the defa
 
 Enter a `/v1` URL and Endpoint Key in the panel, then save. The Key remains only in this TokenFlow process's memory (or can be supplied through `TOKENFLOW_OMNIROUTE_API_KEY`); it is never returned by the API, written to disk, or included in CLI arguments. A blank Key field preserves the existing Key. Closing TokenFlow discards the page-supplied Key. The gateway URL must not contain credentials, a query, or a fragment; remote URLs require HTTPS and a Key. The **Start** button controls only the default loopback gateway, not a custom or remote gateway. TokenFlow's chat adapter uses `/v1/models` and `/v1/chat/completions`. Laya has no assumed public endpoint in this repository; configure the endpoint supplied by the deployment. Jev is exposed separately through `POST /api/jev/decision` with `JEV_API_KEY` and optional `TOKENFLOW_JEV_URL`. It is an explicit typed-decision call and is never invoked silently as a general chat model.
 
-For `/api/chat`, explicitly enter an OmniRoute model ID if the gateway's `/v1/models` catalog omits a configured local model (for example, `ollama-local/qwen3.5:9b`). TokenFlow sends that named model to OmniRoute for validation; `model: "auto"` still selects from the returned catalog and may not choose a configured local model. Check the gateway's routing and billing settings before using `auto`.
+OmniRoute calls require an explicit model ID (for example, `ollama-local/qwen3.5:9b`); `auto` is rejected before content is sent. Enter an optional exact-ID allow-list on the page and save it with the connection configuration, or set `TOKENFLOW_OMNIROUTE_ALLOWED_MODELS`. An empty allow-list permits explicit IDs, not automatic selection. The same policy covers chat, evaluation and TokenFlow-launched Codex. `POST /api/omniroute/preview` with `{"model":"<model-id>"}` shows the gateway and requested model without sending a task or starting a Harness. The page previews before an OmniRoute execution. TokenFlow cannot determine final upstream cost or restrict fallback within a gateway combo; verify those settings in OmniRoute.
 
 ## Document parsing and cache
 
@@ -111,7 +112,7 @@ For `/api/chat`, explicitly enter an OmniRoute model ID if the gateway's `/v1/mo
 
 JSON requests are limited to 2 MB. Uploaded files are limited to 20 MB per file.
 
-`POST /api/index` stores extracted text in SQLite and creates a deterministic hashing-vector cache. `POST /api/search` retrieves the highest-scoring chunks. This is a local lexical/vector cache, not a claim of embedding-model semantic quality.
+`POST /api/index` stores extracted text in SQLite and creates a deterministic 64-dimensional hashing-vector cache. Chinese text uses character bigrams/trigrams, while English uses word tokens. `POST /api/search` keeps only the top results in memory during a linear scan. Existing vectors are rebuilt transactionally on the first index/search operation with the new version; documents are preserved. Status reads do not migrate or create a database. This is lexical retrieval, not an embedding-model semantic-quality claim.
 
 Optional parsers:
 
@@ -150,7 +151,7 @@ Use `GET /api/tokenizer` to inspect the active backend. Tokenizer loading is loc
 
 ### Savings and quality checks
 
-`/api/run` estimates content tokens. Model and Harness execution routes estimate the visible prompt/message text actually sent for both the baseline and processed candidate. For long inputs, TokenFlow selects original source lines matching the task plus adjacent context. It sends the original when no relevant lines match, too many lines match, or the candidate does not reduce estimated tokens, returning `compression_applied: false`. This conservative heuristic cannot guarantee that every relevant fact is found. `token_counting.scope` identifies the measurement scope. These estimates exclude hidden model overhead and are not billable usage.
+`/api/run` estimates content tokens. Model and Harness routes estimate the visible prompt/message text actually sent. For long inputs, task matches retain complete Python functions, Markdown sections or prose paragraphs. Broad tasks such as summarization/translation, missing matches, oversized excerpts and non-saving candidates use the original, returning `compression_applied: false`. This heuristic cannot guarantee every relevant fact. `token_counting.scope` identifies the scope; estimates exclude hidden overhead and are not billable usage.
 
 Run the three illustrative offline cases without connecting to any model or uploading content:
 
@@ -164,7 +165,20 @@ To compare answers from the same configured model on raw and candidate-compresse
 python eval_workflow.py --provider freetoken --model <installed-model-id>
 ```
 
-Supply your own JSON array with `--cases <JSON-file>`. Each case needs `task`, `content`, and a `must_keep` array of literal facts; model comparisons also need `expected_answer`. Built-in cases only check whether known middle facts survive; they are not evidence of general answer quality. That still requires representative cases and same-model answer comparisons.
+The repository also includes 60 curated questions grounded in actual public project files. They are a reproducible repository-QA baseline, not production user tasks:
+
+```powershell
+python eval_workflow.py --cases eval_cases.repository.json --report tmp/offline.json
+python eval_workflow.py --cases eval_cases.repository.json --provider ollama --model <installed-model-id> --report tmp/model-comparison.json
+```
+
+Use `TOKENFLOW_OLLAMA_URL` when the local service uses a custom port. The evaluator compares the original with the prompt actually selected by TokenFlow, saves answers and response-reported usage, alternates pair order, and separates prompt estimates from reported input/output totals. It generates JSON and Markdown after each case; output may contain task answers and should be reviewed before sharing.
+
+Ollama evaluation uses its native chat API to set `--ollama-context` (default 32768), temperature 0 and thinking off. The recorded model settings apply equally to both prompts. Choose sufficient capacity for the source and output; ordinary application chat keeps the configured OpenAI-compatible endpoint behavior. These settings follow the [Ollama context guidance](https://docs.ollama.com/api/openai-compatibility#setting-the-local-context-size).
+
+Supply a JSON array through `--cases`. Each case needs `task`, `content` (or a relative `source_file` within the case file's directory), and `must_keep` literal facts. Model comparisons also need `expected_answer`: a string or alternative-answer array. `answer_match: "exact"` is the default; `contains_all` explicitly requires every listed fragment. Numeric substring matches such as `7` inside `17` do not pass. Label `source_kind` accurately.
+
+The default quality gate requires at least 50 completed pairs, no annotated fact loss, processed answer accuracy of at least 90%, accuracy drop of at most 2 percentage points, and at least 5% reduction in provider-reported input tokens. Missing usage or incomplete cases are marked `not_evaluated`, never passed. `--enforce-gate` exits with code 2 unless the gate passes; thresholds are configurable. Passing only applies to the supplied cases, not general quality or billing savings. See [the checked-in comparison report](docs/reports/repository-quality.md) for measured results and limits.
 
 ## Harness execution
 
@@ -180,7 +194,7 @@ Invoke-RestMethod http://127.0.0.1:8765/api/execute `
 
 Codex uses read-only mode and Claude uses plan mode by default. DSH requires a configured `DSH_HOME` and profile.
 
-To route only a TokenFlow-launched Codex CLI invocation through OmniRoute, explicitly set `harness: "codex"` and `harness_backend: "omniroute"` on `/api/execute` (or select both controls on the page). The default is `harness_backend: "direct"`; it retains the normal Codex configuration. OmniRoute mode passes per-invocation Codex provider overrides for `/v1/responses` without editing global Codex files. `model: "auto"` is passed to the gateway as `auto`; for predictable routing, choose a gateway-configured model or combo explicitly. The gateway, not TokenFlow, decides the upstream account, cost, and fallback. The gateway must already be running and support the Responses API; this is not a Codex desktop-app setting. Direct API callers must obtain user consent for possible remote data transfer and charges.
+To route a TokenFlow-launched Codex CLI through OmniRoute, set `harness: "codex"`, `harness_backend: "omniroute"` and an explicit allowed `model` on `/api/execute` (or use the page). `auto` is rejected. The default backend is `direct`. OmniRoute mode uses per-invocation `/v1/responses` overrides without editing global Codex files. The gateway controls upstream accounts, cost and fallback, and must already support the Responses API. This is not a Codex desktop-app setting. Direct API callers must obtain consent for possible remote transfer and charges.
 
 ## HTTP API
 
@@ -211,6 +225,7 @@ POST /api/freetoken/start
 POST /api/omniroute/config
 POST /api/omniroute/install
 POST /api/omniroute/start
+POST /api/omniroute/preview
 ```
 
 All POST requests require the per-process token returned by `GET /api/session`; browser requests also require a matching loopback Origin. The OmniRoute setup endpoints additionally require a loopback client. The token reduces cross-site request risk but is not user authentication. Install and start endpoints control local processes. Do not forward them through a public reverse proxy.
@@ -227,12 +242,14 @@ python tokenflow.py --self-check
 python eval_workflow.py --self-check
 ```
 
+GitHub Actions runs the checks on Windows, builds the EXE, validates startup/status/preview/shutdown using `scripts/smoke_exe.ps1`, and uploads an artifact with its SHA256 file. Published releases attach the verified executable and checksum separately from source commits.
+
 Before a pull request, scan the diff for secrets, absolute paths, generated logs, model files, credentials, and unintended subprocess changes. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Limitations
 
 - Token estimates may be heuristic; even with an optional tokenizer, visible-prompt counts are not billable usage.
-- Preprocessing is deterministic cleaning and head-tail extraction, not semantic summarization.
+- Preprocessing is deterministic, structure-aware extraction, not semantic summarization; representative task quality still needs external validation.
 - The local HTTP API has no user authentication, quotas, or multi-user isolation; its per-process write token only mitigates browser-originated cross-site requests.
 - TokenFlow does not redistribute FreeToken or OmniRoute runtime files, model weights, or third-party Harnesses.
 - Provider availability depends on user configuration and network access.

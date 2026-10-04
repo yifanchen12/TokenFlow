@@ -9,7 +9,7 @@ English documentation: [README.md](README.md)。
 ## 核心能力
 
 - 将任务分类为代码、表格、文档或通用任务；
-- 使用确定性的首尾保留策略压缩长文本；
+- 按任务匹配摘取文本，保留完整 Python 函数、Markdown 小节或正文段落；抽取范围过大或不确定时保留原文；
 - 展示压缩前后的 Token 估算值；估算值不是计费级 tokenizer 结果；
 - 检测本机 Codex、Claude、DSH 并选择默认 Harness/模型；
 - 默认使用 Codex 只读模式和 Claude 计划模式；
@@ -92,6 +92,7 @@ TOKENFLOW_FREETOKEN_URL       本地 FreeToken 地址，默认 http://127.0.0.1:
 TOKENFLOW_OLLAMA_URL          Ollama OpenAI 兼容地址，默认 http://127.0.0.1:11434/v1
 TOKENFLOW_OMNIROUTE_URL       OmniRoute /v1 地址，默认 http://127.0.0.1:20128/v1
 TOKENFLOW_OMNIROUTE_API_KEY   OmniRoute 的 Endpoint Key；已测试的本机部署及远程网关均需提供
+TOKENFLOW_OMNIROUTE_ALLOWED_MODELS  可选的明确模型 ID 白名单，逗号分隔；OmniRoute 始终要求明确模型
 TOKENFLOW_LAYA_URL            用户自行提供的 Laya 兼容端点
 TOKENFLOW_LAYA_API_KEY        可选 Laya 密钥，只从环境变量读取
 TOKENFLOW_CLOUD_URL           用户自行提供的云端 OpenAI 兼容端点
@@ -103,7 +104,7 @@ TOKENFLOW_PROVIDER_ORDER      逗号分隔的提供商顺序
 
 在页面输入 `/v1` 地址和 Endpoint Key 后保存。页面输入的 Key 只留在当前 TokenFlow 进程的内存中（也可通过 `TOKENFLOW_OMNIROUTE_API_KEY` 提供），不会在接口响应中回显、写入磁盘或放进命令参数；关闭 TokenFlow 后该页面配置失效。Key 输入框留空表示保留现有 Key。地址不得包含凭据、查询或片段；远程网关必须使用 HTTPS 并提供 Key。“启动本地网关”只适用于默认回环地址，不管理自定义或远程网关。聊天接口调用 `/v1/models` 和 `/v1/chat/completions`。本仓库不猜测 Laya 的固定公网地址，请按实际部署配置。Jev 通过 `POST /api/jev/decision` 显式调用，使用 `JEV_API_KEY` 和可选的 `TOKENFLOW_JEV_URL`，不会被静默当作普通聊天模型调用。
 
-如果 OmniRoute 的 `/v1/models` 目录未列出已经配置的本地模型，请在 `/api/chat` 显式填写模型 ID（例如 `ollama-local/qwen3.5:9b`）；TokenFlow 会把它交给网关校验。`model: "auto"` 仍根据网关返回的目录选择，不保证选中本地模型。使用 `auto` 前请核对网关的路由与计费设置。
+OmniRoute 必须填写明确模型 ID（例如 `ollama-local/qwen3.5:9b`）；`auto` 会在发送内容前被拒绝。可在页面填写模型白名单并保存连接配置，或设置 `TOKENFLOW_OMNIROUTE_ALLOWED_MODELS`；白名单按完整 ID 匹配。留空允许明确指定的模型，不允许自动选择。同一规则适用于聊天、评测和 TokenFlow 启动的 Codex。`POST /api/omniroute/preview` 接受 `{"model":"<模型ID>"}`，只展示网关与所选模型，不发送任务或启动 Harness；页面会在执行前自动预览。TokenFlow 无法确认最终上游费用，也无法约束网关组合内部的回退，请在 OmniRoute 中核对这些设置。
 
 ## 文档解析与缓存
 
@@ -111,7 +112,7 @@ TOKENFLOW_PROVIDER_ORDER      逗号分隔的提供商顺序
 
 JSON 请求上限为 2 MB；上传文件上限为每个文件 20 MB。
 
-`POST /api/index` 将提取文本保存到 SQLite，并生成确定性的哈希向量缓存；`POST /api/search` 返回相似度最高的文本分块。这是本地词法/向量检索缓存，不宣称等同于语义 Embedding 模型。
+`POST /api/index` 将提取文本保存到 SQLite，并生成确定性的 64 维哈希向量。中文使用连续二字/三字片段，英文使用单词；`POST /api/search` 在线性扫描时只保留得分最高的少量结果。旧向量会在新版首次索引或检索时事务性重建，原有文档保留；状态读取不会迁移或创建数据库。这是词法检索，不宣称等同于语义 Embedding 模型。
 
 可选 PDF 解析依赖：
 
@@ -150,7 +151,7 @@ $env:TOKENFLOW_TIKTOKEN_ENCODING = "cl100k_base"
 
 ### 收益统计与质量评测
 
-`/api/run` 估算正文 Token；模型和 Harness 执行接口会把实际使用的可见提示词或消息文本计入基线与处理后估算。长内容只摘取与任务词匹配的原文行和相邻上下文；找不到匹配片段、片段过多或候选内容未降低估算值时发送原文，并返回 `compression_applied: false`。这是一种保守的启发式方法，不保证所有相关事实都被找到。`token_counting.scope` 标明统计范围；数字不包含模型隐藏开销，不等同于账单用量。
+`/api/run` 估算正文 Token；模型和 Harness 接口统计实际使用的可见提示词文本。长内容按任务匹配，保留完整 Python 函数、Markdown 小节或正文段落。总结、翻译等广覆盖任务、无匹配片段、抽取范围超过限制或无估算收益时发送原文，并返回 `compression_applied: false`。这种启发式方法不保证所有相关事实都被找到。`token_counting.scope` 标明统计范围；数字不包含隐藏开销，不等同于账单用量。
 
 运行内置的三类示例基准，不会连接模型或上传内容：
 
@@ -164,7 +165,20 @@ python eval_workflow.py
 python eval_workflow.py --provider freetoken --model <已安装模型名>
 ```
 
-也可用 `--cases <JSON文件>` 提供自己的样本数组，每项包含 `task`、`content`、`must_keep`（关键原文片段数组）和模型评测时使用的 `expected_answer`。默认样本是人工构造的回归示例，仅用于检查中段关键事实是否保留，不能证明一般任务的答案质量；后者仍需真实样本和同模型答案对比。
+仓库还提供了 60 个基于实际项目代码和公开文档的可复现问答任务。它们属于项目问答基线，不是实际用户任务日志：
+
+```powershell
+python eval_workflow.py --cases eval_cases.repository.json --report tmp/offline.json
+python eval_workflow.py --cases eval_cases.repository.json --provider ollama --model <已安装模型名> --report tmp/model-comparison.json
+```
+
+本机服务使用自定义端口时设置 `TOKENFLOW_OLLAMA_URL`。评测比较原文与 TokenFlow 实际选中的提示词，记录答案、响应中的 usage 和耗时；交替执行顺序，分别统计文本估算与提供商报告的输入/输出总量。每个任务完成后生成 JSON 和 Markdown；报告可能含任务答案，分享前须检查。
+
+Ollama 评测使用原生聊天 API，设置 `--ollama-context`（默认 32768）、温度 0 和关闭思考，并记录设置；原文和处理后提示词使用相同参数。请为原文和输出预留足够上下文容量；普通应用聊天仍使用原有 OpenAI 兼容接口。这遵循 [Ollama 的上下文说明](https://docs.ollama.com/api/openai-compatibility#setting-the-local-context-size)。
+
+自有样本通过 `--cases` 提供，每项需要 `task`、`content`（或样本文件所在目录内的相对 `source_file`）及 `must_keep` 关键原文数组。模型评测还需要 `expected_answer` 字符串或可接受答案数组。默认 `answer_match: "exact"` 精确匹配；显式使用 `contains_all` 时要求全部片段存在，不会把 `17` 中的 `7` 判为正确。请准确标注 `source_kind`。
+
+默认质量门槛要求至少 50 个完整对比、标注事实零丢失、处理后准确率至少 90%、答案准确率下降不超过 2 个百分点，且提供商报告的输入 Token 至少节省 5%。缺少 usage 或样本未完成时标记 `not_evaluated`，不会算通过。`--enforce-gate` 会在门槛未通过时以退出码 2 结束，阈值可调整。通过只针对所提供样本，不证明普遍质量或账单收益；已测结果与限制见[项目问答对比报告](docs/reports/repository-quality.md)。
 
 ## Harness 执行
 
@@ -180,7 +194,7 @@ Invoke-RestMethod http://127.0.0.1:8765/api/execute `
 
 默认 Codex 使用只读模式，Claude 使用计划模式。DSH 需要配置 `DSH_HOME` 和 profile。
 
-若只想让 **TokenFlow 本次启动的 Codex CLI** 走 OmniRoute，请在 `/api/execute` 显式设置 `harness: "codex"`、`harness_backend: "omniroute"`，或在页面选择相同选项。默认 `harness_backend: "direct"` 保留原 Codex 路由。OmniRoute 模式通过本次命令参数配置 Codex 的 `/v1/responses` 提供商，不修改全局 Codex 配置。`model: "auto"` 会原样交给网关；为可预期的路由，建议显式选择网关已配置的模型或组合。上游账号、费用和故障回退由网关决定。网关必须已启动并支持 Responses API；此选项不是 Codex 桌面应用的全局设置。直接调用 API 的客户端应自行取得外发与可能计费的授权。
+若想让 TokenFlow 启动的 Codex CLI 走 OmniRoute，在 `/api/execute` 指定 `harness: "codex"`、`harness_backend: "omniroute"` 和白名单允许的明确 `model`，或使用页面选项；`auto` 会被拒绝。默认后端仍为 `direct`。OmniRoute 模式使用本次调用的 `/v1/responses` 参数，不修改全局 Codex 文件。上游账号、费用和回退由网关决定，网关须已启动并支持 Responses API；这不是 Codex 桌面应用的全局设置。API 客户端应自行取得外发与可能计费的授权。
 
 ## HTTP 接口
 
@@ -211,6 +225,7 @@ POST /api/freetoken/start
 POST /api/omniroute/config
 POST /api/omniroute/install
 POST /api/omniroute/start
+POST /api/omniroute/preview
 ```
 
 所有 POST 请求都必须携带 `GET /api/session` 返回的进程级令牌；浏览器请求还必须来自匹配的本机 Origin。OmniRoute 设置接口额外要求请求来自回环地址。该令牌用于降低跨站请求风险，不是用户身份认证。安装和启动接口可以控制本地进程，不要将它们转发到公网反向代理。
@@ -227,12 +242,14 @@ python tokenflow.py --self-check
 python eval_workflow.py --self-check
 ```
 
+GitHub Actions 会在 Windows 自动自检、构建 EXE，通过 `scripts/smoke_exe.ps1` 验证启动、状态、预览和关闭，并提供 EXE 与 SHA256 构建附件。正式 Release 单独上传已验证的程序和校验文件，不把二进制提交到源码分支。
+
 提交 Pull Request 前，请检查 diff 中是否包含密钥、绝对路径、日志、模型文件、凭据或未经审查的子进程行为。详见 [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md)。
 
 ## 当前边界
 
 - Token 数可能是启发式估算；即使使用可选 tokenizer，可见提示词估算也不是账单用量；
-- 预处理是确定性清洗和首尾截取，不是语义摘要；
+- 预处理是确定性、保留结构的抽取，不是语义摘要；真实业务代表性的质量仍需外部任务验证；
 - 本地 HTTP 接口没有用户认证、配额和多用户隔离；进程级写令牌仅用于降低浏览器跨站请求风险；
 - TokenFlow 不分发 FreeToken、OmniRoute 运行时、模型权重或第三方 Harness；
 - 提供商是否可用取决于用户配置和网络条件；

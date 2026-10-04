@@ -11,7 +11,7 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import ProxyHandler, build_opener
 
-from model_providers import ProviderError, omniroute_config, omniroute_key
+from model_providers import ProviderError, omniroute_allowed_models, omniroute_config, omniroute_key
 
 
 LOCAL_URL = "http://127.0.0.1:20128/v1"
@@ -29,15 +29,18 @@ def _health() -> bool:
 def status() -> dict[str, Any]:
     try:
         url, key = omniroute_config()
+        allowed = list(omniroute_allowed_models())
         error = None
-    except ProviderError as exc:
+    except (ProviderError, ValueError) as exc:
         url, key, error = None, omniroute_key(), str(exc)
+        allowed = []
     return {
         "installed": shutil.which("omniroute") is not None,
         "npm_available": shutil.which("npm") is not None,
         "running": _health(),
         "url": url,
         "key_configured": bool(key),
+        "allowed_models": allowed,
         "local_start_available": url == LOCAL_URL,
         "install_guide": UPSTREAM_URL,
         **({"error": error} if error else {}),
