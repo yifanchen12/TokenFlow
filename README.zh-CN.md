@@ -24,6 +24,20 @@ English documentation: [README.md](README.md)。
 
 ## 架构
 
+页面的主要操作现在是“布置任务并自动完成”：本地读取文件和统计，按需由本地模型分类与摘要，规划器拆分任务，模型或 Harness 顺序执行，最后验收。支持的纯计数和统计任务不调用模型。推理任务必须获得有效的验收结论；未通过可在预算内修正一次，执行失败或未完成验收不会显示“已完成”。
+
+### 保存连接、检测模型与 Harness 绑定
+
+在“模型提供商与 Harness 配置”中保存连接名称、Base URL、API Key 和协议（Chat Completions、Responses 或 Anthropic Messages）。保存后请求 `/models`，当前目录和历史模型记录跨重启保留；不提供目录的端点可以手动登记 ID。检测失败保留原记录并显示错误。自动本地检测仅探测已配置或默认的回环 Ollama / FreeToken 端点，不生成文本或下载模型。
+
+Codex 模型来自本机配置及可见模型缓存，Claude 来自本机配置中的模型 ID。缓存和手工记录不保证当前账户可调用。Codex 绑定需要 Responses，Claude 需要 Messages；DSH 保留其原生 profile。原生订阅登录仍由 Harness 使用。支持导入现有 API Key 连接，Key 不回显；绑定只影响 TokenFlow 启动的子进程，密钥通过子进程环境传递。默认继续使用只读 / 计划模式。
+
+连接、策略和最近任务记录保存在用户缓存旁的 `connections.db`，不写入项目；可用 `TOKENFLOW_CONFIG_DB` 指定位置。Windows 使用当前系统用户的 DPAPI 保护 Key；POSIX 通过仅文件所有者可读的权限保护。Key 留空保留原值，更换地址需要重新填写。任务记录包含结果，应视为私人数据。旧版 OmniRoute 设置区仍是独立的进程内存配置。
+
+策略可选择本地模型、规划器、执行器、验收器和 3–8 次阶段调用预算，默认 6 次。规划最多四步，允许不同已安装 Harness 传递步骤结果；一次 Harness 启动可能产生额外内部调用，TokenFlow 无法完整计量。页面区分可见提示词估算、提供商 usage 和未知用量，与一次原文输入相比的差值可能为负，不承诺实际账单节省或任意任务的语义正确性。规划可使用明确标注的摘要或预览；执行保留选取的资料，验收读取原始输入。
+
+新增接口：`GET /api/config`；`POST /api/config/connection`、`/api/config/discover`、`/api/config/discover-local`、`/api/config/import-native`、`/api/config/settings`、`/api/tasks/start`；`GET /api/tasks` 和 `/api/tasks/<id>`。这些配置与任务接口要求回环访问和会话请求头，GET 也需要。`python test_orchestration.py` 执行离线编排检查，也包含在主程序 `--self-check` 中。本机 Codex TOML 导入需要 Python 3.11+，Windows 构建已包含。
+
 ```text
 浏览器或命令行
        |

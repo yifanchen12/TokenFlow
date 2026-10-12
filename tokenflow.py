@@ -10,6 +10,7 @@ import os
 import re
 import secrets
 import shutil
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -41,6 +42,8 @@ from model_providers import ProviderError, chat_messages, configure_omniroute, i
 from omniroute_manager import install as install_omniroute, self_check as omniroute_manager_self_check, start as start_omniroute, status as omniroute_status
 from pc_agent import PCAgentError, execute_actions, plan_actions, self_check as pc_agent_self_check
 from tokenflow_store import DocumentStore, self_check as store_self_check
+from runtime_config import RuntimeConfig, native_catalogs, ConnectionClient
+from task_orchestrator import start_task
 
 
 MAX_COMPRESSED_CHARS = 2400
@@ -49,11 +52,6 @@ MAX_OUTPUT_CHARS = 20000
 MAX_OUTPUT_BYTES = MAX_OUTPUT_CHARS * 4
 SESSION_TOKEN = secrets.token_urlsafe(32)
 HARNESS_NAMES = ("codex", "claude", "dsh")
-DEFAULT_MODELS = {
-    "codex": {"fast": "gpt-5.6-luna", "quality": "gpt-5.6-sol"},
-    "claude": {"fast": "sonnet", "quality": "opus"},
-    "dsh": {"fast": "v4f", "quality": "v4f/pro"},
-}
 
 
 def estimate_tokens(text: str) -> int:
@@ -235,6 +233,7 @@ def _resolve_harness_command(harness: str) -> list[str] | None:
 
 def detect_harnesses() -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
+    catalogs = native_catalogs()
     for harness in HARNESS_NAMES:
         command = _resolve_harness_command(harness)
         configured = True
@@ -246,8 +245,11 @@ def detect_harnesses() -> dict[str, dict[str, Any]]:
             "installed": command is not None,
             "configured": configured,
             "command": command[0] if command else None,
-            "default_models": DEFAULT_MODELS[harness],
+            "default_models": {"quality": catalogs[harness]["default_model"],
+                               "fast": next((m for m in catalogs[harness]["models"] if any(t in m.lower() for t in ("luna", "haiku", "flash", "mini"))), catalogs[harness]["default_model"])},
             "note": note,
+            "models": catalogs[harness]["models"],
+            "model_source": catalogs[harness]["source"],
         }
     return result
 
@@ -262,10 +264,15 @@ def choose_harness(task_type: str, content: str) -> str:
 
 
 def choose_model(harness: str, task_type: str, content: str) -> str:
-    if harness not in DEFAULT_MODELS:
+    if harness not in HARNESS_NAMES:
         raise ValueError(f"不支持的 Harness：{harness}")
-    tier = "quality" if task_type == "code" or len(content) > 1400 else "fast"
-    return DEFAULT_MODELS[harness][tier]
+    catalog = native_catalogs()[harness]
+    models = catalog["models"]
+    if task_type != "code" and len(content) <= 1400:
+        fast = next((m for m in models if any(tag in m.lower() for tag in ("luna", "haiku", "flash", "mini"))), None)
+        if fast:
+            return fast
+    return catalog["default_model"] if catalog["default_model"] != "auto" else next(iter(models), "auto")
 
 
 def build_harness_prompt(task: str, task_type: str, compressed: str) -> str:
@@ -311,8 +318,7 @@ def build_harness_args(
             *config,
             "--ephemeral",
             "--skip-git-repo-check",
-            "-m",
-            model,
+            *(["-m", model] if model != "auto" else []),
             "-C",
             cwd,
             "-s",
@@ -322,17 +328,17 @@ def build_harness_args(
     if harness == "claude":
         return executable + [
             "-p",
-            "--model",
-            model,
+            *(["--model", model] if model != "auto" else []),
             "--no-session-persistence",
             "--permission-mode",
             "plan",
             "--add-dir",
             cwd,
+            "--",
             prompt,
         ]
     profile = os.environ.get("TOKENFLOW_DSH_PROFILE", "headless")
-    return executable + ["--profile", profile, "--model", model, prompt]
+    return executable + ["--profile", profile, *(["--model", model] if model != "auto" else []), prompt]
 
 
 def _clip_output(value: str, truncated: bool = False) -> str:
@@ -413,7 +419,58 @@ def execute_harness(harness: str, model: str, prompt: str, backend: str = "direc
         "exit_code": exit_code,
         "output": _clip_output(output, output_truncated),
         "error": _clip_output(error, error_truncated),
+        "output_truncated": output_truncated,
     }
+
+
+def execute_configured_harness(harness: str, model: str, prompt: str, store: RuntimeConfig | None = None) -> dict[str, Any]:
+    store = store or RuntimeConfig()
+    if harness not in HARNESS_NAMES:
+        raise ValueError("不支持的 Harness")
+    binding = store.settings()["bindings"][harness]
+    selected = model if model != "auto" else binding["model"]
+    if binding["connection"] == "native":
+        selected = choose_model(harness, "code", prompt) if selected == "auto" else selected
+        return execute_harness(harness, selected, prompt)
+    profile = store.profile(binding["connection"], True)
+    from model_providers import choose_model as pick_model
+    from runtime_config import HARNESS_PROTOCOLS
+    if profile["protocol"] != HARNESS_PROTOCOLS.get(harness):
+        raise ValueError("连接协议与 Harness 不兼容")
+    selected = pick_model(profile["models"], "code", selected)
+    executable = _resolve_harness_command(harness)
+    if not executable:
+        raise RuntimeError("Harness 未安装")
+    command = build_harness_args(harness, selected, prompt, os.getcwd(), executable)
+    child_env = os.environ.copy()
+    key = profile["api_key"]
+    if harness == "codex":
+        settings = {"model_provider": "tokenflow_saved", "model_providers.tokenflow_saved.name": profile["name"],
+                    "model_providers.tokenflow_saved.base_url": profile["base_url"],
+                    "model_providers.tokenflow_saved.wire_api": "responses",
+                    "model_providers.tokenflow_saved.requires_openai_auth": False}
+        if key:
+            settings["model_providers.tokenflow_saved.env_key"] = "TOKENFLOW_SAVED_API_KEY"
+        if urlsplit(profile["base_url"]).hostname == "api.deepseek.com":
+            # DeepSeek's catalog supports low/high/max, unlike inherited Codex effort defaults.
+            settings["model_reasoning_effort"] = "low"
+        overrides = [arg for k, v in settings.items() for arg in ("-c", k + "=" + json.dumps(v))]
+        command[len(executable) + 1:len(executable) + 1] = overrides
+        child_env["TOKENFLOW_SAVED_API_KEY"] = key
+    else:
+        command[len(executable):len(executable)] = ["--setting-sources", ""]
+        child_env.pop("ANTHROPIC_AUTH_TOKEN", None)
+        child_env.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
+        child_env["ANTHROPIC_BASE_URL"] = profile["base_url"]
+        child_env["ANTHROPIC_API_KEY"] = key
+    started = time.monotonic()
+    code, output, error, cut, err_cut, timed_out = _run_bounded(command, os.getcwd(), MAX_EXEC_SECONDS, child_env)
+    if key:
+        output, error = output.replace(key, "<REDACTED>"), error.replace(key, "<REDACTED>")
+    return {"ok": code == 0 and not timed_out, "harness": harness, "model": selected,
+            "connection": profile["id"], "duration_ms": round((time.monotonic() - started) * 1000),
+            "exit_code": code, "output": _clip_output(output, cut), "output_truncated": cut,
+            "error": "执行超时，已终止" if timed_out else _clip_output(error, err_cut)}
 
 
 def execute_workflow(task: str, content: str, harness: str = "auto", model: str = "auto", harness_backend: str = "direct") -> dict[str, Any]:
@@ -431,7 +488,9 @@ def execute_workflow(task: str, content: str, harness: str = "auto", model: str 
         else model
     )
     prompt = build_harness_prompt(task.strip(), workflow["task_type"], workflow["result"])
-    execution = execute_harness(selected_harness, selected_model, prompt, harness_backend)
+    execution = (execute_harness(selected_harness, selected_model, prompt, harness_backend) if harness_backend == "omniroute"
+                 else execute_configured_harness(selected_harness, model, prompt))
+    selected_model = execution.get("model", selected_model)
     return {**workflow, "harness": selected_harness, "model": selected_model, "harness_backend": harness_backend, "execution": execution}
 
 
@@ -541,6 +600,28 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+        if self.path == "/api/config" or self.path.startswith("/api/tasks"):
+            if not _loopback_client(self.client_address[0]) or not _valid_write_request(
+                    self.headers.get("Origin") or "http://" + self.headers.get("Host", ""), self.headers.get("Host", ""),
+                    self.headers.get("X-TokenFlow-Token", ""), self.server.server_address[1]):
+                self._send_json({"error": "配置与任务记录仅允许本机读取"}, 403)
+                return
+            try:
+                if self.path == "/api/config":
+                    result = RuntimeConfig().public()
+                elif self.path == "/api/tasks":
+                    result = RuntimeConfig().runs()
+                elif re.fullmatch(r"/api/tasks/[a-f0-9]{32}", self.path):
+                    result = RuntimeConfig().runs(self.path.rsplit("/", 1)[1])
+                else:
+                    self._send_json({"error": "not found"}, 404)
+                    return
+                self._send_json(result)
+            except ValueError as exc:
+                self._send_json({"error": str(exc)}, 400)
+            except (OSError, sqlite3.Error, RuntimeError):
+                self._send_json({"error": "无法读取本地配置或任务记录"}, 503)
+            return
         if self.path == "/health":
             self._send_json({"status": "ok"})
             return
@@ -588,8 +669,10 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
         ):
             self._send_json({"error": "请求来源或会话令牌无效"}, 403)
             return
-        if self.path in {"/api/omniroute/config", "/api/omniroute/install", "/api/omniroute/start", "/api/omniroute/preview"} \
-                and not _loopback_client(self.client_address[0]):
+        if (self.path.startswith("/api/config/") or self.path == "/api/tasks/start" or self.path in {"/api/omniroute/config", "/api/omniroute/install", "/api/omniroute/start", "/api/omniroute/preview"}) \
+                and (not _loopback_client(self.client_address[0]) or not _valid_write_request(
+                    self.headers.get("Origin") or "http://" + self.headers.get("Host", ""), self.headers.get("Host", ""),
+                    self.headers.get("X-TokenFlow-Token", ""), self.server.server_address[1])):
             self._send_json({"error": "OmniRoute 安装和配置仅允许本机操作"}, 403)
             return
         if self.path == "/api/shutdown":
@@ -614,6 +697,12 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             "/api/omniroute/install",
             "/api/omniroute/start",
             "/api/omniroute/preview",
+            "/api/config/connection",
+            "/api/config/discover",
+            "/api/config/discover-local",
+            "/api/config/import-native",
+            "/api/config/settings",
+            "/api/tasks/start",
         ):
             self._send_json({"error": "not found"}, 404)
             return
@@ -647,7 +736,19 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                 data = json.loads(raw.decode("utf-8"))
             if not isinstance(data, dict):
                 raise ValueError("请求 JSON 顶层必须是对象")
-            if self.path == "/api/freetoken/install":
+            if self.path == "/api/config/connection":
+                result = RuntimeConfig().save_profile(data)
+            elif self.path == "/api/config/discover":
+                result = RuntimeConfig().discover(str(data.get("id", "")))
+            elif self.path == "/api/config/discover-local":
+                result = RuntimeConfig().discover_local()
+            elif self.path == "/api/config/import-native":
+                result = RuntimeConfig().import_native(str(data.get("harness", "")))
+            elif self.path == "/api/config/settings":
+                result = RuntimeConfig().save_settings(data)
+            elif self.path == "/api/tasks/start":
+                result = start_task(data)
+            elif self.path == "/api/freetoken/install":
                 result = launch_freetoken_installer()
             elif self.path == "/api/freetoken/start":
                 result = start_freetoken_server()
@@ -677,12 +778,23 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                     str(data.get("model", "auto")),
                 )
             elif self.path == "/api/chat":
-                result = unified_chat_workflow(
-                    str(data.get("task", "")),
-                    str(data.get("content", "")),
-                    str(data.get("provider", "auto")),
-                    str(data.get("model", "auto")),
-                )
+                if data.get("connection_id"):
+                    profile = RuntimeConfig().profile(str(data["connection_id"]), True)
+                    from model_providers import choose_model as pick_model, response_text as get_text, reported_usage
+                    model = pick_model(profile["models"], classify_task(str(data.get("task", "")), str(data.get("content", ""))), str(data.get("model", "auto")))
+                    workflow = run_workflow(str(data.get("task", "")), str(data.get("content", "")))
+                    response = ConnectionClient(profile).chat(model, chat_messages(str(data["task"]), workflow["result"]))
+                    answer = get_text(response)
+                    if profile["api_key"]:
+                        answer = answer.replace(profile["api_key"], "<REDACTED>")
+                    result = {**workflow, "provider": profile["name"], "model": model, "model_result": answer, "usage": reported_usage(response)}
+                else:
+                    result = unified_chat_workflow(
+                        str(data.get("task", "")),
+                        str(data.get("content", "")),
+                        str(data.get("provider", "auto")),
+                        str(data.get("model", "auto")),
+                    )
             elif self.path == "/api/parse":
                 if data.get("file_bytes") is not None:
                     result = parse_document_bytes(str(data.get("filename", "upload")), data["file_bytes"])
@@ -713,6 +825,9 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             return
         except RuntimeError as exc:
             self._send_json({"error": str(exc)}, 503)
+            return
+        except (OSError, sqlite3.Error):
+            self._send_json({"error": "无法读写本地配置或任务记录"}, 503)
             return
         self._send_json(result)
 
@@ -764,9 +879,10 @@ def self_check() -> None:
         pass
     else:
         raise AssertionError("empty task must fail")
-    assert choose_model("codex", "code", "short") == "gpt-5.6-sol"
-    assert choose_model("codex", "general", "short") == "gpt-5.6-luna"
-    assert choose_model("claude", "document", "short") == "sonnet"
+    with patch(__name__ + ".native_catalogs", return_value={"codex": {"models": ["detected-quality", "detected-luna"], "default_model": "detected-quality"}}):
+        assert choose_model("codex", "code", "short") == "detected-quality"
+        assert choose_model("codex", "general", "short") == "detected-luna"
+    assert "-m" not in build_harness_args("codex", "auto", "prompt", ".", ["codex"])
     assert _valid_write_request("http://127.0.0.1:8765", "127.0.0.1:8765", SESSION_TOKEN, 8765)
     assert not _valid_write_request("http://example.com:8765", "127.0.0.1:8765", SESSION_TOKEN, 8765)
     assert not _valid_write_request(None, "127.0.0.1:8765", "invalid", 8765)
@@ -870,6 +986,8 @@ def self_check() -> None:
     document_parser_self_check()
     pc_agent_self_check()
     jev_self_check()
+    from test_orchestration import self_check as orchestration_self_check
+    orchestration_self_check()
     assert "/api/tokenizer" in "/api/tokenizer"
     print("TokenFlow self-check: PASS")
 

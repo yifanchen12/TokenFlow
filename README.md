@@ -24,6 +24,58 @@ Chinese documentation: [README.zh-CN.md](README.zh-CN.md).
 
 ## Architecture
 
+The console's primary action now submits a task to a bounded workflow: local
+file reading and statistics, optional local-model classification/summary,
+model planning, sequential model/Harness assignment, and result acceptance.
+Pure supported counting/statistics requests complete without any model call.
+Reasoning results require a valid reviewer verdict; a rejected result may be
+repaired once within the configured call budget. Failed or missing acceptance
+is never displayed as completed.
+
+### Saved connections and detected models
+
+Open **Provider and Harness configuration** in the console to add named
+connections with a Base URL, API Key and protocol (Chat Completions, Responses,
+or Anthropic Messages). Saving probes `/models`; the current catalog and previous
+model records persist across restarts. Endpoints without discovery support can
+use manually registered IDs. Failed discovery preserves existing records and
+shows its error. Local detection probes only configured/default loopback
+Ollama and FreeToken endpoints, without generating text or downloading models.
+
+Codex model choices read the user's native config and visible local model cache;
+Claude reads configured model IDs. Cached/registered IDs are not access guarantees.
+Codex bindings require a Responses endpoint, Claude bindings require Messages;
+DSH keeps its native profile. Native subscription login stays with the Harness.
+You can import existing API-key connections without displaying their keys.
+Bindings are applied to TokenFlow-launched child processes, preserving the
+Harness's native configuration files. Keys are passed through child environment
+variables, never command arguments. Default execution remains read-only/plan mode.
+
+Connections, roles and recent task records use `connections.db` beside the user
+cache, outside the repository. `TOKENFLOW_CONFIG_DB` overrides this path.
+Windows keys use DPAPI protection for the current system user; POSIX uses owner-only
+storage permissions. Blank Key input preserves the key; changing the destination
+requires re-entering it. Task records contain results and should be treated as private.
+The older OmniRoute panel remains a separate, process-memory-only integration.
+
+The task policy assigns a local model, planner, executor and reviewer, with a
+3–8 stage-call budget (default 6). Planning supports at most four typed steps;
+different installed Harnesses can exchange step outputs. A Harness invocation
+may make additional internal calls that TokenFlow cannot meter. The UI separates
+visible prompt estimates, provider-reported usage and missing usage; comparisons
+with one raw input can be negative and do not guarantee billing savings or
+general semantic correctness. Planning may use a labeled source preview, while
+execution preserves the selected source and acceptance checks the original input.
+
+New protected APIs: `GET /api/config`, `POST /api/config/connection`,
+`POST /api/config/discover`, `POST /api/config/discover-local`,
+`POST /api/config/import-native`, `POST /api/config/settings`,
+`POST /api/tasks/start`, `GET /api/tasks`, `GET /api/tasks/<id>`.
+Configuration and task APIs require loopback access and the session header,
+including GET requests. Run `python test_orchestration.py` for the focused
+offline workflow checks; they also run under `python tokenflow.py --self-check`.
+Native Codex TOML import requires Python 3.11+ (included in the Windows build).
+
 ```text
 Browser or CLI
       |

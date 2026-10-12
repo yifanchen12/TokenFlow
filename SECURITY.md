@@ -42,6 +42,16 @@ The UI receives a random token for the current server process and sends it in `X
 
 ## Secret handling
 
+Saved connection keys in `connections.db` use current-user Windows DPAPI, or
+owner-only storage permissions on POSIX. Public configuration never includes
+keys; credential-bearing requests do not follow redirects. Changing a saved
+destination requires a replacement key. Harness overrides pass keys in child
+environment variables. Native subscription authentication is not exported.
+Configuration/task APIs require loopback access and session headers, including
+reads of saved task results. Automatic task submission authorizes the saved
+planner/executor/reviewer destinations; review those choices before submitting
+private input. Budgets limit stage invocations, not a Harness's internal usage.
+
 OmniRoute chat, evaluation and Codex invocations require an explicit model; `auto` is rejected. `TOKENFLOW_OMNIROUTE_ALLOWED_MODELS` or the page's process-scoped allow-list restricts requested model IDs. The preview sends no task and reports cost as unknown. These controls do not constrain a gateway combo's internal fallback or guarantee local execution or a spending cap. Configure those policies in the gateway.
 
 Evaluation reports can contain model answers from the supplied documents. Reports default to user-selected local files; review them before publication. Built-in repository QA uses public project sources, not private documents. Existing SQLite vectors are rebuilt in a transaction without deleting documents; status reads remain read-only.
