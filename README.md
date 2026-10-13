@@ -369,3 +369,19 @@ python eval_workflow.py --pipeline --connection <id> --model <model> --cases tmp
 ```
 
 Prepared cases are portable text snapshots, excluding candidate answers. Reports include category accuracy, full input/output totals and median latency. Draft templates and regression fixtures are not real benchmark results. Keep private manifests, source documents and reports outside Git; `tmp/` is ignored.
+
+## Synthetic corpus and evidence checks
+
+Generate 120 rule-labelled synthetic cases locally: 20 each for long documents, conflicts, tables, Python dependencies, instructions inside source material and file parsing. Development and holdout sets each contain 60 cases with different template families. Answers come from generation rules, not model responses. TXT, DOCX, XLSX, PDF and PNG fixtures use the existing optional dependencies; missing components are recorded in `generation.json` and exit with code 2. The output directory must not already exist.
+
+```powershell
+python scripts/generate_eval_cases.py --seed 20261013 --output-dir tmp/synthetic-eval
+python eval_workflow.py --cases tmp/synthetic-eval/all.json --report tmp/synthetic-direct.json
+python eval_workflow.py --cases tmp/synthetic-eval/all.json --offline-task-context --report tmp/synthetic-context.json
+```
+
+Both commands are offline. Task-context mode uses isolated databases and the actual indexing/retrieval/selection path, without executing tasks or calling models. `development.json` and `holdout.json` can be evaluated separately. These developer-designed templates are regression evidence, not production task logs or independent generalization proof. Offline checks leave model accuracy and reported usage unknown; their gate cannot pass. Retaining facts in instruction-interference cases does not prove a model's instruction safety.
+
+Search results are previews (`sources_scope=search_preview`), and no longer exclude lexical matches elsewhere in the source. Python extraction includes statically resolvable module bindings/imports/helper functions; dynamic lookup, nested definitions, complex writes or oversized selections fall back to the source.
+
+Evaluators and orchestration share complete-text validation: truncated, pending-tool, empty or malformed responses are not complete answer pairs; returned usage is retained. Reports separate source kinds and categories. Each source/category must meet the same accuracy/drop thresholds and at least 10 complete pairs (`--min-category-cases`); a failing category blocks the overall gate, while undersized groups remain not evaluated.

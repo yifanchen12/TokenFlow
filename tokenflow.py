@@ -108,9 +108,8 @@ def compact_content(content: str, limit: int = MAX_COMPRESSED_CHARS, *, task: st
             offset += len(line)
         # Keep complete function/section expansion below; chunk edges are not
         # boundaries. No lexical hit in retrieved chunks means use the full scan.
-        selected_hits = [i for i in hits if i in retrieved]
-        if selected_hits:
-            hits = selected_hits
+        # Search previews never exclude matching evidence elsewhere in the source.
+        hits = sorted(hits, key=lambda i: (i not in retrieved, i))
     if not hits:
         return source
 
@@ -143,6 +142,52 @@ def compact_content(content: str, limit: int = MAX_COMPRESSED_CHARS, *, task: st
         if containing:
             start, end = min(containing, key=lambda scope: scope[1] - scope[0])
             keep.update(range(start, end))
+            if sum(len(lines[index]) for index in keep) > limit:
+                return source
+    if tree is not None:
+        # ponytail: static module bindings only; dynamic lookup/writes fall back to source.
+        bindings = {}
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                names = [node.name]
+            elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                if any(alias.name == "*" for alias in node.names):
+                    return source
+                names = [alias.asname or (alias.name.split(".")[0] if isinstance(node, ast.Import) else alias.name) for alias in node.names]
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+                if any(isinstance(n, (ast.Attribute, ast.Subscript)) and isinstance(n.ctx, ast.Store) for n in ast.walk(node)):
+                    return source
+                names = [n.id for n in ast.walk(node) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store)]
+            else:
+                # Conditional definitions and mutations cannot be resolved safely.
+                if any(isinstance(n, (ast.Name, ast.Attribute, ast.Subscript)) and isinstance(n.ctx, ast.Store)
+                       for n in ast.walk(node)) or isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+                    return source
+                continue
+            for name in names:
+                bindings.setdefault(name, []).append(node)
+        pending = [n for n in tree.body if any(i in keep for i in range(n.lineno - 1, n.end_lineno))]
+        visited = set()
+        while pending:
+            node = pending.pop()
+            if id(node) in visited:
+                continue
+            visited.add(id(node))
+            start = min([node.lineno] + [d.lineno for d in getattr(node, "decorator_list", [])]) - 1
+            keep.update(range(start, node.end_lineno))
+            if any(isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and
+                   n.func.id in {"eval", "exec", "globals", "locals", "getattr", "setattr", "__import__"} for n in ast.walk(node)):
+                return source
+            # Nested definitions and external mutation merit conservative full context.
+            if any(isinstance(n, (ast.Global, ast.Nonlocal)) or
+                   isinstance(n, (ast.Attribute, ast.Subscript)) and isinstance(n.ctx, ast.Store) or
+                   isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and n is not node for n in ast.walk(node)):
+                return source
+            for name in {n.id for n in ast.walk(node) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}:
+                for dependency in bindings.get(name, []):
+                    start = min([dependency.lineno] + [d.lineno for d in getattr(dependency, "decorator_list", [])]) - 1
+                    keep.update(range(start, dependency.end_lineno))
+                    pending.append(dependency)
             if sum(len(lines[index]) for index in keep) > limit:
                 return source
     if "表格" in task or "csv" in task.lower() or "tsv" in task.lower():

@@ -29,6 +29,19 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python -c "import json; r=json.load(open('tmp/offline.json',encoding='utf-8')); assert r['summary']['cases']==60 and r['summary']['critical_fact_loss_rate']==0"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Synthetic corpus and task-context checks
+        shell: pwsh
+        run: |
+          python scripts/generate_eval_cases.py --output-dir tmp/synthetic-eval
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python eval_workflow.py --cases tmp/synthetic-eval/all.json --report tmp/synthetic-direct.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python eval_workflow.py --cases tmp/synthetic-eval/all.json --offline-task-context --report tmp/synthetic-context.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python eval_workflow.py --cases eval_cases.repository.json --offline-task-context --report tmp/repository-context.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -c "import json; pairs=[('tmp/synthetic-direct.json',120),('tmp/synthetic-context.json',120),('tmp/repository-context.json',60)]; reports=[(json.load(open(p,encoding='utf-8')),n) for p,n in pairs]; assert all(r['summary']['cases']==n and r['summary']['critical_fact_loss_rate']==0 and r['quality_gate']['status']=='not_evaluated' for r,n in reports)"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Build and smoke-test EXE
         shell: pwsh
         run: |

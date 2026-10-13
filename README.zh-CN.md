@@ -326,3 +326,21 @@ python eval_workflow.py --pipeline --connection <连接ID> --model <模型ID> --
 ```
 
 准备后的数据集是可移植的文本快照，去除候选答案。报告按类别比较正确率、完整输入加输出 Token 和中位耗时；完整流程门槛同时检查输入与总 Token 节省。真实样本、原文件和报告建议放入已忽略的 `tmp/`，不随源码提交。模板及回归夹具不算真实评测成绩。
+
+## 合成样本与资料完整性检查
+
+可以在本机按固定规则生成 120 个合成样本：长文、冲突信息、表格、Python 依赖、资料内干扰指令、文件解析六类各 20 题。开发集与保留集各 60 题，模板族分开；标准答案直接由规则计算，不取自模型回答。文件样本包含 TXT、DOCX、XLSX、PDF 和 PNG。生成依赖沿用已有可选组件；缺少依赖会列入 `generation.json` 并以退出码 2 结束，不能算完成。输出目录必须不存在，避免覆盖已有资料。
+
+```powershell
+python scripts/generate_eval_cases.py --seed 20261013 --output-dir tmp/synthetic-eval
+# 检查单次提示词选取；不会调用模型。
+python eval_workflow.py --cases tmp/synthetic-eval/all.json --report tmp/synthetic-direct.json
+# 实际任务的解析、索引、检索和上下文选取；数据库完全隔离，不调用执行器或模型。
+python eval_workflow.py --cases tmp/synthetic-eval/all.json --offline-task-context --report tmp/synthetic-context.json
+```
+
+`development.json` 和 `holdout.json` 可分别输入评测。保留集仍来自开发者设计的合成模板，不等同于独立真实任务。离线模式只检查资料与标注保留，模型正确率和实际用量保持未知，门槛不会显示通过。干扰指令样本的离线事实保留不证明模型遵守指令边界。
+
+检索前三条现在只作为搜索预览；它们不能排除其他明确命中的原文。Python 抽取补充可解析的模块级常量、导入和辅助函数依赖；动态查找、嵌套定义、复杂写入或抽取超限时回退原文。`sources_scope=search_preview` 区分搜索预览与实际选取范围。
+
+模型评测和编排共用完整文本检查；截断、工具调用待续、空答案或无效文本结构不能成为完整答案对比，已返回的 usage 仍记录。报告按来源及类别分别统计，合成、仓库问答和真实任务不混作同一类质量证据。每个来源/类别沿用整体正确率及下降门槛，并至少需要 10 对完整结果（`--min-category-cases` 可调整）；某类失败阻止整体通过，样本不足标为未评测。调整阈值只改变所提供样本的门槛，不代表生产质量已被证明。

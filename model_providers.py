@@ -239,6 +239,8 @@ class OpenAICompatibleProvider:
 
 
 def reported_usage(response: dict[str, Any]) -> dict[str, int]:
+    if not isinstance(response, dict):
+        return {}
     value = response.get("usage", {})
     if not isinstance(value, dict):
         return {}
@@ -305,12 +307,22 @@ def choose_model(models: list[str], task_type: str, requested: str = "auto") -> 
 
 
 def response_text(response: dict[str, Any]) -> str:
+    usage = reported_usage(response) if isinstance(response, dict) else {}
+    if not isinstance(response, dict):
+        raise ProviderError("提供商响应结构无效")
     choices = response.get("choices", [])
     if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
-        raise ProviderError("提供商响应缺少 choices")
+        raise ProviderError("提供商响应缺少有效 choices", usage=usage)
+    reason = choices[0].get("finish_reason")
+    if reason is not None and not isinstance(reason, str):
+        raise ProviderError("提供商完成状态结构无效", usage=usage)
+    if reason in {"length", "max_tokens", "content_filter", "tool_calls", "function_call", "tool_use", "pause_turn"}:
+        raise ProviderError("提供商输出未完成，不能作为完整答案", usage=usage)
     message = choices[0].get("message", {})
-    content = message.get("content", "") if isinstance(message, dict) else ""
-    return content if isinstance(content, str) else str(content)
+    content = message.get("content") if isinstance(message, dict) else None
+    if not isinstance(content, str) or not content.strip():
+        raise ProviderError("提供商返回空答案或无效文本结构", usage=usage)
+    return content
 
 
 def self_check() -> None:

@@ -156,6 +156,7 @@ class TaskRun:
         self.selected_context = context
         self.run["sources"] = [{k: h[k] for k in ("document_id", "name", "chunk_index", "score")} for h in hits]
         self.run["retrieval"] = {"scope": "current_document", "matches": len(hits),
+                                 "sources_scope": "search_preview", "selection_scope": "all_lexical_matches_and_dependencies",
                                  "applied": bool(hits) and context != self.content.strip(),
                                  "full_source_retained": context == self.content.strip()}
         return context
@@ -215,8 +216,6 @@ class TaskRun:
                 self.check_cancel()
                 response = ConnectionClient(profile).chat(selected, messages, max_tokens=max_tokens)
                 record.update(model=selected, usage=reported_usage(response))
-                if any(c.get("finish_reason") == "length" for c in response.get("choices", []) if isinstance(c, dict)):
-                    raise RuntimeError("模型输出达到上限，不能作为完整结果验收")
                 output = response_text(response)
                 if profile.get("api_key"):
                     output = output.replace(profile["api_key"], "<REDACTED>")

@@ -530,11 +530,15 @@ class ConnectionClient(OpenAICompatibleProvider):
             return super().chat(model, messages, max_tokens)
         if protocol == "responses":
             value = self._request("/responses", {"model": model, "input": messages, "max_output_tokens": max_tokens})
-            if value.get("status") == "incomplete":
+            if value.get("status") not in (None, "completed"):
                 raise ProviderError("Responses 输出未完成，请调整输出上限或缩小任务", usage=value.get("usage"))
             items = value.get("output") or []
             if not isinstance(items, list):
                 raise ProviderError("Responses 返回了无效输出结构", usage=value.get("usage"))
+            if any(isinstance(item, dict) and not isinstance(item.get("content") or [], list) for item in items):
+                raise ProviderError("Responses 文本结构无效", usage=value.get("usage"))
+            if any(isinstance(item, dict) and item.get("type") == "function_call" for item in items):
+                raise ProviderError("Responses 仍需工具调用，不能作为完整答案", usage=value.get("usage"))
             output = "".join(c["text"] for item in items if isinstance(item, dict)
                              for c in (item.get("content") or []) if isinstance(c, dict) and
                              c.get("type") == "output_text" and isinstance(c.get("text"), str))
@@ -545,10 +549,13 @@ class ConnectionClient(OpenAICompatibleProvider):
                                   "messages": [m for m in messages if m["role"] != "system"], "max_tokens": max_tokens}, base_url=base)
             if value.get("stop_reason") == "max_tokens":
                 raise ProviderError("Messages 输出达到上限，不能作为完整结果验收", usage=value.get("usage"))
+            if not isinstance(value.get("content") or [], list):
+                raise ProviderError("Messages 文本结构无效", usage=value.get("usage"))
             output = "".join(c["text"] for c in (value.get("content") or []) if isinstance(c, dict) and
                              c.get("type") == "text" and isinstance(c.get("text"), str))
             usage = value.get("usage")
         usage = usage if isinstance(usage, dict) else {}
         from model_providers import reported_usage
         normalized = reported_usage({"usage": usage})
-        return {"choices": [{"message": {"content": output}}], "usage": normalized}
+        return {"choices": [{"message": {"content": output},
+                             "finish_reason": value.get("stop_reason") if protocol == "anthropic" else "stop"}], "usage": normalized}

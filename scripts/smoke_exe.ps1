@@ -53,6 +53,10 @@ try {
     if (-not $page.Contains('orchestrateTask') -or -not $page.Contains('connectionSetup')) { throw 'EXE lacks orchestration UI' }
     if (-not $page.Contains('cancelRunningTask') -or -not $page.Contains('viewedRun')) { throw 'EXE lacks cancellation/history recovery UI' }
     if (-not $page.Contains('budgetFields') -or -not $page.Contains('storageSetup') -or -not $page.Contains('exportDraft') -or -not $page.Contains('request_id')) { throw 'EXE lacks budget/storage/receipt UI' }
+    $tfDependencySource = "REFUND_DAYS = 14`n`n" + ("# unrelated`n" * 300) + "def calculate_refund():`n    return REFUND_DAYS`n"
+    $tfDependencyBody = @{task='calculate_refund 的返回值是多少？只回答数字。'; content=$tfDependencySource} | ConvertTo-Json
+    $tfDependency = Invoke-RestMethod "$tfBase/api/run" -Method Post -Headers $tfHeaders -ContentType 'application/json; charset=utf-8' -Body $tfDependencyBody -TimeoutSec 5
+    if (-not $tfDependency.compression_applied -or -not $tfDependency.result.Contains('REFUND_DAYS = 14') -or -not $tfDependency.result.Contains('return REFUND_DAYS')) { throw 'Packaged Python extraction lost its global dependency' }
     $ocr = Invoke-RestMethod "$tfBase/api/ocr" -TimeoutSec 5
     if (-not $ocr.available -or -not $ocr.offline -or $ocr.device -ne 'CPU') { throw 'Packaged OCR unavailable' }
     Add-Type -AssemblyName System.Drawing
@@ -110,7 +114,7 @@ try {
     Invoke-RestMethod "$tfBase/api/config/storage/clear" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     if (-not $tfProcess.WaitForExit(10000)) { throw 'Restarted EXE did not exit' }
-    Write-Output 'EXE smoke: PASS (startup, protected keys, OCR cache, zero-call task, receipts, budgets, draft export, storage, restart, shutdown)'
+    Write-Output 'EXE smoke: PASS (startup, Python dependencies, protected keys, OCR cache, zero-call task, receipts, budgets, draft export, storage, restart, shutdown)'
 } finally {
     if ($tfProcess -and -not $tfProcess.HasExited) {
         try { Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 2 | Out-Null } catch {}

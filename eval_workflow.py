@@ -47,7 +47,9 @@ def load_cases(path: Path) -> list[dict[str, Any]]:
             if not source.is_relative_to(root) or not source.is_file() or source.stat().st_size > 20 * 1024 * 1024:
                 raise ValueError("source_file 不存在、超出样本目录或超过 20 MB")
             from document_parser import parse_document_file
-            case["content"] = parse_document_file(str(source))["text"]
+            parsed = parse_document_file(str(source))
+            case["content"] = parsed["text"]
+            case["parsing"] = {"status": "completed", **{k: parsed[k] for k in ("extension", "method", "mean_confidence") if k in parsed}}
         loaded.append(case)
     return loaded
 
@@ -86,8 +88,21 @@ def answer_pass(answer: str, expected: str | list[str], method: str = "exact") -
                if value.isascii() else value in answer for value in values)
 
 
+def _group_metrics(rows: list[dict]) -> dict:
+    pairs = [r for r in rows if "raw_answer_pass" in r and "processed_answer_pass" in r]
+    full_usage = bool(pairs) and all("total_tokens" in r.get(label + "_usage", {}) for r in pairs for label in ("raw", "processed"))
+    return {"cases": len(rows), "completed_pairs": len(pairs),
+            "critical_fact_loss_rate": sum(not r["processed_retains_facts"] for r in rows) / len(rows),
+            "raw_accuracy": sum(r["raw_answer_pass"] for r in pairs) / len(pairs) if pairs else None,
+            "processed_accuracy": sum(r["processed_answer_pass"] for r in pairs) / len(pairs) if pairs else None,
+            "raw_total_tokens": sum(r["raw_usage"]["total_tokens"] for r in pairs) if full_usage else None,
+            "processed_total_tokens": sum(r["processed_usage"]["total_tokens"] for r in pairs) if full_usage else None,
+            "raw_median_latency_ms": statistics.median(r["raw_latency_ms"] for r in pairs) if pairs else None,
+            "processed_median_latency_ms": statistics.median(r["processed_latency_ms"] for r in pairs) if pairs else None}
+
+
 def summarize(rows: list[dict[str, Any]], model_answers: bool, min_cases: int, max_accuracy_drop: float,
-              min_saving: float, min_accuracy: float = .9) -> tuple[dict[str, Any], dict[str, Any]]:
+              min_saving: float, min_accuracy: float = .9, min_category_cases: int = 10) -> tuple[dict[str, Any], dict[str, Any]]:
     complete = [row for row in rows if "raw_answer_pass" in row and "processed_answer_pass" in row]
     usage_complete = bool(complete) and all("prompt_tokens" in row[label + "_usage"] for row in complete for label in ("raw", "processed"))
     total_complete = usage_complete and all("total_tokens" in row[label + "_usage"] for row in complete for label in ("raw", "processed"))
@@ -108,20 +123,26 @@ def summarize(rows: list[dict[str, Any]], model_answers: bool, min_cases: int, m
                "processed_median_latency_ms": statistics.median([row["processed_latency_ms"] for row in complete]) if complete else None}
     raw_total, processed_total = summary["reported_raw_total_tokens"], summary["reported_processed_total_tokens"]
     summary["reported_total_token_saving_ratio"] = round(1 - processed_total / raw_total, 4) if raw_total else None
-    summary["by_category"] = {}
-    for category in sorted({row.get("category", row["source_kind"]) for row in rows}):
-        group = [r for r in rows if r.get("category", r["source_kind"]) == category]
-        pairs = [r for r in group if "raw_answer_pass" in r and "processed_answer_pass" in r]
-        full_usage = bool(pairs) and all("total_tokens" in r.get(label + "_usage", {}) for r in pairs for label in ("raw", "processed"))
-        summary["by_category"][category] = {
-            "cases": len(group), "completed_pairs": len(pairs),
-            "raw_accuracy": sum(r["raw_answer_pass"] for r in pairs) / len(pairs) if pairs else None,
-            "processed_accuracy": sum(r["processed_answer_pass"] for r in pairs) / len(pairs) if pairs else None,
-            "raw_total_tokens": sum(r["raw_usage"]["total_tokens"] for r in pairs) if full_usage else None,
-            "processed_total_tokens": sum(r["processed_usage"]["total_tokens"] for r in pairs) if full_usage else None,
-            "raw_median_latency_ms": statistics.median(r["raw_latency_ms"] for r in pairs) if pairs else None,
-            "processed_median_latency_ms": statistics.median(r["processed_latency_ms"] for r in pairs) if pairs else None,
-        }
+    summary["by_category"] = {category: _group_metrics([r for r in rows if r.get("category", r["source_kind"]) == category])
+                              for category in sorted({r.get("category", r["source_kind"]) for r in rows})}
+    summary["by_source_kind"] = {kind: _group_metrics([r for r in rows if r["source_kind"] == kind])
+                                 for kind in summary["source_kinds"]}
+    categories = {}
+    for kind, category in sorted({(r["source_kind"], r.get("category", r["source_kind"])) for r in rows}):
+        values = _group_metrics([r for r in rows if r["source_kind"] == kind and r.get("category", kind) == category])
+        problems, unknown = [], []
+        if values["critical_fact_loss_rate"]:
+            problems.append("丢失标注事实")
+        if values["processed_accuracy"] is not None and values["processed_accuracy"] < min_accuracy:
+            problems.append("正确率低于最低阈值")
+        if values["raw_accuracy"] is not None and values["raw_accuracy"] - values["processed_accuracy"] > max_accuracy_drop + 1e-9:
+            problems.append("正确率下降超过阈值")
+        if not model_answers:
+            unknown.append("尚未比较模型答案")
+        elif values["completed_pairs"] < min_category_cases or values["completed_pairs"] != values["cases"]:
+            unknown.append("完整对比数不足或有未完成请求")
+        categories.setdefault(kind, {})[category] = {"status": "failed" if problems else "not_evaluated" if unknown else "passed",
+                                                     "reasons": problems + unknown, "completed_pairs": values["completed_pairs"]}
     failures, missing = [], []
     if loss_rate:
         failures.append("处理后丢失了标注的关键事实")
@@ -141,35 +162,67 @@ def summarize(rows: list[dict[str, Any]], model_answers: bool, min_cases: int, m
         failures.append("答案准确率下降超过阈值")
     if saving is not None and saving < min_saving:
         failures.append("输入 Token 节省未达到阈值")
+    for kind, groups in categories.items():
+        for category, value in groups.items():
+            if value["status"] == "failed":
+                failures.append(f"类别 {kind}/{category} 未通过：" + "；".join(value["reasons"]))
+            elif model_answers and value["status"] == "not_evaluated":
+                missing.append(f"类别 {kind}/{category} 未完成评测")
     gate = {"status": "failed" if failures else "not_evaluated" if missing else "passed", "scope": "provided_cases_only",
-            "representative_quality_proven": False, "reasons": failures + missing,
-            "thresholds": {"min_cases": min_cases, "min_accuracy": min_accuracy, "max_accuracy_drop": max_accuracy_drop, "min_prompt_token_saving_ratio": min_saving},
+            "representative_quality_proven": False, "reasons": failures + missing, "categories": categories,
+            "thresholds": {"min_cases": min_cases, "min_category_cases": min_category_cases, "min_accuracy": min_accuracy, "max_accuracy_drop": max_accuracy_drop, "min_prompt_token_saving_ratio": min_saving},
             "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"}
     return summary, gate
 
 
+def _task_contexts(cases: list[dict]) -> list[tuple[str, dict]]:
+    from runtime_config import RuntimeConfig
+    from task_orchestrator import TaskRun
+    from tokenflow_store import DocumentStore
+    with tempfile.TemporaryDirectory(prefix="tokenflow-offline-context-") as directory:
+        store = RuntimeConfig(Path(directory) / "connections.db")
+        documents = DocumentStore(str(Path(directory) / "documents.db"))
+        contexts = []
+        for case in cases:
+            runner = TaskRun(store, case["task"], case["content"], document_store=documents,
+                             source_name=case.get("name", "sample"), allow_harnesses=False)
+            contexts.append((runner.select_context(), runner.run["retrieval"]))
+        return contexts
+
+
 def evaluate(cases: list[dict[str, Any]], provider: str | None = None, model: str = "auto", *,
              timeout: float = 120, max_tokens: int = 512, min_cases: int = 50, max_accuracy_drop: float = .02,
-             min_saving: float = .05, min_accuracy: float = .9, ollama_context: int = 32768, progress: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
+             min_saving: float = .05, min_accuracy: float = .9, ollama_context: int = 32768,
+             min_category_cases: int = 10, offline_task_context: bool = False,
+             progress: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
     if not isinstance(cases, list) or not cases:
         raise ValueError("需要非空评测样本数组")
     for case in cases:
         _validate_case(case, provider is not None)
-    if min_cases < 1 or not 0 <= max_accuracy_drop <= 1 or not 0 <= min_saving <= 1 or not 0 <= min_accuracy <= 1:
+    if min_cases < 1 or min_category_cases < 1 or not 0 <= max_accuracy_drop <= 1 or not 0 <= min_saving <= 1 or not 0 <= min_accuracy <= 1:
         raise ValueError("评测门槛格式无效")
+    if offline_task_context and provider:
+        raise ValueError("离线任务上下文模式不能使用模型提供商")
+    contexts = _task_contexts(cases) if offline_task_context else None
     if provider == "omniroute":
         model = omniroute_model(model)
     client = OpenAICompatibleProvider(provider, timeout=timeout) if provider else None
     available = client.models() if client and model == "auto" else []
     rows: list[dict[str, Any]] = []
-    report: dict[str, Any] = {"mode": "same_model_answers" if client else "offline_fact_retention_only", "provider": provider,
+    report: dict[str, Any] = {"mode": "offline_task_context_fact_retention" if contexts is not None else "same_model_answers" if client else "offline_fact_retention_only", "provider": provider,
                               "note": "原文与实际选中的处理后提示词使用同一模型；估算和提供商 usage 分开记录。", "cases": rows}
     report["model_settings"] = {"max_tokens": max_tokens, "ollama_context": ollama_context if provider == "ollama" else None,
                                 "ollama_think": False if provider == "ollama" else None}
-    for case in cases:
+    for index, case in enumerate(cases):
         task, raw = case["task"].strip(), case["content"].strip()
         workflow = run_workflow(task, raw, lambda _kind, text: json.dumps(chat_messages(task, text), ensure_ascii=False))
         processed = workflow["result"]
+        if contexts is not None:
+            from token_counter import count_tokens
+            processed = contexts[index][0]
+            count = count_tokens(json.dumps(chat_messages(task, processed), ensure_ascii=False))["count"]
+            workflow.update(compression_applied=processed != raw, saved_tokens=workflow["baseline"]["estimated_tokens"] - count)
+            workflow["optimized"]["estimated_tokens"] = count
         row = {"name": case.get("name", "case"), "source_kind": case.get("source_kind", "user_supplied"),
                "category": case.get("category", case.get("source_kind", "user_supplied")),
                "source_file": case.get("source_file"), "source_sha256": hashlib.sha256(raw.encode("utf-8")).hexdigest(),
@@ -180,6 +233,10 @@ def evaluate(cases: list[dict[str, Any]], provider: str | None = None, model: st
                "raw_retains_facts": all(fact in raw for fact in case["must_keep"]),
                "processed_retains_facts": all(fact in processed for fact in case["must_keep"])}
         row["candidate_retains_facts"] = row["processed_retains_facts"]  # previous offline consumers
+        if contexts is not None:
+            row["retrieval"] = contexts[index][1]
+        if "parsing" in case:
+            row["parsing"] = case["parsing"]
         if client:
             selected = model if model != "auto" else choose_model(available, workflow["task_type"], model)
             row["model"] = selected
@@ -190,16 +247,19 @@ def evaluate(cases: list[dict[str, Any]], provider: str | None = None, model: st
                     started = time.monotonic()
                     options = {"context_window": ollama_context} if provider == "ollama" else {}
                     response = client.chat(selected, chat_messages(task, value), max_tokens=max_tokens, **options)
+                    row[label + "_usage"] = reported_usage(response)
                     answer = response_text(response)
+                    row[label + "_status"] = "completed"
                     row[label + "_answer"] = answer
                     row[label + "_answer_pass"] = answer_pass(answer, case["expected_answer"], case.get("answer_match", "exact"))
                     row[label + "_latency_ms"] = round((time.monotonic() - started) * 1000)
                     row[label + "_usage"] = reported_usage(response)
             except ProviderError as exc:
                 row[label + "_usage"] = exc.usage
+                row[label + "_status"] = "failed"
                 row["error"] = "模型请求失败；未完成的样本不计为成功"
         rows.append(row)
-        report["summary"], report["quality_gate"] = summarize(rows, client is not None, min_cases, max_accuracy_drop, min_saving, min_accuracy)
+        report["summary"], report["quality_gate"] = summarize(rows, client is not None, min_cases, max_accuracy_drop, min_saving, min_accuracy, min_category_cases)
         report["expected_cases"] = len(cases)
         if len(rows) < len(cases):
             if report["quality_gate"]["status"] == "passed":
@@ -220,7 +280,13 @@ def markdown_report(report: dict[str, Any]) -> str:
     for row in report["cases"]:
         name = str(row["name"]).replace("|", "\\|").replace("\n", " ")
         lines.append(f"| {name} | {row['source_kind']} | {row['compression_applied']} | {row['processed_retains_facts']} | {row.get('raw_answer_pass', '—')} | {row.get('processed_answer_pass', '—')} |")
-    lines.extend(["", "| Category | Pairs / cases | Raw accuracy | Pipeline accuracy | Raw total tokens | Pipeline total tokens | Raw median ms | Pipeline median ms |",
+    lines.extend(["", "| Source kind | Pairs / cases | Raw accuracy | Processed accuracy | Raw total tokens | Processed total tokens |",
+                  "|---|---|---|---|---|---|"])
+    for kind, values in summary.get("by_source_kind", {}).items():
+        safe = kind.replace("|", "\\|").replace("\n", " ")
+        cells = [values[k] for k in ("raw_accuracy", "processed_accuracy", "raw_total_tokens", "processed_total_tokens")]
+        lines.append(f"| {safe} | {values['completed_pairs']} / {values['cases']} | " + " | ".join(str(v) if v is not None else "—" for v in cells) + " |")
+    lines.extend(["", "| Category | Pairs / cases | Raw accuracy | Processed accuracy | Raw total tokens | Processed total tokens | Raw median ms | Processed median ms |",
                   "|---|---|---|---|---|---|---|---|"])
     for category, values in summary.get("by_category", {}).items():
         safe = category.replace("|", "\\|").replace("\n", " ")
@@ -232,12 +298,12 @@ def markdown_report(report: dict[str, Any]) -> str:
 
 def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "auto", *,
                       min_cases: int = 50, min_saving: float = .05, min_accuracy: float = .9,
-                      max_accuracy_drop: float = .02, max_calls: int = 6,
+                      max_accuracy_drop: float = .02, max_calls: int = 6, min_category_cases: int = 10,
                       progress: Callable[[dict[str, Any]], None] | None = None) -> dict:
     """Compare a raw call with the real orchestration, using one explicit API model.
 
     Isolated databases prevent evaluation from changing saved strategies/history.
-    All stages use the same connection/model and 2400-token output cap. Reports
+    All stages use the same connection/model and recorded per-role output caps. Reports
     contain answers and aggregate usage, never connection secrets or endpoints.
     """
     from runtime_config import RuntimeConfig, ConnectionClient
@@ -248,7 +314,7 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
         raise ValueError("需要非空评测样本数组")
     for case in cases:
         _validate_case(case, True)
-    if min_cases < 1 or not all(0 <= v <= 1 for v in (min_saving, min_accuracy, max_accuracy_drop)):
+    if min_cases < 1 or min_category_cases < 1 or not all(0 <= v <= 1 for v in (min_saving, min_accuracy, max_accuracy_drop)):
         raise ValueError("评测门槛格式无效")
     selected = choose_model(profile["models"], "general", model)
     rows = []
@@ -281,11 +347,7 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
                             raise ValueError("原文超过配置的上下文容量")
                         response = ConnectionClient(profile).chat(selected, raw_messages, max_tokens=2400)
                         row["raw_usage"] = reported_usage(response)
-                        if any(c.get("finish_reason") == "length" for c in response.get("choices", []) if isinstance(c, dict)):
-                            raise ProviderError("原文回答被截断")
                         answer = response_text(response)
-                        if not answer.strip():
-                            raise ProviderError("原文回答为空")
                         if profile.get("api_key"):
                             answer = answer.replace(profile["api_key"], "<REDACTED>")
                         usage = reported_usage(response)
@@ -300,7 +362,6 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
                     run = runner.execute()
                     metrics = run["metrics"]
                     row.update(processed_answer=run["result"],
-                               processed_answer_pass=run["status"] == "completed" and answer_pass(run["result"], case["expected_answer"], case.get("answer_match", "exact")),
                                processed_retains_facts=all(f in runner.selected_context for f in case["must_keep"]),
                                compression_applied=run.get("preprocessing", {}).get("compression_applied", False),
                                pipeline_status=run["status"], acceptance=run["acceptance"],
@@ -309,13 +370,15 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
                                estimated_output_tokens=metrics["estimated_output_tokens"], usage_complete=metrics["usage_complete"],
                                stages=[{k: c.get(k) for k in ("purpose", "status", "usage", "duration_ms", "estimated_input_tokens", "estimated_output_tokens", "max_output_tokens")} for c in run["calls"]],
                                cache_reused=run.get("document_cache", {}).get("reused", False))
+                    if run["status"] == "completed":
+                        row["processed_answer_pass"] = answer_pass(run["result"], case["expected_answer"], case.get("answer_match", "exact"))
                     if metrics["usage_complete"]:
                         row["processed_usage"] = {"prompt_tokens": metrics["reported_input_tokens"],
                                                   "completion_tokens": metrics["reported_output_tokens"],
                                                   "total_tokens": metrics["reported_total_tokens"]}
                 row[label + "_latency_ms"] = round((time.monotonic() - started) * 1000)
             rows.append(row)
-            summary, gate = summarize(rows, True, min_cases, max_accuracy_drop, min_saving, min_accuracy)
+            summary, gate = summarize(rows, True, min_cases, max_accuracy_drop, min_saving, min_accuracy, min_category_cases)
             summary.update(pipeline_calls=sum(r["model_calls"] for r in rows),
                            repair_calls=sum(c["purpose"] in {"repair", "recheck"} for r in rows for c in r["stages"]),
                            accepted_cases=sum(r["pipeline_status"] == "completed" for r in rows),
@@ -360,7 +423,7 @@ def self_check() -> None:
     with patch(__name__ + ".OpenAICompatibleProvider") as client_class:
         client_class.return_value.chat.return_value = {"choices": [{"message": {"content": "7"}}],
                                                      "usage": {"prompt_tokens": 100, "total_tokens": 101}}
-        compared = evaluate(sample_cases()[:1], "freetoken", "test-model", min_cases=1, min_saving=0)
+        compared = evaluate(sample_cases()[:1], "freetoken", "test-model", min_cases=1, min_category_cases=1, min_saving=0)
         assert compared["quality_gate"]["status"] == "passed"
         assert compared["summary"]["reported_raw_prompt_tokens"] == 100
         assert client_class.return_value.chat.call_count == 2
@@ -383,6 +446,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Compare raw and selected TokenFlow prompts")
     parser.add_argument("--cases", type=Path, help="JSON cases; inline content or relative source_file")
     parser.add_argument("--provider", choices=tuple(PROVIDERS), help="Explicit provider; omitted means offline-only")
+    parser.add_argument("--offline-task-context", action="store_true", help="Offline parse/index/retrieval/selection in isolated databases; no model calls")
     parser.add_argument("--pipeline", action="store_true", help="Compare one raw call with the full orchestration (explicit --connection required)")
     parser.add_argument("--connection", help="Saved API connection ID for full-pipeline evaluation; all roles use this connection")
     parser.add_argument("--max-calls", type=int, default=6, help="Full-pipeline call budget, 3–8")
@@ -393,6 +457,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int)
     parser.add_argument("--report", type=Path, help="Write incremental JSON and matching Markdown")
     parser.add_argument("--min-cases", type=int, default=50)
+    parser.add_argument("--min-category-cases", type=int, default=10, help="Required complete pairs per source kind/category")
     parser.add_argument("--min-accuracy", type=float, default=.9)
     parser.add_argument("--max-accuracy-drop", type=float, default=.02)
     parser.add_argument("--min-saving", type=float, default=.05)
@@ -402,6 +467,8 @@ def main() -> None:
     if args.self_check:
         self_check()
         return
+    if args.offline_task_context and (args.provider or args.pipeline or args.connection or args.model != "auto" or args.max_tokens != 512 or args.timeout != 120 or args.ollama_context != 32768):
+        parser.error("离线任务上下文模式不能使用模型或完整流程参数")
     if args.pipeline and (not args.connection or args.provider):
         parser.error("完整流程评测需要 --connection；不能同时使用 --provider")
     if args.pipeline and (args.max_tokens != 512 or args.timeout != 120 or args.ollama_context != 32768):
@@ -426,12 +493,13 @@ def main() -> None:
             report = evaluate_pipeline(cases[:args.limit] if args.limit else cases,
                           RuntimeConfig().profile(args.connection, True), args.model,
                           min_cases=args.min_cases, min_saving=args.min_saving, min_accuracy=args.min_accuracy,
-                          max_accuracy_drop=args.max_accuracy_drop, max_calls=args.max_calls, progress=progress)
+                          max_accuracy_drop=args.max_accuracy_drop, max_calls=args.max_calls, min_category_cases=args.min_category_cases, progress=progress)
         else:
             report = evaluate(cases[:args.limit] if args.limit else cases, args.provider, args.model,
                           timeout=args.timeout, max_tokens=args.max_tokens, min_cases=args.min_cases,
                           max_accuracy_drop=args.max_accuracy_drop, min_saving=args.min_saving, min_accuracy=args.min_accuracy,
-                          ollama_context=args.ollama_context, progress=progress)
+                          ollama_context=args.ollama_context, min_category_cases=args.min_category_cases,
+                          offline_task_context=args.offline_task_context, progress=progress)
     except (ValueError, OSError, ProviderError) as exc:
         parser.error(str(exc))
     print(json.dumps(report["summary"] if args.report else report, ensure_ascii=False, indent=2))

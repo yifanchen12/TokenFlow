@@ -38,6 +38,24 @@ def self_check():
             else:
                 raise AssertionError("truncation must still fail")
 
+    from model_providers import response_text
+    for protocol, value in (
+        ("responses", {"status": "in_progress", "output": []}),
+        ("responses", {"status": "completed", "output": [{"content": 123}]}),
+        ("responses", {"status": "completed", "output": [{"type": "function_call"}]}),
+        ("anthropic", {"stop_reason": "tool_use", "content": [{"type": "text", "text": "partial"}]}),
+        ("anthropic", {"stop_reason": "end_turn", "content": 123}),
+    ):
+        value["usage"] = {"input_tokens": 100, "output_tokens": 20}
+        client = ConnectionClient({"protocol": protocol, "base_url": "http://127.0.0.1:1/v1", "api_key": ""})
+        with patch.object(client, "_request", return_value=value):
+            try:
+                response_text(client.chat("fixture", [{"role": "user", "content": "fixture"}]))
+            except ProviderError as error:
+                assert error.usage == {"prompt_tokens": 100, "completion_tokens": 20}
+            else:
+                raise AssertionError("pending or malformed protocol output cannot pass")
+
     with tempfile.TemporaryDirectory() as temporary, patch.dict(os.environ, {
         "TOKENFLOW_CONFIG_DB": str(Path(temporary) / "connections.db"),
         "TOKENFLOW_DB_PATH": str(Path(temporary) / "documents.db"),

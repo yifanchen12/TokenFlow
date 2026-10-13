@@ -188,7 +188,107 @@ def self_check():
         with patch("runtime_config.ConnectionClient.chat", side_effect=[response("42", usage=False), response("42", usage=False), response(review, usage=False)]):
             missing = evaluate_pipeline([case], profile, "fixture", min_cases=1, min_saving=0)
         assert missing["quality_gate"]["status"] == "not_evaluated" and not missing["summary"]["usage_complete"]
+    quality_self_check()
     print("Optimization regression checks: PASS")
+
+
+def quality_self_check():
+    import tokenflow as tf
+    from eval_workflow import _validate_case, evaluate, sample_cases, summarize
+    from model_providers import ProviderError, response_text
+    from scripts.generate_eval_cases import CATEGORIES, file_bytes, generate_cases, write_cases
+
+    generated = [case for split in ("development", "holdout") for case in generate_cases(20261013, split)]
+    assert len(generated) == 120 and len({c["name"] for c in generated}) == 120
+    for category in CATEGORIES:
+        assert sum(c["category"] == category for c in generated) == 20
+    development, holdout = generated[:60], generated[60:]
+    assert {c["template"] for c in development}.isdisjoint({c["template"] for c in holdout})
+    assert development == generate_cases(20261013, "development")
+    for case in generated:
+        _validate_case(case, True)
+    for fmt in ("txt", "docx", "xlsx"):
+        text = "Record\tValue\nALPHA\t42" if fmt == "xlsx" else "Record ALPHA\nValue 42"
+        data = file_bytes(text, fmt)
+        assert data == file_bytes(text, fmt)
+        assert "42" in parse_document_bytes("case." + fmt, data)["text"]
+    with tempfile.TemporaryDirectory() as directory, patch("scripts.generate_eval_cases.file_bytes", side_effect=ImportError):
+        root = Path(directory) / "cases"
+        result = write_cases(root, 20261013)
+        assert result["status"] == "incomplete" and len(result["skipped"]) == 20 and result["generated_cases"] == 100
+        marker = root / "generation.json"
+        before = marker.read_bytes()
+        try:
+            write_cases(root, 1)
+        except FileExistsError:
+            pass
+        else:
+            raise AssertionError("generation cannot overwrite an earlier corpus")
+        assert marker.read_bytes() == before
+
+    with tempfile.TemporaryDirectory() as directory:
+        store = RuntimeConfig(Path(directory) / "connections.db")
+        documents = DocumentStore(str(Path(directory) / "documents.db"))
+        conflict = next(c for c in generated if c["template"] == "dated-rule-update")
+        runner = TaskRun(store, conflict["task"], conflict["content"], document_store=documents)
+        selected = runner.select_context()
+        assert all(f in selected for f in conflict["must_keep"])
+        assert runner.run["retrieval"]["sources_scope"] == "search_preview"
+        assert runner.run["retrieval"]["matches"] == 3
+        for template in ("global-constant", "helper-constant-chain"):
+            case = next(c for c in generated if c["template"] == template)
+            selected = tf.compact_content(case["content"], task=case["task"])
+            assert all(f in selected for f in case["must_keep"]) and len(selected) < len(case["content"])
+        background = "\n\n".join(f"def other_{i}():\n    return {i}" for i in range(100))
+        cycle = "def first():\n    return second()\n\ndef second():\n    return first()\n\n" + background
+        selected = tf.compact_content(cycle, task="first 的返回值是什么？")
+        assert "def first" in selected and "def second" in selected and len(selected) < len(cycle)
+        for target in ("def target():\n    return globals()['VALUE']", "def target():\n    def nested():\n        return 42\n    return nested()", "def target():\n    " + "# long body\n    " * 300 + "return VALUE"):
+            source = "VALUE = 42\n\n" + background + "\n\n" + target
+            assert tf.compact_content(source, task="target 的返回值是什么？") == source.strip()
+        imported = "import math\n\n" + background + "\n\ndef target():\n    return math.pi\n"
+        assert "import math" in tf.compact_content(imported, task="target 的返回值是什么？")
+        # Neither isolated selection nor synthetic generation calls a model.
+        with patch("runtime_config.ConnectionClient.chat") as model_call, patch("task_orchestrator.TaskRun.execute") as execute:
+            report = evaluate(generated, offline_task_context=True)
+            model_call.assert_not_called()
+            execute.assert_not_called()
+        assert report["summary"]["cases"] == 120 and report["summary"]["critical_fact_loss_rate"] == 0
+        assert report["quality_gate"]["status"] == "not_evaluated" and report["summary"]["processed_accuracy"] is None
+
+    for content, reason in (("42", "length"), ("", "stop"), ({"unsafe": "text"}, "stop"), ("42", [])):
+        value = response(content)
+        value["choices"][0]["finish_reason"] = reason
+        try:
+            response_text(value)
+        except ProviderError as exc:
+            assert exc.usage["prompt_tokens"] == 100
+        else:
+            raise AssertionError("incomplete or malformed answers cannot pass")
+    truncated = response("7")
+    truncated["choices"][0]["finish_reason"] = "length"
+    with patch("eval_workflow.OpenAICompatibleProvider") as client:
+        client.return_value.chat.return_value = truncated
+        report = evaluate(sample_cases()[:1], "freetoken", "fixture", min_cases=1, min_category_cases=1, min_saving=0)
+        assert report["summary"]["completed_pairs"] == 0 and report["quality_gate"]["status"] != "passed"
+        assert report["cases"][0]["raw_usage"]["prompt_tokens"] == 100
+        client.return_value.chat.return_value = response("7")
+        report = evaluate(sample_cases()[:1], "freetoken", "fixture", min_cases=1, min_saving=0)
+        assert report["quality_gate"]["status"] == "not_evaluated"  # category still needs 10 pairs
+
+    rows = [{"source_kind": "synthetic", "category": "simple" if i < 90 else "conflict", "compression_applied": True,
+             "processed_retains_facts": True, "raw_answer_pass": i < 90, "processed_answer_pass": i < 90,
+             "raw_usage": {"prompt_tokens": 100, "total_tokens": 102}, "processed_usage": {"prompt_tokens": 80, "total_tokens": 82},
+             "raw_latency_ms": 1, "processed_latency_ms": 1} for i in range(100)]
+    summary, gate = summarize(rows, True, 50, .02, .05)
+    assert summary["processed_accuracy"] == .9 and summary["by_category"]["conflict"]["processed_accuracy"] == 0
+    assert gate["status"] == "failed" and gate["categories"]["synthetic"]["conflict"]["status"] == "failed"
+    for row in rows[90:]:
+        row.update(source_kind="real_task", category="simple")
+    summary, gate = summarize(rows, True, 50, .02, .05)
+    assert summary["by_source_kind"]["synthetic"]["processed_accuracy"] == 1
+    assert summary["by_source_kind"]["real_task"]["processed_accuracy"] == 0 and gate["status"] == "failed"
+    print("Synthetic corpus/evidence/gate checks: PASS")
 
 
 if __name__ == "__main__":
