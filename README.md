@@ -25,7 +25,7 @@ Chinese documentation: [README.zh-CN.md](README.zh-CN.md).
 ## Architecture
 
 The console's primary action now submits a task to a bounded workflow: local
-file reading and statistics, optional local-model classification/summary,
+file reading and statistics, optional configured-model classification/summary,
 model planning, sequential model/Harness assignment, and result acceptance.
 Pure supported counting/statistics requests complete without any model call.
 Reasoning results require a valid reviewer verdict; a rejected result may be
@@ -42,10 +42,10 @@ use manually registered IDs. Failed discovery preserves existing records and
 shows its error. Local detection probes only configured/default loopback
 Ollama and FreeToken endpoints, without generating text or downloading models.
 
-Codex model choices read the user's native config and visible local model cache;
+Codex model choices can refresh the native CLI model/list catalog; local config/cache is the fallback;
 Claude reads configured model IDs. Cached/registered IDs are not access guarantees.
 Codex bindings require a Responses endpoint, Claude bindings require Messages;
-DSH keeps its native profile. Native subscription login stays with the Harness.
+DSH supports Chat Completions through a temporary profile patch or its native profile. Native subscription login stays with the Harness.
 You can import existing API-key connections without displaying their keys.
 Bindings are applied to TokenFlow-launched child processes, preserving the
 Harness's native configuration files. Keys are passed through child environment
@@ -312,3 +312,35 @@ Before a pull request, scan the diff for secrets, absolute paths, generated logs
 ## License
 
 Released under the MIT License. See [LICENSE](LICENSE).
+
+
+## Local OCR / 本地文字识别
+
+PNG/JPEG/WebP/BMP use optional offline RapidOCR (Chinese/English, CPU). PDF pages with text are extracted directly; only pages without text use local OCR via PyMuPDF, up to 30 scanned pages per file. Recognition text is editable before task submission. OCR makes no cloud calls and does not reserve GPU memory. Optional dependencies: `rapidocr_onnxruntime==1.2.3`, `Pillow`, `PyMuPDF`. The build bundles RapidOCR configs and model files when installed.
+
+分类摘要角色可显式选择云端 API，调用统计会按实际连接归类。可从本机 `BUPT_API_BASE_URL` / `BUPT_API_KEY` 导入北邮连接。DSH headless 通过临时补丁绑定模型；Codex 原生登录使用 HTTPS，模型目录可由 CLI `model/list` 检测，避免使用不可调用的应用缓存模型。
+## Input fidelity, task recovery and full-pipeline evaluation
+
+XLSX extraction preserves inline/shared strings, sparse cells, blank rows and workbook sheet order. Single sheets produce TSV; multiple sheets include sheet names. Formulas use saved cached values, or retain the formula with a warning when no value is available; formulas are not recalculated. DOCX paragraph boundaries are preserved.
+
+Codex and Claude receive complete UTF-8 prompts on stdin. DSH headless receives a temporary `headless-runner` task overlay, removed after the call. Prompt length no longer consumes Windows' command-line allowance.
+
+Explicit single-step questions, summaries and translations over short supplied content skip planning and normally use executor + reviewer. Complex work still plans; preprocessing summaries are conditional. Tasks reuse the content-hash document index and restrict retrieval to the current document, with source references and structure-preserving extraction. Broad tasks retain full content, and reviewers always receive the original source.
+
+The page tracks the running task independently of the displayed history, restores tracking on refresh, and retries transient polling failures. `POST /api/tasks/cancel` accepts `{"id":"<task-id>"}` with the same loopback/session protection as task start. Cancellation prevents subsequent calls and stops Harness process trees. In-flight API requests settle before `cancelling` becomes `cancelled`; completed work is retained. Restarted unfinished tasks become `interrupted`.
+
+To explicitly compare one raw-input call with the entire orchestration:
+
+```powershell
+python eval_workflow.py --pipeline --connection <saved-connection-id> --model <model-id> --cases eval_cases.workflow.json --min-cases 6 --report tmp/pipeline.json
+```
+
+All stages use the selected saved API connection and model, with a 2400-token output cap per call and a 3–8 call budget (`--max-calls`, default 6). Harness execution is disabled for this comparison. Connection IDs appear in `/api/config` under `connections[].id`. Temporary databases isolate evaluation from saved strategies and history. Reports include every stage, repairs, input/output usage and wall time. Missing usage remains unknown; unsuccessful acceptance or incomplete usage cannot pass the gate. The six source-independent synthetic cases are workflow smoke scenarios, not a held-out production benchmark; use independently labelled holdout tasks for quality claims. Full orchestration can cost more than one call.
+
+Offline regression commands:
+
+```powershell
+python tokenflow.py --self-check
+python eval_workflow.py --self-check
+node scripts/test_ui.js
+```

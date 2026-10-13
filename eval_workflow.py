@@ -8,6 +8,7 @@ import json
 import re
 import statistics
 import time
+import tempfile
 import unicodedata
 from pathlib import Path
 from typing import Any, Callable
@@ -200,6 +201,108 @@ def markdown_report(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "auto", *,
+                      min_cases: int = 50, min_saving: float = .05, min_accuracy: float = .9,
+                      max_accuracy_drop: float = .02, max_calls: int = 6,
+                      progress: Callable[[dict[str, Any]], None] | None = None) -> dict:
+    """Compare a raw call with the real orchestration, using one explicit API model.
+
+    Isolated databases prevent evaluation from changing saved strategies/history.
+    All stages use the same connection/model and 2400-token output cap. Reports
+    contain answers and aggregate usage, never connection secrets or endpoints.
+    """
+    from runtime_config import RuntimeConfig, ConnectionClient
+    from task_orchestrator import TaskRun
+    from tokenflow_store import DocumentStore
+
+    if not isinstance(cases, list) or not cases:
+        raise ValueError("需要非空评测样本数组")
+    for case in cases:
+        _validate_case(case, True)
+    if min_cases < 1 or not all(0 <= v <= 1 for v in (min_saving, min_accuracy, max_accuracy_drop)):
+        raise ValueError("评测门槛格式无效")
+    selected = choose_model(profile["models"], "general", model)
+    rows = []
+    report = {"mode": "full_pipeline_same_model", "model": selected, "cases": rows,
+              "expected_cases": len(cases), "model_settings": {"max_tokens": 2400, "max_calls": max_calls},
+              "note": "一次原文调用与完整任务流程成对比较；所有阶段使用同一明确连接和模型，输出上限均为 2400。"
+                      "统计分类摘要、规划、执行、验收和修正的全部调用。估算与提供商 usage 分开，样本通过不证明泛化质量。"}
+    with tempfile.TemporaryDirectory(prefix="tokenflow-eval-") as directory:
+        store = RuntimeConfig(Path(directory) / "connections.db")
+        saved = store.save_profile({**profile, "id": "evaluation", "models": [selected]})
+        store.save_settings({"roles": {role: saved["id"] for role in ("local", "planner", "executor", "reviewer")},
+                             "role_models": {role: selected for role in ("local", "planner", "executor", "reviewer")},
+                             "max_calls": max_calls})
+        documents = DocumentStore(str(Path(directory) / "documents.db"))
+        for index, case in enumerate(cases):
+            task, content = case["task"].strip(), case["content"].strip()
+            row = {"name": case.get("name", "case"), "source_kind": case.get("source_kind", "user_supplied"),
+                   "source_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                   "compression_applied": False, "processed_retains_facts": True,
+                   "raw_usage": {}, "processed_usage": {}}
+            for label in (("raw", "processed") if index % 2 == 0 else ("processed", "raw")):
+                started = time.monotonic()
+                if label == "raw":
+                    try:
+                        response = ConnectionClient(profile).chat(selected, chat_messages(task, content), max_tokens=2400)
+                        if any(c.get("finish_reason") == "length" for c in response.get("choices", []) if isinstance(c, dict)):
+                            raise ProviderError("原文回答被截断")
+                        answer = response_text(response)
+                        if not answer.strip():
+                            raise ProviderError("原文回答为空")
+                        if profile.get("api_key"):
+                            answer = answer.replace(profile["api_key"], "<REDACTED>")
+                        usage = reported_usage(response)
+                        if all(k in usage for k in ("prompt_tokens", "completion_tokens")):
+                            usage.setdefault("total_tokens", usage["prompt_tokens"] + usage["completion_tokens"])
+                        row.update(raw_answer=answer, raw_answer_pass=answer_pass(answer, case["expected_answer"], case.get("answer_match", "exact")), raw_usage=usage)
+                    except (ProviderError, ValueError):
+                        row["error"] = "原文模型调用失败，不能计为完整对比"
+                else:
+                    runner = TaskRun(store, task, content, document_store=documents, source_name=str(row["name"]), allow_harnesses=False)
+                    run = runner.execute()
+                    metrics = run["metrics"]
+                    row.update(processed_answer=run["result"],
+                               processed_answer_pass=run["status"] == "completed" and answer_pass(run["result"], case["expected_answer"], case.get("answer_match", "exact")),
+                               processed_retains_facts=all(f in runner.selected_context for f in case["must_keep"]),
+                               compression_applied=run.get("preprocessing", {}).get("compression_applied", False),
+                               pipeline_status=run["status"], acceptance=run["acceptance"],
+                               model_calls=metrics["model_calls"], repairs=sum(c["purpose"] == "repair" for c in run["calls"]),
+                               estimated_input_tokens=metrics["estimated_input_tokens"],
+                               estimated_output_tokens=metrics["estimated_output_tokens"], usage_complete=metrics["usage_complete"],
+                               stages=[{k: c.get(k) for k in ("purpose", "status", "usage", "duration_ms", "estimated_input_tokens", "estimated_output_tokens")} for c in run["calls"]],
+                               cache_reused=run.get("document_cache", {}).get("reused", False))
+                    if metrics["usage_complete"]:
+                        row["processed_usage"] = {"prompt_tokens": metrics["reported_input_tokens"],
+                                                  "completion_tokens": metrics["reported_output_tokens"],
+                                                  "total_tokens": metrics["reported_total_tokens"]}
+                row[label + "_latency_ms"] = round((time.monotonic() - started) * 1000)
+            rows.append(row)
+            summary, gate = summarize(rows, True, min_cases, max_accuracy_drop, min_saving, min_accuracy)
+            summary.update(pipeline_calls=sum(r["model_calls"] for r in rows),
+                           repair_calls=sum(c["purpose"] in {"repair", "recheck"} for r in rows for c in r["stages"]),
+                           accepted_cases=sum(r["pipeline_status"] == "completed" for r in rows),
+                           reported_pipeline_input_tokens=sum(r["processed_usage"]["prompt_tokens"] for r in rows) if all(r["usage_complete"] for r in rows) else None,
+                           reported_pipeline_output_tokens=sum(r["processed_usage"]["completion_tokens"] for r in rows) if all(r["usage_complete"] for r in rows) else None,
+                           reported_pipeline_total_tokens=sum(r["processed_usage"]["total_tokens"] for r in rows) if all(r["usage_complete"] for r in rows) else None,
+                           usage_complete=all(r["usage_complete"] and "completion_tokens" in r["raw_usage"] for r in rows))
+            if any(r["pipeline_status"] != "completed" for r in rows):
+                gate["status"] = "failed"
+                gate["reasons"].append("存在执行失败、取消或未通过验收的任务")
+            if not summary["usage_complete"]:
+                if gate["status"] == "passed":
+                    gate["status"] = "not_evaluated"
+                gate["reasons"].append("完整流程或原文缺少输入/输出用量")
+            if len(rows) < len(cases):
+                if gate["status"] == "passed":
+                    gate["status"] = "not_evaluated"
+                gate["reasons"].append("样本集尚未运行完毕")
+            report.update(summary=summary, quality_gate=gate)
+            if progress:
+                progress(report)
+    return report
+
+
 def self_check() -> None:
     from unittest.mock import patch
 
@@ -239,6 +342,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Compare raw and selected TokenFlow prompts")
     parser.add_argument("--cases", type=Path, help="JSON cases; inline content or relative source_file")
     parser.add_argument("--provider", choices=tuple(PROVIDERS), help="Explicit provider; omitted means offline-only")
+    parser.add_argument("--pipeline", action="store_true", help="Compare one raw call with the full orchestration (explicit --connection required)")
+    parser.add_argument("--connection", help="Saved API connection ID for full-pipeline evaluation; all roles use this connection")
+    parser.add_argument("--max-calls", type=int, default=6, help="Full-pipeline call budget, 3–8")
     parser.add_argument("--model", default="auto")
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--max-tokens", type=int, default=512)
@@ -255,6 +361,12 @@ def main() -> None:
     if args.self_check:
         self_check()
         return
+    if args.pipeline and (not args.connection or args.provider):
+        parser.error("完整流程评测需要 --connection；不能同时使用 --provider")
+    if args.pipeline and (args.max_tokens != 512 or args.timeout != 120 or args.ollama_context != 32768):
+        parser.error("完整流程使用运行时默认请求参数；--max-tokens、--timeout 和 --ollama-context 仅用于单次提示词评测")
+    if args.connection and not args.pipeline:
+        parser.error("--connection 仅用于 --pipeline")
     if args.report and args.report.suffix.lower() != ".json":
         parser.error("report 必须使用 .json 后缀；Markdown 会自动生成")
     if args.timeout <= 0 or args.max_tokens < 1 or not 2048 <= args.ollama_context <= 131072 or (args.limit is not None and args.limit < 1):
@@ -268,7 +380,14 @@ def main() -> None:
             print(f"Completed {len(report['cases'])} pairs/cases", flush=True)
     try:
         cases = load_cases(args.cases) if args.cases else sample_cases()
-        report = evaluate(cases[:args.limit] if args.limit else cases, args.provider, args.model,
+        if args.pipeline:
+            from runtime_config import RuntimeConfig
+            report = evaluate_pipeline(cases[:args.limit] if args.limit else cases,
+                          RuntimeConfig().profile(args.connection, True), args.model,
+                          min_cases=args.min_cases, min_saving=args.min_saving, min_accuracy=args.min_accuracy,
+                          max_accuracy_drop=args.max_accuracy_drop, max_calls=args.max_calls, progress=progress)
+        else:
+            report = evaluate(cases[:args.limit] if args.limit else cases, args.provider, args.model,
                           timeout=args.timeout, max_tokens=args.max_tokens, min_cases=args.min_cases,
                           max_accuracy_drop=args.max_accuracy_drop, min_saving=args.min_saving, min_accuracy=args.min_accuracy,
                           ollama_context=args.ollama_context, progress=progress)

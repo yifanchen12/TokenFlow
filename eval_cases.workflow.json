@@ -1,0 +1,52 @@
+[
+  {
+    "name": "short_fact",
+    "source_kind": "synthetic",
+    "task": "图书馆周末几点闭馆？只回答时间。",
+    "content": "本学期图书馆工作日22:00闭馆，周末20:30闭馆。考试周安排另行通知。",
+    "must_keep": ["周末20:30闭馆"],
+    "expected_answer": "20:30"
+  },
+  {
+    "name": "inline_code_fact",
+    "source_kind": "synthetic",
+    "task": "MAX_RETRIES的值是多少？只回答数字。",
+    "content": "MAX_RETRIES = 4\nREQUEST_TIMEOUT = 19\n",
+    "must_keep": ["MAX_RETRIES = 4"],
+    "expected_answer": "4"
+  },
+  {
+    "name": "summary_preserves_numbers",
+    "source_kind": "synthetic",
+    "task": "总结下面的活动安排，保留日期、报名人数和地点。",
+    "content": "机器人社团展示日定于11月6日。报名人数为48人。地点为实验楼B204。负责人将于活动前一天检查设备。",
+    "must_keep": ["11月6日", "48人", "B204"],
+    "expected_answer": ["11月6日", "48", "B204"],
+    "answer_match": "contains_all"
+  },
+  {
+    "name": "conflicting_versions",
+    "source_kind": "synthetic",
+    "task": "根据更新日期判断最新的报销期限是多少天？只回答数字。",
+    "content": "2025年通知：报销期限为30天。\n\n2026年更新：报销期限调整为45天，替代2025年通知。",
+    "must_keep": ["30天", "45天", "替代2025年通知"],
+    "expected_answer": "45"
+  },
+  {
+    "name": "table_reasoning",
+    "source_kind": "synthetic",
+    "task": "先计算两种方案总耗时，再判断哪个更短。只回答方案名称。",
+    "content": "方案,准备分钟,执行分钟\n青松,8,13\n白云,4,20\n",
+    "must_keep": ["青松,8,13", "白云,4,20"],
+    "expected_answer": "青松"
+  },
+  {
+    "name": "translation_constraints",
+    "source_kind": "synthetic",
+    "task": "翻译成英文，保留产品代号和版本号。",
+    "content": "产品代号是Maple-X，当前版本为3.7。",
+    "must_keep": ["Maple-X", "3.7"],
+    "expected_answer": ["Maple-X", "3.7"],
+    "answer_match": "contains_all"
+  }
+]

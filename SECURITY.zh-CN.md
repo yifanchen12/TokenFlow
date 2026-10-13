@@ -80,3 +80,5 @@ FreeToken 的 Windows 一键脚本只负责定位用户提供的安装器，并�
 PC Agent 层采用白名单并默认 dry-run。`TOKENFLOW_PC_AGENT_EXECUTE=1` 只是本地显式开关，不等同于安全审批。
 
 English version: [SECURITY.md](SECURITY.md)。
+
+本地 OCR 使用可选 RapidOCR ONNX 模型，扫描 PDF 通过 PyMuPDF 渲染。OCR 本身不上传图片；布置任务会把识别文字交给已保存的分类摘要、规划、执行和验收角色。敏感文档请先核对识别文本与角色目的地。

@@ -30,7 +30,7 @@ English documentation: [README.md](README.md)。
 
 在“模型提供商与 Harness 配置”中保存连接名称、Base URL、API Key 和协议（Chat Completions、Responses 或 Anthropic Messages）。保存后请求 `/models`，当前目录和历史模型记录跨重启保留；不提供目录的端点可以手动登记 ID。检测失败保留原记录并显示错误。自动本地检测仅探测已配置或默认的回环 Ollama / FreeToken 端点，不生成文本或下载模型。
 
-Codex 模型来自本机配置及可见模型缓存，Claude 来自本机配置中的模型 ID。缓存和手工记录不保证当前账户可调用。Codex 绑定需要 Responses，Claude 需要 Messages；DSH 保留其原生 profile。原生订阅登录仍由 Harness 使用。支持导入现有 API Key 连接，Key 不回显；绑定只影响 TokenFlow 启动的子进程，密钥通过子进程环境传递。默认继续使用只读 / 计划模式。
+Codex 模型来自本机配置及可见模型缓存，Claude 来自本机配置中的模型 ID。缓存和手工记录不保证当前账户可调用。Codex 绑定需要 Responses，Claude 需要 Messages；DSH 可绑定 Chat Completions 连接（包括北邮 API），使用临时 profile 补丁，不改全局配置。原生订阅登录仍由 Harness 使用。支持导入现有 API Key 连接，Key 不回显；绑定只影响 TokenFlow 启动的子进程，密钥通过子进程环境传递。默认继续使用只读 / 计划模式。
 
 连接、策略和最近任务记录保存在用户缓存旁的 `connections.db`，不写入项目；可用 `TOKENFLOW_CONFIG_DB` 指定位置。Windows 使用当前系统用户的 DPAPI 保护 Key；POSIX 通过仅文件所有者可读的权限保护。Key 留空保留原值，更换地址需要重新填写。任务记录包含结果，应视为私人数据。旧版 OmniRoute 设置区仍是独立的进程内存配置。
 
@@ -274,3 +274,32 @@ GitHub Actions 会在 Windows 自动自检、构建 EXE，通过 `scripts/smoke_
 ## 许可证
 
 采用 MIT 许可证发布，详见 [LICENSE](LICENSE)。
+
+
+## 本地文字识别
+
+PNG/JPEG/WebP/BMP 使用本地 RapidOCR 中英文识别，默认 CPU 离线运行。PDF 有文字的页直接提取，无文字的页由 PyMuPDF 渲染后进行 OCR，每份文件最多识别 30 个扫描页。识别内容可在布置任务前核对、编辑；OCR 不调用云端、不占用独立显卡显存。可选依赖：`rapidocr_onnxruntime==1.2.3`、`Pillow`、`PyMuPDF`。安装后，构建脚本会把 OCR 配置和模型打包进 EXE。
+
+分类摘要角色可显式选择云端 API，调用统计会按实际连接归类。可从本机 `BUPT_API_BASE_URL` / `BUPT_API_KEY` 导入北邮连接。DSH headless 通过临时补丁绑定模型；Codex 原生登录使用 HTTPS，模型目录可由 CLI `model/list` 检测，避免使用不可调用的应用缓存模型。
+
+## 输入、任务恢复与完整流程评测
+
+- XLSX 保留内联/共享文本、空单元格、空行和工作表顺序；单表输出 TSV，多表带工作表名称。公式读取文件中的缓存值，缺失缓存时显示公式及提示，不重新计算公式。DOCX 保留段落和段内连续文本。
+- Codex、Claude 的完整提示词通过 UTF-8 标准输入传递；DSH headless 使用临时 `headless-runner` 任务补丁，调用后清理。长资料不占用命令行参数长度。
+- 明确的短资料单步问答、摘要、翻译可直接执行并验收，通常两次调用；复杂任务仍规划。额外分类摘要只用于适合缩短规划输入的长资料。未通过验收仍可在预算内修正一次。
+- 任务使用 SQLite 内容哈希复用文档索引，仅检索本次资料并记录出处。检索使用词法匹配和哈希评分；保留函数/章节结构，范围过大时回退原文。全文总结、翻译、统计等读取完整资料，验收始终读取原文。
+- 页面可以取消运行任务、查看历史后返回当前任务，并在刷新后恢复跟踪。`POST /api/tasks/cancel` 接受 `{"id":"<任务ID>"}`，使用与启动接口相同的回环和会话头校验。`cancelling` 表示停止后续调用并等待正在进行的 API 请求返回；Harness 进程树会终止。`cancelled` 保留此前已完成的结果。服务重启会把未结束的任务标为 `interrupted`。
+
+完整流程评测比较“一次原文调用”和真实的摘要、规划、执行、验收、修正流程。所有阶段使用一个明确的已保存 API 连接及同一模型，每次输出上限 2400 Token，最多 3–8 次阶段调用；不启动 Harness。连接 ID 来自 `/api/config` 的 `connections[].id`。评测使用临时数据库，不改已保存策略或任务记录。
+
+```powershell
+# 会调用所选端点；6 个独立于仓库源码的合成场景只用于流程冒烟，不是生产质量证明。
+python eval_workflow.py --pipeline --connection <连接ID> --model <模型ID> --cases eval_cases.workflow.json --min-cases 6 --report tmp/pipeline.json
+
+# 完全离线回归（主自检也包含 test_optimizations.py）
+python tokenflow.py --self-check
+python eval_workflow.py --self-check
+node scripts/test_ui.js
+```
+
+报告逐阶段记录输入/输出 usage、调用状态、修正次数和完整耗时，并汇总全流程 Token。失败调用缺少用量时保留“未知”，不把估算当作实际用量；未通过验收、样本不足或用量不全不能通过门槛。完整流程可能比单次调用更贵。正式质量验证请使用独立标注的留出任务；这六个合成场景不作为泛化或节省承诺。

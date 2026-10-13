@@ -11,7 +11,7 @@ if errorlevel 1 (
 )
 
 echo [1/2] Compiling TokenFlow...
-%PYTHON% -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py token_counter.py model_providers.py runtime_config.py task_orchestrator.py document_parser.py tokenflow_store.py pc_agent.py jev_provider.py ui_page.py launcher.py
+%PYTHON% -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py token_counter.py model_providers.py runtime_config.py task_orchestrator.py document_parser.py local_ocr.py tokenflow_store.py pc_agent.py jev_provider.py ui_page.py launcher.py
 if errorlevel 1 goto :compile_failed
 
 echo [2/2] Starting TokenFlow at http://127.0.0.1:8765

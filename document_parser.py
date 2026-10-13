@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import io
+import csv
+import posixpath
 import re
 import zipfile
 from pathlib import Path
@@ -10,7 +12,8 @@ from typing import Any
 from xml.etree import ElementTree
 
 
-SUPPORTED_EXTENSIONS = {".txt", ".md", ".py", ".json", ".csv", ".tsv", ".docx", ".xlsx", ".pdf"}
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+SUPPORTED_EXTENSIONS = {".txt", ".md", ".py", ".json", ".csv", ".tsv", ".docx", ".xlsx", ".pdf"} | IMAGE_EXTENSIONS
 MAX_ZIP_ENTRIES = 1024
 MAX_XML_BYTES = 32 * 1024 * 1024
 MAX_TOTAL_XML_BYTES = 64 * 1024 * 1024
@@ -40,11 +43,15 @@ def _docx(data: bytes) -> str:
         root = ElementTree.fromstring(xml)
     except (KeyError, OSError, RuntimeError, zipfile.BadZipFile, ElementTree.ParseError) as exc:
         raise DocumentParseError("DOCX 结构无效") from exc
-    values = [node.text or "" for node in root.iter() if node.tag.endswith("}t")]
-    return " ".join(values).strip()
+    def paragraph(node):
+        return "".join(child.text or "" if child.tag.endswith("}t") else
+                       "\t" if child.tag.endswith("}tab") else "\n" if child.tag.endswith(("}br", "}cr")) else ""
+                       for child in node.iter())
+    paragraphs = [paragraph(node) for node in root.iter() if node.tag.endswith("}p")]
+    return "\n\n".join(paragraphs).strip() if paragraphs else paragraph(root).strip()
 
 
-def _xlsx(data: bytes) -> str:
+def _xlsx(data: bytes) -> dict:
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             if len(archive.infolist()) > MAX_ZIP_ENTRIES:
@@ -57,38 +64,124 @@ def _xlsx(data: bytes) -> str:
                 root = ElementTree.fromstring(xml)
                 for item in root:
                     shared.append("".join(node.text or "" for node in item.iter() if node.tag.endswith("}t")))
-            rows: list[str] = []
-            for name in sorted(item for item in archive.namelist() if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", item)):
+            names = archive.namelist()
+            sheets = []
+            if "xl/workbook.xml" in names and "xl/_rels/workbook.xml.rels" in names:
+                xml = _read_xml(archive, "xl/_rels/workbook.xml.rels", remaining)
+                remaining -= len(xml)
+                relationships = {r.attrib.get("Id"): posixpath.normpath(
+                    r.attrib.get("Target", "").lstrip("/") if r.attrib.get("Target", "").startswith("/")
+                    else "xl/" + r.attrib.get("Target", ""))
+                    for r in ElementTree.fromstring(xml) if r.attrib.get("TargetMode") != "External"}
+                xml = _read_xml(archive, "xl/workbook.xml", remaining)
+                remaining -= len(xml)
+                for sheet in ElementTree.fromstring(xml).iter():
+                    if sheet.tag.endswith("}sheet"):
+                        identity = next((v for k, v in sheet.attrib.items() if k.endswith("}id")), "")
+                        target = relationships.get(identity, "")
+                        if not target.startswith("xl/worksheets/") or target not in names:
+                            raise DocumentParseError("XLSX 工作表引用无效")
+                        sheets.append((sheet.attrib.get("name", "Sheet"), target))
+            else:
+                sheets = [(Path(n).stem, n) for n in sorted(
+                    (n for n in names if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", n)),
+                    key=lambda n: int(re.search(r"sheet(\d+)", n).group(1)))]
+            extracted, total_cells, warnings = [], 0, []
+            for title, name in sheets:
                 xml = _read_xml(archive, name, remaining)
                 remaining -= len(xml)
                 root = ElementTree.fromstring(xml)
+                rows, width = [], 0
                 for row in root.iter():
                     if not row.tag.endswith("}row"):
                         continue
+                    row_number = int(row.attrib.get("r", len(rows) + 1))
+                    if row_number <= len(rows) or row_number > 100001:
+                        raise DocumentParseError("XLSX 行位置无效或超过 100001 行限制")
                     cells: list[str] = []
                     for cell in row:
                         if not cell.tag.endswith("}c"):
                             continue
+                        reference = cell.attrib.get("r", "")
+                        match = re.fullmatch(r"([A-Z]+)(\d+)", reference) if reference else None
+                        if reference and (not match or int(match.group(2)) != row_number):
+                            raise DocumentParseError("XLSX 单元格位置无效")
+                        column = 0
+                        if match:
+                            for letter in match.group(1):
+                                column = column * 26 + ord(letter) - ord("A") + 1
+                        else:
+                            column = len(cells) + 1
+                        if column <= len(cells) or column > 16384:
+                            raise DocumentParseError("XLSX 列位置无效")
                         value = next((node.text or "" for node in cell if node.tag.endswith("}v")), "")
                         cell_type = cell.attrib.get("t")
-                        if cell_type == "s" and value.isdigit() and int(value) < len(shared):
+                        if cell_type == "s":
+                            if not value.isdigit() or int(value) >= len(shared):
+                                raise DocumentParseError("XLSX 共享字符串引用无效")
                             value = shared[int(value)]
+                        elif cell_type == "inlineStr":
+                            value = "".join(n.text or "" for n in cell.iter() if n.tag.endswith("}t"))
+                        formula = next((n.text or "" for n in cell if n.tag.endswith("}f")), None)
+                        if formula is not None:
+                            if not value:
+                                value = "=" + formula + " [无缓存值]"
+                            warnings.append("公式使用文件内缓存值，未重新计算；无缓存值时保留公式")
+                        cells.extend([""] * (column - len(cells) - 1))
                         cells.append(value)
-                    if cells:
-                        rows.append("\t".join(cells))
-            return "\n".join(rows).strip()
-    except (KeyError, OSError, RuntimeError, zipfile.BadZipFile, ElementTree.ParseError) as exc:
+                    rows.extend([[] for _ in range(row_number - len(rows) - 1)])
+                    rows.append(cells)
+                    width = max(width, len(cells))
+                    if total_cells + len(rows) * width > 1_000_000:
+                        raise DocumentParseError("XLSX 展开后超过 100 万单元格限制")
+                values = [r + [""] * (width - len(r)) for r in rows]
+                total_cells += len(values) * width
+                output = io.StringIO()
+                csv.writer(output, delimiter="\t", lineterminator="\n").writerows(values)
+                extracted.append({"name": title, "text": output.getvalue().rstrip("\n"),
+                                  "rows": len(values), "columns": width})
+            text = "\n\n".join(("[工作表：" + s["name"] + "]\n" if len(extracted) > 1 else "") + s["text"] for s in extracted)
+            return {"text": text, "sheets": extracted, "warnings": list(dict.fromkeys(warnings))}
+    except DocumentParseError:
+        raise
+    except (ValueError, KeyError, OSError, RuntimeError, zipfile.BadZipFile, ElementTree.ParseError) as exc:
         raise DocumentParseError("XLSX 结构无效") from exc
 
 
-def _pdf(data: bytes) -> str:
+def _pdf(data: bytes) -> dict:
     try:
         from pypdf import PdfReader
 
         reader = PdfReader(io.BytesIO(data))
-        return "\n".join(page.extract_text() or "" for page in reader.pages).strip()
+        pages = [page.extract_text() or "" for page in reader.pages]
+        scanned = [i for i, text in enumerate(pages) if not text.strip()]
+        if len(scanned) > 30:
+            raise DocumentParseError("扫描 PDF 最多识别 30 页，请拆分后处理")
+        metadata = {"method": "pdf_text", "pages": len(pages), "ocr_pages": []}
+        if scanned:
+            try:
+                import fitz
+                from local_ocr import recognize, OCRError
+            except ImportError as exc:
+                raise DocumentParseError("扫描 PDF 需要本地 OCR 及可选依赖 PyMuPDF") from exc
+            with fitz.open(stream=data, filetype="pdf") as pdf:
+                for index in scanned:
+                    page = pdf[index]
+                    zoom = min(2, 3000 / max(page.rect.width, page.rect.height))
+                    pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
+                    try:
+                        pages[index] = recognize(pix.tobytes("png"))["text"]
+                    except OCRError as exc:
+                        # Blank pages stay blank; unavailable OCR never silently loses a scan.
+                        if "未识别出文字" not in str(exc):
+                            raise DocumentParseError(f"第 {index + 1} 页：{exc}") from exc
+                    metadata["ocr_pages"].append(index + 1)
+            metadata["method"] = "pdf_text_and_local_ocr"
+        return {"text": "\n".join(pages).strip(), **metadata}
     except ImportError as exc:
         raise DocumentParseError("PDF 解析需要可选依赖 pypdf") from exc
+    except DocumentParseError:
+        raise
     except Exception as exc:
         raise DocumentParseError("PDF 文本提取失败") from exc
 
@@ -97,17 +190,29 @@ def parse_document_bytes(name: str, data: bytes) -> dict[str, Any]:
     suffix = Path(name).suffix.lower()
     if suffix not in SUPPORTED_EXTENSIONS:
         raise DocumentParseError(f"不支持的文件类型：{suffix or '无扩展名'}")
-    if suffix == ".docx":
+    metadata = {"method": "document_text"}
+    if suffix in IMAGE_EXTENSIONS:
+        from local_ocr import recognize, OCRError
+        try:
+            extracted = recognize(data)
+        except OCRError as exc:
+            raise DocumentParseError(str(exc)) from exc
+        text = extracted.pop("text")
+        metadata = extracted
+    elif suffix == ".docx":
         text = _docx(data)
     elif suffix == ".xlsx":
-        text = _xlsx(data)
+        extracted = _xlsx(data)
+        text = extracted.pop("text")
+        metadata.update(extracted)
     elif suffix == ".pdf":
-        text = _pdf(data)
+        metadata = _pdf(data)
+        text = metadata.pop("text")
     else:
         text = data.decode("utf-8-sig", errors="replace")
     if not text.strip():
         raise DocumentParseError("文件未提取出文本")
-    return {"name": Path(name).name, "extension": suffix, "text": text, "characters": len(text)}
+    return {"name": Path(name).name, "extension": suffix, "text": text, "characters": len(text), **metadata}
 
 
 def parse_document_file(path_value: str) -> dict[str, Any]:
@@ -120,7 +225,19 @@ def parse_document_file(path_value: str) -> dict[str, Any]:
 
 
 def self_check() -> None:
+    from unittest.mock import patch
+    from local_ocr import OCRError
     assert ".docx" in SUPPORTED_EXTENSIONS
+    with patch("local_ocr.recognize", return_value={"text": "OCR 42", "method": "local_ocr", "device": "CPU"}):
+        extracted = parse_document_bytes("a.png", b"fixture")
+        assert extracted["text"] == "OCR 42" and extracted["method"] == "local_ocr"
+    with patch("local_ocr.recognize", side_effect=OCRError("图片未识别出文字")):
+        try:
+            parse_document_bytes("blank.png", b"fixture")
+        except DocumentParseError:
+            pass
+        else:
+            raise AssertionError("empty OCR must not silently succeed")
     assert parse_document_bytes("a.txt", b"hello")["text"] == "hello"
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:

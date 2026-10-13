@@ -49,7 +49,7 @@ destination requires a replacement key. Harness overrides pass keys in child
 environment variables. Native subscription authentication is not exported.
 Configuration/task APIs require loopback access and session headers, including
 reads of saved task results. Automatic task submission authorizes the saved
-planner/executor/reviewer destinations; review those choices before submitting
+classification/summary/planner/executor/reviewer destinations; review those choices before submitting
 private input. Budgets limit stage invocations, not a Harness's internal usage.
 
 OmniRoute chat, evaluation and Codex invocations require an explicit model; `auto` is rejected. `TOKENFLOW_OMNIROUTE_ALLOWED_MODELS` or the page's process-scoped allow-list restricts requested model IDs. The preview sends no task and reports cost as unknown. These controls do not constrain a gateway combo's internal fallback or guarantee local execution or a spending cap. Configure those policies in the gateway.
@@ -88,3 +88,5 @@ The FreeToken Windows helper only locates a user-provided installer and opens it
 The PC Agent layer is allow-listed and dry-run by default. `TOKENFLOW_PC_AGENT_EXECUTE=1` is an explicit local opt-in, not a safety approval.
 
 Chinese version: [SECURITY.zh-CN.md](SECURITY.zh-CN.md).
+
+Local OCR uses bundled optional RapidOCR ONNX models and renders scanned PDF pages through PyMuPDF. OCR does not transmit images; submitting the resulting text sends it to the saved task roles. Review and edit recognized text before sending private documents.

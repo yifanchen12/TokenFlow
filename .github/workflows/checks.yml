@@ -11,13 +11,15 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install build tools
-        run: python -m pip install pyinstaller==6.22.3 pypdf
+        run: python -m pip install pyinstaller==6.22.3 pypdf rapidocr_onnxruntime==1.2.3 PyMuPDF Pillow
       - name: Run checks
         shell: pwsh
         run: |
           python -m compileall -q .
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python -c "import ui_page; print(ui_page.PAGE.split('<script>',1)[1].split('</script>',1)[0])" | node --check
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node scripts/test_ui.js
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python tokenflow.py --self-check
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -30,7 +32,7 @@ jobs:
       - name: Build and smoke-test EXE
         shell: pwsh
         run: |
-          python -m PyInstaller --noconfirm --clean --onefile --windowed --name TokenFlow launcher.py
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name TokenFlow --collect-all rapidocr_onnxruntime --exclude-module torch --exclude-module pandas --exclude-module scipy --exclude-module pytest --exclude-module matplotlib --exclude-module tensorflow --exclude-module transformers launcher.py
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           ./scripts/smoke_exe.ps1
           $hash = (Get-FileHash dist/TokenFlow.exe -Algorithm SHA256).Hash.ToLowerInvariant()

@@ -60,3 +60,17 @@ The user's explicit implementation request authorizes this work.
   CLI contract; use native DSH configuration and its configured models.
 - Review is model-assisted for reasoning tasks; it does not prove arbitrary
   semantic correctness. Statistics have deterministic validation.
+
+## BUPT and DSH correction (2026-10-12)
+- Verified local `BUPT_API_BASE_URL` / `BUPT_API_KEY` and gateway `/models`:
+  the catalog contains `deepseek-v4-flash`. This gateway is cloud inference.
+- DSH desktop carries the BUPT provider, but headless has empty user overrides.
+  Its installed startup accepts a task only, not a `--model` flag. Reuse the
+  observed `--patch` provider/default-model contract with a temporary JSON patch;
+  credentials enter the child environment. Do not copy desktop permission policy.
+- User explicitly selected BUPT classification/summary, planning and review,
+  with native Codex execution. The historical `local` role key remains compatible
+  but permits an explicitly selected cloud preprocessing connection, counted as cloud.
+- Modify runtime config, shared Harness execution, task stage labels, UI selects
+  and existing focused tests. Verify gateway discovery, native execution, child
+  patch secrecy and the full configured task before rebuilding the EXE.

@@ -15,11 +15,11 @@ if errorlevel 1 (
 )
 
 echo Compiling TokenFlow modules...
-%PYTHON% -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py omniroute_manager.py token_counter.py model_providers.py runtime_config.py task_orchestrator.py document_parser.py tokenflow_store.py pc_agent.py jev_provider.py ui_page.py launcher.py eval_workflow.py
+%PYTHON% -m py_compile tokenflow.py freetoken_provider.py freetoken_manager.py omniroute_manager.py token_counter.py model_providers.py runtime_config.py task_orchestrator.py document_parser.py local_ocr.py tokenflow_store.py pc_agent.py jev_provider.py ui_page.py launcher.py eval_workflow.py
 if errorlevel 1 goto :compile_failed
 
 echo Building dist\TokenFlow.exe...
-%PYTHON% -m PyInstaller --noconfirm --clean --onefile --windowed --name TokenFlow launcher.py
+%PYTHON% -m PyInstaller --noconfirm --clean --onefile --windowed --name TokenFlow --collect-all rapidocr_onnxruntime --exclude-module torch --exclude-module pandas --exclude-module scipy --exclude-module pytest --exclude-module matplotlib --exclude-module tensorflow --exclude-module transformers launcher.py
 if errorlevel 1 goto :build_failed
 
 echo Done: dist\TokenFlow.exe

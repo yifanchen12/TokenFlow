@@ -13,7 +13,7 @@ from task_orchestrator import TaskRun, local_statistics
 
 def self_check():
     import tokenflow as tf
-    with tempfile.TemporaryDirectory() as temp:
+    with tempfile.TemporaryDirectory() as temp, patch.dict(os.environ, {"TOKENFLOW_DB_PATH": str(Path(temp) / "documents.db")}):
         store = RuntimeConfig(Path(temp) / "connections.db")
         claude_args = tf.build_harness_args("claude", "fixture-model", "fixture prompt", temp, ["claude"])
         assert claude_args[-2:] == ["--", "fixture prompt"]  # --add-dir must not swallow the prompt
@@ -90,6 +90,25 @@ def self_check():
                 pass
             else:
                 raise AssertionError("protocol mismatch must fail")
+            # Explicit cloud preprocessing is allowed and counted as cloud, not local inference.
+            store.save_settings({"roles": {"local": "openai"}})
+            assert store.settings()["roles"]["local"] == "openai"
+            store.save_settings({"bindings": {"dsh": {"connection": "fixture", "model": "fixture-new"}}})
+            def dsh_child(args, cwd, timeout, env, **kwargs):
+                patch_path = args[args.index("--patch") + 1]
+                patch_text = Path(patch_path).read_text(encoding="utf-8")
+                overlay = json.loads(patch_text)
+                assert "test-fixture-key" not in patch_text and "--model" not in args
+                assert overlay[1]["config"]["model"] == "fixture-new"
+                assert overlay[2]["config"]["defaultPreset"] == "read-only"
+                assert env["TOKENFLOW_SAVED_API_KEY"] == "test-fixture-key"
+                return (0, "done", "", False, False, False)
+            with patch.object(tf, "_resolve_harness_command", return_value=["dsh"]), patch.object(tf, "_run_bounded", side_effect=dsh_child):
+                assert tf.execute_configured_harness("dsh", "auto", "fixture prompt", store)["ok"]
+            with patch.dict(os.environ, {"BUPT_API_BASE_URL": url, "BUPT_API_KEY": "test-bupt-key"}):
+                imported = store.import_native("dsh")
+                assert imported["protocol"] == "openai" and not imported["local"] and imported["key_configured"]
+                assert "test-bupt-key" not in json.dumps(imported)
         finally:
             server.shutdown()
             server.server_close()
@@ -97,9 +116,14 @@ def self_check():
 
         stats = local_statistics("name,value\na,2\nb,4\n")
         assert stats["table"]["rows"] == 2 and stats["table"]["columns"]["value"]["mean"] == "3"
-        with patch.object(tf, "execute_configured_harness", side_effect=AssertionError("statistics must not use a model")):
+        snapshots, save_run = [], store.save_run
+        def capture(record):
+            snapshots.append(json.loads(json.dumps(record)))
+            save_run(record)
+        with patch.object(store, "save_run", side_effect=capture), patch.object(tf, "execute_configured_harness", side_effect=AssertionError("statistics must not use a model")):
             run = TaskRun(store, "统计CSV的行数和平均值", "name,value\na,2\nb,4\n").execute()
         assert run["status"] == "completed" and run["metrics"]["model_calls"] == 0 and run["acceptance"]["method"] == "deterministic"
+        assert all("metrics" in r for r in snapshots if r["status"] == "completed")
 
         store.save_settings({"roles": {"local": "auto"}, "max_calls": 6})
         calls = []
@@ -140,7 +164,7 @@ def self_check():
         local_response = {"choices": [{"message": {"content": "本地摘要：关键事实42"}}], "usage": {"prompt_tokens": 100, "completion_tokens": 20}}
         with patch.object(tf, "detect_harnesses", return_value={h: {"installed": True, "configured": True} for h in ("codex", "claude", "dsh")}), \
              patch.object(tf, "execute_configured_harness", side_effect=harness), patch("task_orchestrator.ConnectionClient.chat", return_value=local_response) as local:
-            local_run = TaskRun(store, "分析资料并完成结论", "背景说明。" * 500 + "关键事实42").execute()
+            local_run = TaskRun(store, "分析资料并完成结论", "背景说明。" * 1500 + "关键事实42").execute()
         assert local_run["status"] == "completed" and local_run["metrics"]["local_calls"] == 1 and local.call_count == 1
         assert "本地摘要：关键事实42" in calls[0][1] and "背景说明。" * 100 not in calls[0][1]
         assert "背景说明。" * 100 in calls[-1][1]  # reviewer checks original source

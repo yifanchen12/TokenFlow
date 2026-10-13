@@ -9,12 +9,15 @@ import json
 import os
 import re
 import secrets
+import signal
 import shutil
 import sqlite3
 import subprocess
 import sys
 import threading
 import time
+import tempfile
+from pathlib import Path
 from email.parser import BytesParser
 from email.policy import default as email_default
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -43,7 +46,7 @@ from omniroute_manager import install as install_omniroute, self_check as omniro
 from pc_agent import PCAgentError, execute_actions, plan_actions, self_check as pc_agent_self_check
 from tokenflow_store import DocumentStore, self_check as store_self_check
 from runtime_config import RuntimeConfig, native_catalogs, ConnectionClient
-from task_orchestrator import start_task
+from task_orchestrator import start_task, cancel_task, TaskCancelled
 
 
 MAX_COMPRESSED_CHARS = 2400
@@ -70,12 +73,17 @@ def classify_task(task: str, content: str) -> str:
     return "general"
 
 
-def compact_content(content: str, limit: int = MAX_COMPRESSED_CHARS, *, task: str = "") -> str:
+def requires_full_context(task: str) -> bool:
+    return any(intent in task.lower() for intent in ("总结", "概括", "摘要", "全文", "完整", "全面", "逐行", "翻译", "改写", "润色", "校对", "重构",
+                                                     "统计", "总和", "平均", "对比", "比较", "所有", "summar", "translat", "entire", "all rows"))
+
+
+def compact_content(content: str, limit: int = MAX_COMPRESSED_CHARS, *, task: str = "", matched_spans: list[tuple[int, int]] | None = None) -> str:
     """Keep task-matching source lines; never guess which unmatched lines matter."""
     source = content.strip()
     if len(source) <= limit:
         return source
-    if any(intent in task for intent in ("总结", "概括", "摘要", "全文", "完整", "全面", "逐行", "翻译", "改写", "润色", "校对", "重构")):
+    if requires_full_context(task):
         return source
 
     generic_words = {"python", "code", "csv", "tsv", "json", "pdf", "docx", "sql", "bug"}
@@ -92,6 +100,17 @@ def compact_content(content: str, limit: int = MAX_COMPRESSED_CHARS, *, task: st
     # ponytail: linear line scanning is enough for one input; index only if large-corpus latency demands it.
     hits = [i for i, line in enumerate(lines)
             if any(phrase in line for phrase in han) or any(pattern.search(line) for pattern in word_patterns)]
+    if matched_spans:
+        offset, retrieved = 0, set()
+        for i, line in enumerate(lines):
+            if any(offset < end and offset + len(line) > start for start, end in matched_spans):
+                retrieved.add(i)
+            offset += len(line)
+        # Keep complete function/section expansion below; chunk edges are not
+        # boundaries. No lexical hit in retrieved chunks means use the full scan.
+        selected_hits = [i for i in hits if i in retrieved]
+        if selected_hits:
+            hits = selected_hits
     if not hits:
         return source
 
@@ -225,6 +244,15 @@ def _resolve_harness_command(harness: str) -> list[str] | None:
             source = lookup.stdout.strip()
             if source:
                 if source.lower().endswith(".ps1"):
+                    folder = Path(source).parent
+                    if harness == "codex":
+                        native = next((folder / "node_modules" / "@openai" / "codex").glob("node_modules/@openai/codex-win32-*/vendor/*/bin/codex.exe"), None)
+                        if native:
+                            return [str(native)]
+                    if harness == "dsh":
+                        node, script = folder / "node.exe", folder / "node_modules/@deepseek-ai/dsh/lib/bin.js"
+                        if node.exists() and script.exists():
+                            return [str(node), str(script)]
                     return [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", source]
                 return [source]
     executable = shutil.which(harness)
@@ -238,7 +266,7 @@ def detect_harnesses() -> dict[str, dict[str, Any]]:
         command = _resolve_harness_command(harness)
         configured = True
         note = ""
-        if harness == "dsh" and not os.environ.get("DSH_HOME"):
+        if harness == "dsh" and not (Path(os.environ.get("DSH_HOME", Path.home() / ".dsh")) / "profiles/headless/package.json").exists():
             configured = False
             note = "建议设置 DSH_HOME，并准备可写的 headless profile"
         result[harness] = {
@@ -338,7 +366,9 @@ def build_harness_args(
             prompt,
         ]
     profile = os.environ.get("TOKENFLOW_DSH_PROFILE", "headless")
-    return executable + ["--profile", profile, *(["--model", model] if model != "auto" else []), prompt]
+    if model != "auto":
+        raise ValueError("DSH headless 通过连接绑定设置模型，不支持 --model 参数")
+    return executable + ["--profile", profile, prompt]
 
 
 def _clip_output(value: str, truncated: bool = False) -> str:
@@ -348,8 +378,15 @@ def _clip_output(value: str, truncated: bool = False) -> str:
     return value[:MAX_OUTPUT_CHARS] + "\n...[output truncated]..."
 
 
-def _run_bounded(command: list[str], cwd: str, timeout: float, env: dict[str, str] | None = None) -> tuple[int, str, str, bool, bool, bool]:
-    process = subprocess.Popen(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False, bufsize=0, env=env)
+def _run_bounded(command: list[str], cwd: str, timeout: float, env: dict[str, str] | None = None,
+                 *, stdin_text: str | None = None, cancel_event: threading.Event | None = None) -> tuple[int, str, str, bool, bool, bool]:
+    if cancel_event and cancel_event.is_set():
+        raise TaskCancelled("任务已取消")
+    if os.name == "nt" and len(subprocess.list2cmdline(command)) >= 32767:
+        raise ValueError("Harness 启动参数超过 Windows 长度限制")
+    process = subprocess.Popen(command, cwd=cwd, stdin=subprocess.PIPE if stdin_text is not None else subprocess.DEVNULL,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False, bufsize=0, env=env,
+                               start_new_session=os.name != "nt")
     buffers = [bytearray(), bytearray()]
     truncated = [False, False]
 
@@ -368,23 +405,80 @@ def _run_bounded(command: list[str], cwd: str, timeout: float, env: dict[str, st
                for index, stream in enumerate((process.stdout, process.stderr))]
     for thread in threads:
         thread.start()
+    def feed():
+        try:
+            with process.stdin:
+                remaining = memoryview(stdin_text.encode("utf-8"))
+                while remaining:
+                    written = process.stdin.write(remaining)
+                    if not written:
+                        break
+                    remaining = remaining[written:]
+        except (BrokenPipeError, OSError, ValueError):
+            pass
+    if stdin_text is not None:
+        writer = threading.Thread(target=feed, daemon=True)
+        threads.append(writer)
+        writer.start()
     timed_out = False
-    try:
-        process.wait(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        timed_out = True
-        process.kill()
-        process.wait()
+    cancelled = False
+    deadline = time.monotonic() + timeout
+    while process.poll() is None:
+        cancelled = bool(cancel_event and cancel_event.is_set())
+        timed_out = time.monotonic() >= deadline
+        if cancelled or timed_out:
+            if os.name == "nt":
+                try:
+                    subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5, check=False,
+                                   creationflags=subprocess.CREATE_NO_WINDOW)
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+            else:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            if process.poll() is None:
+                process.kill()
+            process.wait()
+            break
+        try:
+            process.wait(timeout=min(.1, max(.001, deadline - time.monotonic())))
+        except subprocess.TimeoutExpired:
+            pass
     for thread in threads:
         thread.join(timeout=1)
     for stream in (process.stdout, process.stderr):
         if stream and not stream.closed:
             stream.close()
+    if cancelled or (cancel_event and cancel_event.is_set()):
+        raise TaskCancelled("任务已取消，Harness 已终止")
     return (process.returncode, buffers[0].decode(errors="replace"), buffers[1].decode(errors="replace"),
             truncated[0], truncated[1], timed_out)
 
 
-def execute_harness(harness: str, model: str, prompt: str, backend: str = "direct") -> dict[str, Any]:
+def _run_harness(command: list[str], harness: str, prompt: str, env: dict[str, str] | None,
+                 cancel_event: threading.Event | None = None):
+    """Keep complete prompts out of argv; DSH headless accepts a task overlay."""
+    command = list(command)
+    if harness != "dsh":
+        command[-1:] = ["-"] if harness == "codex" else []
+        return _run_bounded(command, os.getcwd(), MAX_EXEC_SECONDS, env,
+                            stdin_text=prompt, cancel_event=cancel_event)
+    with tempfile.TemporaryDirectory(prefix="tokenflow-task-") as directory:
+        task_file = Path(directory) / "task.json"
+        task_file.write_text(json.dumps([{"id": "headless-runner", "config": {"task": prompt}}], ensure_ascii=False), encoding="utf-8")
+        if os.name != "nt":
+            task_file.chmod(0o600)
+        command[-1] = "TokenFlow task from temporary overlay"
+        position = command.index("--profile")
+        command[position:position] = ["--patch", str(task_file)]
+        return _run_bounded(command, os.getcwd(), MAX_EXEC_SECONDS, env, cancel_event=cancel_event)
+
+
+def execute_harness(harness: str, model: str, prompt: str, backend: str = "direct",
+                    *, cancel_event: threading.Event | None = None) -> dict[str, Any]:
     if backend == "omniroute":
         model = omniroute_model(model)
     executable = _resolve_harness_command(harness)
@@ -392,13 +486,22 @@ def execute_harness(harness: str, model: str, prompt: str, backend: str = "direc
         raise RuntimeError(f"未检测到可用的 {harness} 命令")
     gateway = omniroute_config() if backend == "omniroute" else None
     command = build_harness_args(harness, model, prompt, os.getcwd(), executable, backend, gateway)
+    if harness == "codex" and backend == "direct" and native_catalogs()["codex"].get("provider", "openai") == "openai":
+        # Preserve native account auth while using HTTPS on networks blocking WebSockets.
+        settings = {"model_provider": "tokenflow_native", "model_providers.tokenflow_native.name": "Native Codex HTTPS",
+                    "model_providers.tokenflow_native.requires_openai_auth": True,
+                    "model_providers.tokenflow_native.supports_websockets": False}
+        endpoint = native_catalogs()["codex"].get("base_url")
+        if endpoint:
+            settings["model_providers.tokenflow_native.base_url"] = endpoint
+        command[len(executable) + 1:len(executable) + 1] = [a for k, v in settings.items() for a in ("-c", k + "=" + json.dumps(v))]
     child_env = os.environ.copy() if gateway is not None else None
     if child_env is not None:
         child_env.pop("TOKENFLOW_OMNIROUTE_API_KEY", None)
         if gateway[1]:
             child_env["TOKENFLOW_OMNIROUTE_API_KEY"] = gateway[1]
     started = time.monotonic()
-    exit_code, output, error, output_truncated, error_truncated, timed_out = _run_bounded(command, os.getcwd(), MAX_EXEC_SECONDS, child_env)
+    exit_code, output, error, output_truncated, error_truncated, timed_out = _run_harness(command, harness, prompt, child_env, cancel_event)
     if gateway is not None and gateway[1]:
         output = output.replace(gateway[1], "<REDACTED>")
         error = error.replace(gateway[1], "<REDACTED>")
@@ -423,7 +526,8 @@ def execute_harness(harness: str, model: str, prompt: str, backend: str = "direc
     }
 
 
-def execute_configured_harness(harness: str, model: str, prompt: str, store: RuntimeConfig | None = None) -> dict[str, Any]:
+def execute_configured_harness(harness: str, model: str, prompt: str, store: RuntimeConfig | None = None,
+                               *, cancel_event: threading.Event | None = None) -> dict[str, Any]:
     store = store or RuntimeConfig()
     if harness not in HARNESS_NAMES:
         raise ValueError("不支持的 Harness")
@@ -431,7 +535,7 @@ def execute_configured_harness(harness: str, model: str, prompt: str, store: Run
     selected = model if model != "auto" else binding["model"]
     if binding["connection"] == "native":
         selected = choose_model(harness, "code", prompt) if selected == "auto" else selected
-        return execute_harness(harness, selected, prompt)
+        return execute_harness(harness, selected, prompt, cancel_event=cancel_event)
     profile = store.profile(binding["connection"], True)
     from model_providers import choose_model as pick_model
     from runtime_config import HARNESS_PROTOCOLS
@@ -441,7 +545,7 @@ def execute_configured_harness(harness: str, model: str, prompt: str, store: Run
     executable = _resolve_harness_command(harness)
     if not executable:
         raise RuntimeError("Harness 未安装")
-    command = build_harness_args(harness, selected, prompt, os.getcwd(), executable)
+    command = build_harness_args(harness, "auto" if harness == "dsh" else selected, prompt, os.getcwd(), executable)
     child_env = os.environ.copy()
     key = profile["api_key"]
     if harness == "codex":
@@ -457,14 +561,33 @@ def execute_configured_harness(harness: str, model: str, prompt: str, store: Run
         overrides = [arg for k, v in settings.items() for arg in ("-c", k + "=" + json.dumps(v))]
         command[len(executable) + 1:len(executable) + 1] = overrides
         child_env["TOKENFLOW_SAVED_API_KEY"] = key
-    else:
+    elif harness == "claude":
         command[len(executable):len(executable)] = ["--setting-sources", ""]
         child_env.pop("ANTHROPIC_AUTH_TOKEN", None)
         child_env.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
         child_env["ANTHROPIC_BASE_URL"] = profile["base_url"]
         child_env["ANTHROPIC_API_KEY"] = key
     started = time.monotonic()
-    code, output, error, cut, err_cut, timed_out = _run_bounded(command, os.getcwd(), MAX_EXEC_SECONDS, child_env)
+    if harness == "dsh":
+        child_env["DSH_HOME"] = os.environ.get("DSH_HOME", str(Path.home() / ".dsh"))
+        child_env["TOKENFLOW_SAVED_API_KEY"] = key
+        overlay = [
+            {"id": "llm-pi-ai", "config": {"providers": {"tokenflow-saved": {
+                "displayName": profile["name"], "apiKeyEnv": "TOKENFLOW_SAVED_API_KEY", "api": "openai-completions",
+                "baseURL": profile["base_url"], "models": [{"id": selected, "name": selected, "input": ["text"],
+                                                          "contextWindow": 32768, "maxTokens": 4096}]}}}},
+            {"id": "agent-default-model", "config": {"provider": "tokenflow-saved", "model": selected}},
+            {"id": "permission", "config": {"presets": {"read-only": {"sandbox": "read-only", "approval": "ask"}}, "defaultPreset": "read-only"}},
+            # Custom connections only need the child env; do not load unrelated native credentials.
+            {"id": "credentials", "disabled": True},
+        ]
+        with tempfile.TemporaryDirectory(prefix="tokenflow-dsh-") as temp:
+            patch = Path(temp) / "connection.json"
+            patch.write_text(json.dumps(overlay, ensure_ascii=False), encoding="utf-8")
+            command[len(executable):len(executable)] = ["--patch", str(patch)]
+            code, output, error, cut, err_cut, timed_out = _run_harness(command, harness, prompt, child_env, cancel_event)
+    else:
+        code, output, error, cut, err_cut, timed_out = _run_harness(command, harness, prompt, child_env, cancel_event)
     if key:
         output, error = output.replace(key, "<REDACTED>"), error.replace(key, "<REDACTED>")
     return {"ok": code == 0 and not timed_out, "harness": harness, "model": selected,
@@ -600,6 +723,10 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+        if self.path == "/api/ocr":
+            from local_ocr import status
+            self._send_json(status())
+            return
         if self.path == "/api/config" or self.path.startswith("/api/tasks"):
             if not _loopback_client(self.client_address[0]) or not _valid_write_request(
                     self.headers.get("Origin") or "http://" + self.headers.get("Host", ""), self.headers.get("Host", ""),
@@ -669,7 +796,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
         ):
             self._send_json({"error": "请求来源或会话令牌无效"}, 403)
             return
-        if (self.path.startswith("/api/config/") or self.path == "/api/tasks/start" or self.path in {"/api/omniroute/config", "/api/omniroute/install", "/api/omniroute/start", "/api/omniroute/preview"}) \
+        if (self.path.startswith("/api/config/") or self.path.startswith("/api/tasks/") or self.path in {"/api/omniroute/config", "/api/omniroute/install", "/api/omniroute/start", "/api/omniroute/preview"}) \
                 and (not _loopback_client(self.client_address[0]) or not _valid_write_request(
                     self.headers.get("Origin") or "http://" + self.headers.get("Host", ""), self.headers.get("Host", ""),
                     self.headers.get("X-TokenFlow-Token", ""), self.server.server_address[1])):
@@ -700,9 +827,11 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             "/api/config/connection",
             "/api/config/discover",
             "/api/config/discover-local",
+            "/api/config/discover-native",
             "/api/config/import-native",
             "/api/config/settings",
             "/api/tasks/start",
+            "/api/tasks/cancel",
         ):
             self._send_json({"error": "not found"}, 404)
             return
@@ -742,12 +871,16 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                 result = RuntimeConfig().discover(str(data.get("id", "")))
             elif self.path == "/api/config/discover-local":
                 result = RuntimeConfig().discover_local()
+            elif self.path == "/api/config/discover-native":
+                result = RuntimeConfig().discover_codex()
             elif self.path == "/api/config/import-native":
                 result = RuntimeConfig().import_native(str(data.get("harness", "")))
             elif self.path == "/api/config/settings":
                 result = RuntimeConfig().save_settings(data)
             elif self.path == "/api/tasks/start":
                 result = start_task(data)
+            elif self.path == "/api/tasks/cancel":
+                result = cancel_task(data.get("id", ""))
             elif self.path == "/api/freetoken/install":
                 result = launch_freetoken_installer()
             elif self.path == "/api/freetoken/start":
@@ -988,6 +1121,8 @@ def self_check() -> None:
     jev_self_check()
     from test_orchestration import self_check as orchestration_self_check
     orchestration_self_check()
+    from test_optimizations import self_check as optimization_self_check
+    optimization_self_check()
     assert "/api/tokenizer" in "/api/tokenizer"
     print("TokenFlow self-check: PASS")
 

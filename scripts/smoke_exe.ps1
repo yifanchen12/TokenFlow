@@ -51,6 +51,21 @@ try {
     $page = (Invoke-WebRequest "$tfBase/" -TimeoutSec 5 -UseBasicParsing).Content
     if (-not $page.Contains('omAllow') -or -not $page.Contains('/api/omniroute/preview')) { throw 'EXE contains stale UI' }
     if (-not $page.Contains('orchestrateTask') -or -not $page.Contains('connectionSetup')) { throw 'EXE lacks orchestration UI' }
+    if (-not $page.Contains('cancelRunningTask') -or -not $page.Contains('viewedRun')) { throw 'EXE lacks cancellation/history recovery UI' }
+    $ocr = Invoke-RestMethod "$tfBase/api/ocr" -TimeoutSec 5
+    if (-not $ocr.available -or -not $ocr.offline -or $ocr.device -ne 'CPU') { throw 'Packaged OCR unavailable' }
+    Add-Type -AssemblyName System.Drawing
+    $tfImagePath = Join-Path $tfTemporary 'ocr.png'
+    $tfBitmap = [Drawing.Bitmap]::new(800,180)
+    $tfGraphics = [Drawing.Graphics]::FromImage($tfBitmap)
+    $tfFont = [Drawing.Font]::new('Arial',42)
+    try {
+        $tfGraphics.Clear([Drawing.Color]::White)
+        $tfGraphics.DrawString('LOCAL OCR 42',$tfFont,[Drawing.Brushes]::Black,20,40)
+        $tfBitmap.Save($tfImagePath,[Drawing.Imaging.ImageFormat]::Png)
+    } finally { $tfFont.Dispose(); $tfGraphics.Dispose(); $tfBitmap.Dispose() }
+    $tfRecognized = Invoke-RestMethod "$tfBase/api/parse" -Method Post -Headers $tfHeaders -Form @{file=(Get-Item -LiteralPath $tfImagePath)} -TimeoutSec 40
+    if ($tfRecognized.method -ne 'local_ocr' -or -not $tfRecognized.text.Contains('42')) { throw 'Packaged OCR recognition failed' }
     $savedConnection = @{id='smoke-profile'; name='Smoke fixture'; base_url='http://127.0.0.1:9/v1'; protocol='responses'; api_key='smoke-connection-key'; models=@('smoke-model')} | ConvertTo-Json
     $saved = Invoke-RestMethod "$tfBase/api/config/connection" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body $savedConnection -TimeoutSec 5
     if (($saved | ConvertTo-Json).Contains('smoke-connection-key') -or -not $saved.key_configured) { throw 'Saved connection exposed or lost its key' }
@@ -80,7 +95,7 @@ try {
     if ($restoredRun.status -ne 'completed') { throw 'Task record lost after restart' }
     Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     if (-not $tfProcess.WaitForExit(10000)) { throw 'Restarted EXE did not exit' }
-    Write-Output 'EXE smoke: PASS (startup, policy, protected keys, models, zero-call task, restart persistence, UI, shutdown)'
+    Write-Output 'EXE smoke: PASS (startup, policy, protected keys, OCR, models, zero-call task, restart persistence, UI, shutdown)'
 } finally {
     if ($tfProcess -and -not $tfProcess.HasExited) {
         try { Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 2 | Out-Null } catch {}

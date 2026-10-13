@@ -117,22 +117,36 @@ class DocumentStore:
                         "INSERT INTO chunks(document_id, chunk_index, content, vector_json) VALUES(?,?,?,?)",
                         (document_id, index, chunk, json.dumps(_vector(chunk))),
                     )
-        return {"document_id": document_id, "name": name, "chunks": len(chunks), "content_hash": digest}
+            stored = db.execute("SELECT name FROM documents WHERE id=?", (document_id,)).fetchone()
+            count = db.execute("SELECT COUNT(*) FROM chunks WHERE document_id=?", (document_id,)).fetchone()[0]
+        return {"document_id": document_id, "name": stored["name"], "chunks": count, "content_hash": digest,
+                "reused": existing is not None}
 
-    def search(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+    def search(self, query: str, limit: int = 5, *, document_id: int | None = None,
+               required_terms: list[str] | None = None) -> list[dict[str, Any]]:
         if not query.strip():
             raise ValueError("检索词不能为空")
         target = _vector(query)
         with self._connect() as db:
             rows = db.execute(
-                "SELECT documents.name, chunks.chunk_index, chunks.content, chunks.vector_json "
-                "FROM chunks JOIN documents ON documents.id=chunks.document_id"
+                "SELECT documents.id AS document_id, documents.name, chunks.chunk_index, chunks.content, chunks.vector_json, "
+                "COALESCE(SUM(LENGTH(chunks.content)) OVER (PARTITION BY documents.id ORDER BY chunks.chunk_index "
+                "ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS start "
+                "FROM chunks JOIN documents ON documents.id=chunks.document_id" +
+                (" WHERE documents.id=?" if document_id is not None else ""),
+                (document_id,) if document_id is not None else (),
             )
             def scored():
                 for row in rows:
+                    if required_terms is not None and not any(t.lower() in row["content"].lower() for t in required_terms):
+                        continue
                     score = _cosine(target, json.loads(row["vector_json"]))
+                    if required_terms:
+                        # Exact source matches must survive collisions in the small hash vector.
+                        score = max(0.0, score) + sum(t.lower() in row["content"].lower() for t in required_terms) / len(required_terms)
                     if score > 0:
-                        yield {"name": row["name"], "chunk_index": row["chunk_index"], "content": row["content"], "score": round(score, 6)}
+                        yield {"document_id": row["document_id"], "name": row["name"], "chunk_index": row["chunk_index"],
+                               "start": row["start"], "content": row["content"], "score": round(score, 6)}
             # ponytail: O(N) scan with O(k) result memory; add an index when corpus latency justifies it.
             return heapq.nlargest(max(1, min(limit, 20)), scored(), key=lambda item: item["score"])
 

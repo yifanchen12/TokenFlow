@@ -10,7 +10,7 @@ import sqlite3
 import time
 import uuid
 from pathlib import Path
-from contextlib import contextmanager
+from contextlib import contextmanager, closing
 from typing import Any
 
 from model_providers import OpenAICompatibleProvider, ProviderError, ProviderSpec, is_loopback_url
@@ -18,7 +18,7 @@ from tokenflow_store import _db_path
 
 MODEL_RE = re.compile(r"[A-Za-z0-9._:/+-]{1,160}")
 PROTOCOLS = {"openai", "responses", "anthropic"}
-HARNESS_PROTOCOLS = {"codex": "responses", "claude": "anthropic"}
+HARNESS_PROTOCOLS = {"codex": "responses", "claude": "anthropic", "dsh": "openai"}
 ROLES = ("local", "planner", "executor", "reviewer")
 
 
@@ -98,6 +98,19 @@ def native_catalogs() -> dict[str, dict]:
                   if isinstance(m, dict) and m.get("visibility", "list") != "hide"]
     if config.get("model"):
         models.insert(0, config["model"])
+    default_model, codex_source = config.get("model", "auto"), "本机 config.toml / models_cache.json（缓存目录）"
+    database = Path(os.environ.get("TOKENFLOW_CONFIG_DB", _db_path().with_name("connections.db")))
+    if database.exists():
+        try:
+            with closing(sqlite3.connect(database)) as db:
+                row = db.execute("SELECT data FROM settings WHERE id='catalog:codex'").fetchone()
+            cached = json.loads(row[0]) if row else {}
+            if cached.get("provider") == provider and cached.get("models"):
+                models = cached["models"]
+                default_model = default_model if default_model in models else cached["default_model"]
+                codex_source = "本机 Codex CLI model/list（上次检测）"
+        except (sqlite3.Error, ValueError, KeyError):
+            pass
     settings = _json_file(home / ".claude" / "settings.json")
     env = settings.get("env", {})
     claude_models = [settings.get("model")] + [env.get(k) or os.environ.get(k) for k in (
@@ -110,8 +123,8 @@ def native_catalogs() -> dict[str, dict]:
     def ids(items):
         return list(dict.fromkeys(m for m in items if isinstance(m, str) and MODEL_RE.fullmatch(m) and m != "auto"))
     return {
-        "codex": {"models": ids(models), "default_model": config.get("model", "auto"),
-                  "base_url": safe_url(endpoint), "source": "本机 config.toml / models_cache.json（缓存目录）"},
+        "codex": {"models": ids(models), "default_model": default_model, "provider": provider,
+                  "base_url": safe_url(endpoint or config.get("openai_base_url", "")), "source": codex_source},
         "claude": {"models": ids(claude_models), "default_model": next(iter(ids(claude_models)), "auto"),
                    "base_url": safe_url(env.get("ANTHROPIC_BASE_URL", "")), "source": "本机 Claude settings.json"},
         "dsh": {"models": ids(os.environ.get("TOKENFLOW_DSH_MODELS", "").split(",")),
@@ -241,7 +254,7 @@ class RuntimeConfig:
             if connection != "native":
                 profile = self.profile(connection)
                 if harness not in HARNESS_PROTOCOLS or profile["protocol"] != HARNESS_PROTOCOLS[harness]:
-                    raise ValueError("Codex 需要 Responses；Claude 需要 Anthropic Messages；DSH 使用原生 profile")
+                    raise ValueError("Codex 需要 Responses；Claude 需要 Anthropic Messages；DSH 需要 Chat Completions")
                 if model != "auto" and model not in profile["models"]:
                     raise ValueError("模型不在连接的当前模型记录中")
             result["bindings"][harness] = {"connection": connection, "model": model}
@@ -250,8 +263,6 @@ class RuntimeConfig:
                 raise ValueError("角色配置无效")
             if target not in {"auto", "native:codex", "native:claude", "native:dsh"}:
                 profile = self.profile(target)
-                if role == "local" and not profile["local"]:
-                    raise ValueError("本地小模型必须使用标记为本地推理的回环端点")
             if role == "local" and target.startswith("native:"):
                 raise ValueError("本地小模型角色需要本地 API 连接")
             if role != "local" and target == "auto":
@@ -272,6 +283,59 @@ class RuntimeConfig:
     def public(self) -> dict:
         return {"connections": self.profiles(), "native": native_catalogs(), **self.settings(),
                 "key_storage": "Windows DPAPI（当前系统用户）" if os.name == "nt" else "仅文件所有者可读"}
+
+    def discover_codex(self) -> dict:
+        import queue
+        import subprocess
+        import threading
+        from tokenflow import _resolve_harness_command
+        command = _resolve_harness_command("codex")
+        if not command:
+            raise ValueError("未安装 Codex CLI")
+        process = subprocess.Popen(command + ["app-server"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                   stderr=subprocess.DEVNULL, text=True, encoding="utf-8")
+        messages = queue.Queue()
+        def read():
+            for line in process.stdout:
+                try:
+                    messages.put(json.loads(line))
+                except ValueError:
+                    pass
+        threading.Thread(target=read, daemon=True).start()
+        deadline = time.monotonic() + 15
+        def send(data):
+            process.stdin.write(json.dumps(data) + "\n")
+            process.stdin.flush()
+        def response(identity):
+            while time.monotonic() < deadline:
+                try:
+                    value = messages.get(timeout=max(.1, deadline - time.monotonic()))
+                except queue.Empty:
+                    break
+                if value.get("id") == identity:
+                    if value.get("error"):
+                        raise ValueError("Codex 模型目录请求失败")
+                    return value["result"]
+            raise ValueError("Codex 模型目录检测超时，保留上次记录")
+        try:
+            send({"id": 0, "method": "initialize", "params": {"clientInfo": {"name": "tokenflow", "version": "0.1.0"}}})
+            response(0)
+            send({"method": "initialized", "params": {}})
+            send({"id": 1, "method": "model/list", "params": {"limit": 50, "includeHidden": False}})
+            data = response(1).get("data", [])
+            models = clean_models([m.get("model") or m.get("id") for m in data if isinstance(m, dict)])
+            if not models:
+                raise ValueError("Codex 未返回可选择的模型")
+            selected = next((m.get("model") or m.get("id") for m in data if m.get("isDefault")), models[0])
+            catalog = {"models": models, "default_model": selected, "provider": native_catalogs()["codex"]["provider"]}
+            with self.connect() as db:
+                db.execute("INSERT OR REPLACE INTO settings VALUES('catalog:codex',?)", (json.dumps(catalog),))
+            return catalog
+        finally:
+            process.kill()
+            process.wait()
+            for stream in (process.stdin, process.stdout):
+                stream.close()
 
     def discover_local(self) -> dict:
         from concurrent.futures import ThreadPoolExecutor
@@ -303,6 +367,12 @@ class RuntimeConfig:
         return {"detected": found, "native": native_catalogs()}
 
     def import_native(self, harness: str) -> dict:
+        if harness == "dsh":
+            url, key = os.environ.get("BUPT_API_BASE_URL", ""), os.environ.get("BUPT_API_KEY", "")
+            if not url or not key:
+                raise ValueError("未找到本机 BUPT_API_BASE_URL / BUPT_API_KEY；请手动配置 DSH 连接")
+            return self.save_profile({"id": "imported-dsh", "name": "北邮 DSv4 API", "base_url": url,
+                                      "protocol": "openai", "api_key": key, "models": [], "local": False})
         home = Path.home()
         catalog = native_catalogs().get(harness)
         if not catalog or not catalog["base_url"]:
@@ -337,12 +407,12 @@ class RuntimeConfig:
                 if not row:
                     raise ValueError("任务记录不存在")
                 result = json.loads(row[0])
-                if result["status"] == "running" and result.get("process_id") != os.getpid():
+                if result["status"] in {"running", "cancelling"} and result.get("process_id") != os.getpid():
                     result.update(status="interrupted", error="服务重启中断了任务；可重新布置")
                 return result
             items = [json.loads(r[0]) for r in db.execute("SELECT data FROM runs ORDER BY updated DESC LIMIT 20")]
         for item in items:
-            if item["status"] == "running" and item.get("process_id") != os.getpid():
+            if item["status"] in {"running", "cancelling"} and item.get("process_id") != os.getpid():
                 item["status"] = "interrupted"
         return {"runs": [{k: r.get(k) for k in ("id", "task", "status", "created_at")} for r in items]}
 
