@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import io
 import csv
+import hashlib
+import importlib.metadata
+import sqlite3
+import time
 import posixpath
 import re
 import zipfile
@@ -186,7 +190,47 @@ def _pdf(data: bytes) -> dict:
         raise DocumentParseError("PDF 文本提取失败") from exc
 
 
-def parse_document_bytes(name: str, data: bytes) -> dict[str, Any]:
+PARSER_CACHE_VERSION = 1
+
+
+def parse_document_bytes(name: str, data: bytes, *, use_cache: bool = False) -> dict[str, Any]:
+    started = time.monotonic()
+    cache, key = None, ""
+    suffix = Path(name).suffix.lower()
+    if use_cache:
+        from tokenflow_store import DocumentStore
+        versions = []
+        for dependency in (("rapidocr_onnxruntime", "onnxruntime", "Pillow", "PyMuPDF", "pypdf") if suffix == ".pdf" else
+                           ("rapidocr_onnxruntime", "onnxruntime", "Pillow") if suffix in IMAGE_EXTENSIONS else ()):
+            try:
+                versions.append(importlib.metadata.version(dependency))
+            except importlib.metadata.PackageNotFoundError:
+                versions.append("unavailable")
+        key = hashlib.sha256(str((PARSER_CACHE_VERSION, suffix, versions)).encode() + b"\0" + data).hexdigest()
+        try:
+            cache = DocumentStore()
+            from runtime_config import RuntimeConfig
+            policy = RuntimeConfig().settings()
+            if policy["cache_max_mb"] or policy["cache_retention_days"]:
+                cache.manage(max_mb=policy["cache_max_mb"], days=policy["cache_retention_days"])
+            saved = cache.parsed(key)
+            if saved:
+                return {**saved, "name": Path(name).name, "cache_reused": True,
+                        "parse_duration_ms": round((time.monotonic() - started) * 1000)}
+        except (OSError, sqlite3.Error, ValueError):
+            cache = None
+    extracted = _extract_document_bytes(name, data)
+    if cache is not None:
+        try:
+            cache.parsed(key, extracted)
+            if policy["cache_max_mb"] or policy["cache_retention_days"]:
+                cache.manage(max_mb=policy["cache_max_mb"], days=policy["cache_retention_days"])
+        except (OSError, sqlite3.Error):
+            pass  # Cache is optional; successful extraction remains usable.
+    return {**extracted, "cache_reused": False, "parse_duration_ms": round((time.monotonic() - started) * 1000)}
+
+
+def _extract_document_bytes(name: str, data: bytes) -> dict[str, Any]:
     suffix = Path(name).suffix.lower()
     if suffix not in SUPPORTED_EXTENSIONS:
         raise DocumentParseError(f"不支持的文件类型：{suffix or '无扩展名'}")
@@ -215,13 +259,13 @@ def parse_document_bytes(name: str, data: bytes) -> dict[str, Any]:
     return {"name": Path(name).name, "extension": suffix, "text": text, "characters": len(text), **metadata}
 
 
-def parse_document_file(path_value: str) -> dict[str, Any]:
+def parse_document_file(path_value: str, *, use_cache: bool = False) -> dict[str, Any]:
     path = Path(path_value).expanduser()
     if not path.is_file():
         raise DocumentParseError("文件不存在")
     if path.stat().st_size > 20 * 1024 * 1024:
         raise DocumentParseError("文件超过 20 MB 限制")
-    return parse_document_bytes(path.name, path.read_bytes())
+    return parse_document_bytes(path.name, path.read_bytes(), use_cache=use_cache)
 
 
 def self_check() -> None:

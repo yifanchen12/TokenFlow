@@ -148,6 +148,7 @@ class RuntimeConfig:
                 CREATE TABLE IF NOT EXISTS connections(id TEXT PRIMARY KEY, data TEXT NOT NULL, secret TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS settings(id TEXT PRIMARY KEY, data TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, data TEXT NOT NULL, updated REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS task_requests(id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, run_id TEXT NOT NULL);
             """)
             if os.name != "nt":
                 self.path.chmod(0o600)
@@ -231,12 +232,18 @@ class RuntimeConfig:
     def settings(self) -> dict:
         defaults = {"bindings": {h: {"connection": "native", "model": "auto"} for h in ("codex", "claude", "dsh")},
                     "roles": {"local": "auto", "planner": "native:codex", "executor": "native:codex", "reviewer": "native:codex"},
-                    "role_models": {r: "auto" for r in ROLES}, "max_calls": 6}
+                    "role_models": {r: "auto" for r in ROLES}, "max_calls": 6,
+                    "max_task_tokens": 64000, "context_window_tokens": 32768,
+                    "output_limits": {"local": 1024, "planner": 1536, "executor": 2400, "reviewer": 1024},
+                    "history_max_runs": 0, "history_retention_days": 0, "cache_max_mb": 0, "cache_retention_days": 0}
         if self.path.exists():
             with self.connect() as db:
                 row = db.execute("SELECT data FROM settings WHERE id='runtime'").fetchone()
             if row:
-                defaults.update(json.loads(row[0]))
+                saved = json.loads(row[0])
+                limits = defaults["output_limits"] | saved.get("output_limits", {})
+                defaults.update(saved)
+                defaults["output_limits"] = limits
         return defaults
 
     def save_settings(self, data: dict) -> dict:
@@ -276,6 +283,18 @@ class RuntimeConfig:
         if not isinstance(budget, int) or isinstance(budget, bool) or not 3 <= budget <= 8:
             raise ValueError("模型调用预算须为 3 至 8 次")
         result["max_calls"] = budget
+        bounds = {"max_task_tokens": (256, 2_000_000), "context_window_tokens": (256, 1_000_000),
+                  "history_max_runs": (0, 100000), "history_retention_days": (0, 3650),
+                  "cache_max_mb": (0, 100000), "cache_retention_days": (0, 3650)}
+        for key, (minimum, maximum) in bounds.items():
+            value = data.get(key, result[key])
+            if type(value) is not int or not minimum <= value <= maximum:
+                raise ValueError(f"{key} 须为 {minimum} 至 {maximum} 的整数")
+            result[key] = value
+        limits = data.get("output_limits", {})
+        if not isinstance(limits, dict) or any(r not in ROLES or type(v) is not int or not 64 <= v <= 32768 for r, v in limits.items()):
+            raise ValueError("阶段输出上限须为 64 至 32768 Token")
+        result["output_limits"].update(limits)
         with self.connect() as db:
             db.execute("INSERT OR REPLACE INTO settings VALUES('runtime',?)", (json.dumps(result),))
         return result
@@ -394,9 +413,46 @@ class RuntimeConfig:
                                   "base_url": catalog["base_url"], "protocol": HARNESS_PROTOCOLS[harness],
                                   "api_key": key, "models": catalog["models"], "local": False})
 
-    def save_run(self, run: dict) -> None:
+    def save_run(self, run: dict, *, request_id: str = "", fingerprint: str = "") -> None:
         with self.connect() as db:
             db.execute("INSERT OR REPLACE INTO runs VALUES(?,?,?)", (run["id"], json.dumps(run, ensure_ascii=False), time.time()))
+            if request_id:
+                db.execute("INSERT INTO task_requests VALUES(?,?,?)", (request_id, fingerprint, run["id"]))
+
+    def request_run(self, identity: str, fingerprint: str | None = None) -> dict | None:
+        if not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", identity):
+            raise ValueError("请求 ID 无效")
+        with self.connect() as db:
+            row = db.execute("SELECT fingerprint,run_id FROM task_requests WHERE id=?", (identity,)).fetchone()
+        if not row:
+            return None
+        if fingerprint is not None and row["fingerprint"] != fingerprint:
+            raise ValueError("请求 ID 已用于不同内容；请新建任务")
+        try:
+            return self.runs(row["run_id"])
+        except ValueError:
+            raise ValueError("该请求的任务记录已清理；请新建任务") from None
+
+    def manage_history(self, identity: str = "", *, prune: bool = False) -> dict:
+        settings = self.settings()
+        with self.connect() as db:
+            rows = [(r["id"], json.loads(r["data"]), r["updated"]) for r in db.execute("SELECT * FROM runs ORDER BY updated DESC")]
+            eligible = [(i, r, t) for i, r, t in rows if not (r["status"] in {"running", "cancelling"} and r.get("process_id") == os.getpid())]
+            if identity:
+                if not re.fullmatch(r"[a-f0-9]{32}", identity):
+                    raise ValueError("任务 ID 无效")
+                if identity not in {i for i, r, t in eligible}:
+                    raise ValueError("任务不存在或仍在运行，不能删除")
+                remove = [identity]
+            elif prune:
+                maximum, days = settings["history_max_runs"], settings["history_retention_days"]
+                remove = [i for n, (i, r, t) in enumerate(eligible)
+                          if (maximum and n >= maximum) or (days and t < time.time() - days * 86400)]
+            else:
+                remove = []
+            db.executemany("DELETE FROM runs WHERE id=?", [(i,) for i in remove])
+            count = db.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
+        return {"runs": count, "deleted": len(remove), "database_bytes": self.path.stat().st_size if self.path.exists() else 0}
 
     def runs(self, identity: str = "") -> dict:
         if not self.path.exists():
@@ -475,10 +531,10 @@ class ConnectionClient(OpenAICompatibleProvider):
         if protocol == "responses":
             value = self._request("/responses", {"model": model, "input": messages, "max_output_tokens": max_tokens})
             if value.get("status") == "incomplete":
-                raise ProviderError("Responses 输出未完成，请调整输出上限或缩小任务")
+                raise ProviderError("Responses 输出未完成，请调整输出上限或缩小任务", usage=value.get("usage"))
             items = value.get("output") or []
             if not isinstance(items, list):
-                raise ProviderError("Responses 返回了无效输出结构")
+                raise ProviderError("Responses 返回了无效输出结构", usage=value.get("usage"))
             output = "".join(c["text"] for item in items if isinstance(item, dict)
                              for c in (item.get("content") or []) if isinstance(c, dict) and
                              c.get("type") == "output_text" and isinstance(c.get("text"), str))
@@ -488,10 +544,11 @@ class ConnectionClient(OpenAICompatibleProvider):
             value = self._request("/messages", {"model": model, "system": "\n".join(m["content"] for m in messages if m["role"] == "system"),
                                   "messages": [m for m in messages if m["role"] != "system"], "max_tokens": max_tokens}, base_url=base)
             if value.get("stop_reason") == "max_tokens":
-                raise ProviderError("Messages 输出达到上限，不能作为完整结果验收")
+                raise ProviderError("Messages 输出达到上限，不能作为完整结果验收", usage=value.get("usage"))
             output = "".join(c["text"] for c in (value.get("content") or []) if isinstance(c, dict) and
                              c.get("type") == "text" and isinstance(c.get("text"), str))
             usage = value.get("usage")
         usage = usage if isinstance(usage, dict) else {}
-        normalized = {"prompt_tokens": usage.get("input_tokens"), "completion_tokens": usage.get("output_tokens")}
+        from model_providers import reported_usage
+        normalized = reported_usage({"usage": usage})
         return {"choices": [{"message": {"content": output}}], "usage": normalized}

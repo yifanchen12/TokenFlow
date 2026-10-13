@@ -52,6 +52,7 @@ try {
     if (-not $page.Contains('omAllow') -or -not $page.Contains('/api/omniroute/preview')) { throw 'EXE contains stale UI' }
     if (-not $page.Contains('orchestrateTask') -or -not $page.Contains('connectionSetup')) { throw 'EXE lacks orchestration UI' }
     if (-not $page.Contains('cancelRunningTask') -or -not $page.Contains('viewedRun')) { throw 'EXE lacks cancellation/history recovery UI' }
+    if (-not $page.Contains('budgetFields') -or -not $page.Contains('storageSetup') -or -not $page.Contains('exportDraft') -or -not $page.Contains('request_id')) { throw 'EXE lacks budget/storage/receipt UI' }
     $ocr = Invoke-RestMethod "$tfBase/api/ocr" -TimeoutSec 5
     if (-not $ocr.available -or -not $ocr.offline -or $ocr.device -ne 'CPU') { throw 'Packaged OCR unavailable' }
     Add-Type -AssemblyName System.Drawing
@@ -66,10 +67,12 @@ try {
     } finally { $tfFont.Dispose(); $tfGraphics.Dispose(); $tfBitmap.Dispose() }
     $tfRecognized = Invoke-RestMethod "$tfBase/api/parse" -Method Post -Headers $tfHeaders -Form @{file=(Get-Item -LiteralPath $tfImagePath)} -TimeoutSec 40
     if ($tfRecognized.method -ne 'local_ocr' -or -not $tfRecognized.text.Contains('42')) { throw 'Packaged OCR recognition failed' }
+    $tfReused = Invoke-RestMethod "$tfBase/api/parse" -Method Post -Headers $tfHeaders -Form @{file=(Get-Item -LiteralPath $tfImagePath)} -TimeoutSec 10
+    if (-not $tfReused.cache_reused -or $tfReused.text -ne $tfRecognized.text) { throw 'Packaged OCR cache failed' }
     $savedConnection = @{id='smoke-profile'; name='Smoke fixture'; base_url='http://127.0.0.1:9/v1'; protocol='responses'; api_key='smoke-connection-key'; models=@('smoke-model')} | ConvertTo-Json
     $saved = Invoke-RestMethod "$tfBase/api/config/connection" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body $savedConnection -TimeoutSec 5
     if (($saved | ConvertTo-Json).Contains('smoke-connection-key') -or -not $saved.key_configured) { throw 'Saved connection exposed or lost its key' }
-    $tfTaskBody = [Text.Encoding]::UTF8.GetBytes((@{task='统计CSV的行数和平均值'; content="name,value`na,2`nb,4`n"} | ConvertTo-Json))
+    $tfTaskBody = [Text.Encoding]::UTF8.GetBytes((@{request_id='exe-smoke-request-0001'; task='统计CSV的行数和平均值'; content="name,value`na,2`nb,4`n"} | ConvertTo-Json))
     $run = Invoke-RestMethod "$tfBase/api/tasks/start" -Method Post -Headers $tfHeaders -ContentType 'application/json; charset=utf-8' -Body $tfTaskBody -TimeoutSec 5
     for ($i = 0; $i -lt 50; $i++) {
         $result = Invoke-RestMethod "$tfBase/api/tasks/$($run.id)" -Headers $tfHeaders -TimeoutSec 5
@@ -77,6 +80,11 @@ try {
         Start-Sleep -Milliseconds 100
     }
     if ($result.status -ne 'completed' -or $result.metrics.model_calls -ne 0 -or $result.acceptance.status -ne 'passed') { throw ('Deterministic task failed: ' + ($result | Select-Object status,error,acceptance,metrics | ConvertTo-Json -Depth 4 -Compress)) }
+    $tfDuplicate = Invoke-RestMethod "$tfBase/api/tasks/start" -Method Post -Headers $tfHeaders -ContentType 'application/json; charset=utf-8' -Body $tfTaskBody -TimeoutSec 5
+    if ($tfDuplicate.id -ne $run.id -or -not $tfDuplicate.reused) { throw 'Packaged task receipt failed' }
+    $tfDraft = Invoke-RestMethod "$tfBase/api/tasks/eval-draft" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body (@{id=$run.id} | ConvertTo-Json) -TimeoutSec 5
+    if ($tfDraft.label_status -ne 'draft' -or $tfDraft.expected_answer -or -not $tfDraft.content.Contains('a,2')) { throw 'Packaged evaluation draft failed' }
+    Invoke-RestMethod "$tfBase/api/config/settings" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{"max_task_tokens":48000,"output_limits":{"planner":1024}}' -TimeoutSec 5 | Out-Null
     Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     if (-not $tfProcess.WaitForExit(10000)) { throw 'EXE did not exit after shutdown' }
     $tfProcess = Start-Process -FilePath $tfPath -WindowStyle Hidden -PassThru
@@ -93,9 +101,16 @@ try {
     if ($reopened.Count -ne 1 -or -not $reopened[0].key_configured -or ($config | ConvertTo-Json -Depth 8).Contains('smoke-connection-key')) { throw 'Restart persistence or key protection failed' }
     $restoredRun = Invoke-RestMethod "$tfBase/api/tasks/$($run.id)" -Headers $tfHeaders -TimeoutSec 5
     if ($restoredRun.status -ne 'completed') { throw 'Task record lost after restart' }
+    if ($config.max_task_tokens -ne 48000 -or $config.output_limits.planner -ne 1024) { throw 'Budget settings lost after restart' }
+    $tfReceipt = Invoke-RestMethod "$tfBase/api/tasks/request/exe-smoke-request-0001" -Headers $tfHeaders -TimeoutSec 5
+    if ($tfReceipt.id -ne $run.id) { throw 'Receipt lost after restart' }
+    $tfStorage = Invoke-RestMethod "$tfBase/api/config/storage" -Headers $tfHeaders -TimeoutSec 5
+    if ($tfStorage.cache.parsed_files -lt 1 -or $tfStorage.cache.content_bytes -le 0) { throw 'Cache capacity unavailable' }
+    Invoke-RestMethod "$tfBase/api/tasks/delete" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body (@{id=$run.id} | ConvertTo-Json) -TimeoutSec 5 | Out-Null
+    Invoke-RestMethod "$tfBase/api/config/storage/clear" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     if (-not $tfProcess.WaitForExit(10000)) { throw 'Restarted EXE did not exit' }
-    Write-Output 'EXE smoke: PASS (startup, policy, protected keys, OCR, models, zero-call task, restart persistence, UI, shutdown)'
+    Write-Output 'EXE smoke: PASS (startup, protected keys, OCR cache, zero-call task, receipts, budgets, draft export, storage, restart, shutdown)'
 } finally {
     if ($tfProcess -and -not $tfProcess.HasExited) {
         try { Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 2 | Out-Null } catch {}

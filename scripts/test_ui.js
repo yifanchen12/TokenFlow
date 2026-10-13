@@ -14,7 +14,7 @@ function node() {
 }
 const document = {getElementById(id) {if (!nodes.has(id)) nodes.set(id, node()); return nodes.get(id);},
   createElement: node, querySelectorAll: () => []};
-const context = vm.createContext({document, console, location: {host: '127.0.0.1'},
+const context = vm.createContext({document, console, location: {host: '127.0.0.1'}, crypto: require('node:crypto').webcrypto, AbortController,
   localStorage: {setItem: (k,v) => storage.set(k,v), getItem: k => storage.get(k) || null, removeItem: k => storage.delete(k)},
   setTimeout: fn => {timers.set(++timerId,fn); return timerId;}, clearTimeout: id => timers.delete(id)});
 const html = fs.readFileSync(path.join(__dirname, '..', 'ui_page.py'), 'utf8');
@@ -62,5 +62,41 @@ context.post = async (url, body) => {
   assert.equal(storage.has('tokenflowActiveRun'), false);
   assert.equal(nodes.get('autoRun').disabled, false);
   assert.match(nodes.get('resultMeta').textContent, /已取消/);
+  const receipts = new Map(), sentIds = [];
+  let sends = 0, lostResponse = true, recoveryOffline = true;
+  const originalGet = context.get;
+  context.get = async url => {
+    if(url.startsWith('/api/tasks/request/')) {
+      if(recoveryOffline) throw new Error('fixture offline');
+      return {id:'submitted',status:'running'};
+    }
+    if(url === '/api/tasks/submitted') return {id:'submitted',status:'completed',result:'ONE TASK',calls:[],stages:[]};
+    return originalGet(url);
+  };
+  context.post = async (url, body) => {
+    assert.equal(url, '/api/tasks/start');
+    sentIds.push(body.request_id);
+    if(!receipts.has(body.request_id)) {receipts.set(body.request_id,'submitted');sends++;}
+    if(lostResponse) throw new Error('response lost');
+    return {id:'submitted',status:'completed',reused:true};
+  };
+  document.getElementById('task').value = 'fixture task'; document.getElementById('content').value = 'PRIVATE SOURCE';
+  await run('orchestrateTask()');
+  assert.equal(sends,1); assert.ok(storage.get('tokenflowPendingRequest'));
+  assert.ok(![...storage.values()].some(value => value.includes('PRIVATE SOURCE')));
+  lostResponse=false; recoveryOffline=false;
+  await run('orchestrateTask()');
+  assert.equal(sends,1); assert.equal(sentIds[0],sentIds[1]);
+  assert.equal(storage.has('tokenflowPendingRequest'),false);
+  assert.equal(nodes.get('result').textContent,'ONE TASK');
+  // A reload can recover just the receipt ID; source data need not be in browser storage.
+  storage.set('tokenflowPendingRequest','receipt-after-refresh');
+  storage.set('tokenflowPendingSince',String(Date.now()));
+  await run('recoverPending()');
+  assert.equal(storage.has('tokenflowPendingRequest'),false);
+  run("renderRun({status:'failed',error:'budget exceeded',result:'',calls:[],stages:[],metrics:{model_calls:0,local_calls:0,cloud_or_harness_calls:0,estimated_cloud_input_tokens:0,estimated_input_difference:0}})");
+  assert.match(nodes.get('runMetrics').textContent,/未调用模型/);
+  assert.doesNotMatch(nodes.get('runMetrics').textContent,/确定性任务/);
+  assert.doesNotMatch(nodes.get('result').textContent,/正在完成/);
   console.log('UI task/history checks: PASS');
 })().catch(error => {console.error(error);process.exitCode = 1;});

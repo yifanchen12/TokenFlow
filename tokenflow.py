@@ -727,7 +727,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             from local_ocr import status
             self._send_json(status())
             return
-        if self.path == "/api/config" or self.path.startswith("/api/tasks"):
+        if self.path.startswith("/api/config") or self.path.startswith("/api/tasks"):
             if not _loopback_client(self.client_address[0]) or not _valid_write_request(
                     self.headers.get("Origin") or "http://" + self.headers.get("Host", ""), self.headers.get("Host", ""),
                     self.headers.get("X-TokenFlow-Token", ""), self.server.server_address[1]):
@@ -736,8 +736,16 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             try:
                 if self.path == "/api/config":
                     result = RuntimeConfig().public()
+                elif self.path == "/api/config/storage":
+                    documents = _document_store()
+                    result = {"cache": documents.status(), "entries": documents.entries(), "history": RuntimeConfig().manage_history()}
                 elif self.path == "/api/tasks":
                     result = RuntimeConfig().runs()
+                elif self.path.startswith("/api/tasks/request/"):
+                    result = RuntimeConfig().request_run(self.path.rsplit("/", 1)[1])
+                    if result is None:
+                        self._send_json({"error": "请求记录不存在"}, 404)
+                        return
                 elif re.fullmatch(r"/api/tasks/[a-f0-9]{32}", self.path):
                     result = RuntimeConfig().runs(self.path.rsplit("/", 1)[1])
                 else:
@@ -832,6 +840,11 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             "/api/config/settings",
             "/api/tasks/start",
             "/api/tasks/cancel",
+            "/api/tasks/delete",
+            "/api/tasks/eval-draft",
+            "/api/config/storage/delete",
+            "/api/config/storage/clear",
+            "/api/config/storage/prune",
         ):
             self._send_json({"error": "not found"}, 404)
             return
@@ -865,6 +878,8 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                 data = json.loads(raw.decode("utf-8"))
             if not isinstance(data, dict):
                 raise ValueError("请求 JSON 顶层必须是对象")
+            if self.path in {"/api/tasks/delete", "/api/tasks/eval-draft"} and not re.fullmatch(r"[a-f0-9]{32}", str(data.get("id", ""))):
+                raise ValueError("任务 ID 无效")
             if self.path == "/api/config/connection":
                 result = RuntimeConfig().save_profile(data)
             elif self.path == "/api/config/discover":
@@ -881,6 +896,26 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                 result = start_task(data)
             elif self.path == "/api/tasks/cancel":
                 result = cancel_task(data.get("id", ""))
+            elif self.path == "/api/tasks/delete":
+                result = RuntimeConfig().manage_history(str(data.get("id", "")))
+            elif self.path == "/api/tasks/eval-draft":
+                run = RuntimeConfig().runs(str(data.get("id", "")))
+                if run["status"] in {"running", "cancelling"}:
+                    raise ValueError("请等待任务结束再导出样本")
+                source = _document_store().document(run.get("document_cache", {}).get("document_id", -1))
+                result = {"name": "task-" + run["id"][:8], "source_kind": "real_task", "label_status": "draft",
+                          "category": "unclassified", "task": run["task"], "content": source,
+                          "candidate_answer": run["result"], "expected_answer": "", "must_keep": [], "answer_match": "exact"}
+            elif self.path == "/api/config/storage/delete":
+                if data.get("kind") not in {"document", "parsed"}:
+                    raise ValueError("请选择文档或解析缓存")
+                result = _document_store().manage(kind=data["kind"], identity=str(data.get("id", "")))
+            elif self.path == "/api/config/storage/clear":
+                result = _document_store().manage(clear=True)
+            elif self.path == "/api/config/storage/prune":
+                settings = RuntimeConfig().settings()
+                result = {"history": RuntimeConfig().manage_history(prune=True),
+                          "cache": _document_store().manage(max_mb=settings["cache_max_mb"], days=settings["cache_retention_days"])}
             elif self.path == "/api/freetoken/install":
                 result = launch_freetoken_installer()
             elif self.path == "/api/freetoken/start":
@@ -930,16 +965,19 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                     )
             elif self.path == "/api/parse":
                 if data.get("file_bytes") is not None:
-                    result = parse_document_bytes(str(data.get("filename", "upload")), data["file_bytes"])
+                    result = parse_document_bytes(str(data.get("filename", "upload")), data["file_bytes"], use_cache=True)
                 else:
-                    result = parse_document_file(str(data.get("path", "")))
+                    result = parse_document_file(str(data.get("path", "")), use_cache=True)
             elif self.path == "/api/index":
                 if data.get("file_bytes") is not None:
-                    parsed = parse_document_bytes(str(data.get("filename", "upload")), data["file_bytes"])
+                    parsed = parse_document_bytes(str(data.get("filename", "upload")), data["file_bytes"], use_cache=True)
                     name, content = parsed["name"], parsed["text"]
                 else:
                     name, content = str(data.get("name", "document")), str(data.get("content", ""))
                 result = _document_store().index(name, content)
+                settings = RuntimeConfig().settings()
+                if settings["cache_max_mb"] or settings["cache_retention_days"]:
+                    _document_store().manage(max_mb=settings["cache_max_mb"], days=settings["cache_retention_days"])
             elif self.path == "/api/store/migrate":
                 result = _document_store().import_legacy()
             elif self.path == "/api/search":
@@ -1123,6 +1161,8 @@ def self_check() -> None:
     orchestration_self_check()
     from test_optimizations import self_check as optimization_self_check
     optimization_self_check()
+    from test_controls import self_check as controls_self_check
+    controls_self_check()
     assert "/api/tokenizer" in "/api/tokenizer"
     print("TokenFlow self-check: PASS")
 

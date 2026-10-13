@@ -335,7 +335,7 @@ To explicitly compare one raw-input call with the entire orchestration:
 python eval_workflow.py --pipeline --connection <saved-connection-id> --model <model-id> --cases eval_cases.workflow.json --min-cases 6 --report tmp/pipeline.json
 ```
 
-All stages use the selected saved API connection and model, with a 2400-token output cap per call and a 3–8 call budget (`--max-calls`, default 6). Harness execution is disabled for this comparison. Connection IDs appear in `/api/config` under `connections[].id`. Temporary databases isolate evaluation from saved strategies and history. Reports include every stage, repairs, input/output usage and wall time. Missing usage remains unknown; unsuccessful acceptance or incomplete usage cannot pass the gate. The six source-independent synthetic cases are workflow smoke scenarios, not a held-out production benchmark; use independently labelled holdout tasks for quality claims. Full orchestration can cost more than one call.
+All stages use the selected saved API connection and model, with 2400-token raw/executor output caps, role-specific auxiliary caps recorded in the report, and a 3–8 call budget (`--max-calls`, default 6). Harness execution is disabled for this comparison. Connection IDs appear in `/api/config` under `connections[].id`. Temporary databases isolate evaluation from saved strategies and history. Reports include every stage, repairs, input/output usage and wall time. Missing usage remains unknown; unsuccessful acceptance or incomplete usage cannot pass the gate. Full-pipeline gates check both input and total-token savings. The six source-independent synthetic cases are workflow smoke scenarios, not a held-out production benchmark; use independently labelled holdout tasks for quality claims. Full orchestration can cost more than one call.
 
 Offline regression commands:
 
@@ -344,3 +344,28 @@ python tokenflow.py --self-check
 python eval_workflow.py --self-check
 node scripts/test_ui.js
 ```
+
+## Budgets, reusable parsing and storage controls
+
+The console configures a 64000-token task allowance and 32768-token context allowance by default; output limits default to local 1024, planner 1536, executor 2400 and reviewer 1024. Before a stage, visible input is estimated and output is reserved. Completed/failed usage is charged where available, including truncated Responses/Messages responses; unknown usage reserves estimates. This is a workflow guard, not a bill or a hard limit on Harness internals. Set context capacity to match the actual model.
+
+Task start accepts an optional `request_id`. Repeating an ID with the same payload returns the same run, including after completion/restart; changed payloads are rejected. `GET /api/tasks/request/<id>` restores a submission whose response was lost. The page retains receipt IDs and timestamps in localStorage, not source content. Deleted history keeps a small receipt so a stale request cannot execute again.
+
+Application file imports reuse successful extraction by file bytes, extension, parser version and dependency versions, including OCR. Failed extraction is not cached. The storage panel displays logical content size, database file size, source/parse entries and history count, and offers explicit deletion and optional retention. Defaults of 0 retain everything. Configured limits prune old finished runs at task completion and least-recently-used caches during imports/task completion; saving a policy or pressing organize applies it immediately. SQLite deleted space is reusable; physical files may not immediately shrink. Original-source review remains intact even if a retention policy removes its cached copy.
+
+## Prepare real task benchmarks locally
+
+From a finished task, export an evaluation draft. It contains cached source and a **candidate** answer, with blank expected answer/facts and `label_status=draft`. Independently check the answer, fill `expected_answer`, `must_keep`, `category`, and set `label_status=verified`. Without that step, real-task evaluation is rejected. A source cache removed by retention must be supplied again.
+
+```powershell
+python scripts/prepare_eval_cases.py --template tmp/real-tasks/manifest.json
+# Fill actual tasks and labels. source_file paths stay within the manifest directory;
+# TXT, DOCX, XLSX, PDF and images use the existing local parser.
+python scripts/prepare_eval_cases.py --manifest tmp/real-tasks/manifest.json --output tmp/real-tasks/prepared.json
+# Offline fact retention; no model calls.
+python eval_workflow.py --cases tmp/real-tasks/prepared.json --report tmp/real-offline.json
+# Explicit model calls, only after choosing a saved connection/model:
+python eval_workflow.py --pipeline --connection <id> --model <model> --cases tmp/real-tasks/prepared.json --min-cases 20 --report tmp/real-pipeline.json
+```
+
+Prepared cases are portable text snapshots, excluding candidate answers. Reports include category accuracy, full input/output totals and median latency. Draft templates and regression fixtures are not real benchmark results. Keep private manifests, source documents and reports outside Git; `tmp/` is ignored.

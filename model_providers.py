@@ -17,6 +17,10 @@ from urllib.parse import urlsplit
 class ProviderError(RuntimeError):
     """Safe provider error without credentials or request bodies."""
 
+    def __init__(self, message: str, *, usage: dict | None = None):
+        super().__init__(message)
+        self.usage = reported_usage({"usage": usage or {}})
+
 
 @dataclass(frozen=True)
 class ProviderSpec:
@@ -238,8 +242,13 @@ def reported_usage(response: dict[str, Any]) -> dict[str, int]:
     value = response.get("usage", {})
     if not isinstance(value, dict):
         return {}
-    return {name: value[name] for name in ("prompt_tokens", "completion_tokens", "total_tokens")
-            if isinstance(value.get(name), int) and not isinstance(value[name], bool) and value[name] >= 0}
+    aliases = {"prompt_tokens": "input_tokens", "completion_tokens": "output_tokens", "total_tokens": "total_tokens"}
+    result = {}
+    for name, alias in aliases.items():
+        number = value.get(name, value.get(alias))
+        if type(number) is int and number >= 0:
+            result[name] = number
+    return result
 
 
 def provider_status() -> dict[str, dict[str, Any]]:

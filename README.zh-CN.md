@@ -290,7 +290,7 @@ PNG/JPEG/WebP/BMP 使用本地 RapidOCR 中英文识别，默认 CPU 离线运�
 - 任务使用 SQLite 内容哈希复用文档索引，仅检索本次资料并记录出处。检索使用词法匹配和哈希评分；保留函数/章节结构，范围过大时回退原文。全文总结、翻译、统计等读取完整资料，验收始终读取原文。
 - 页面可以取消运行任务、查看历史后返回当前任务，并在刷新后恢复跟踪。`POST /api/tasks/cancel` 接受 `{"id":"<任务ID>"}`，使用与启动接口相同的回环和会话头校验。`cancelling` 表示停止后续调用并等待正在进行的 API 请求返回；Harness 进程树会终止。`cancelled` 保留此前已完成的结果。服务重启会把未结束的任务标为 `interrupted`。
 
-完整流程评测比较“一次原文调用”和真实的摘要、规划、执行、验收、修正流程。所有阶段使用一个明确的已保存 API 连接及同一模型，每次输出上限 2400 Token，最多 3–8 次阶段调用；不启动 Harness。连接 ID 来自 `/api/config` 的 `connections[].id`。评测使用临时数据库，不改已保存策略或任务记录。
+完整流程评测比较“一次原文调用”和真实的摘要、规划、执行、验收、修正流程。所有阶段使用一个明确的已保存 API 连接及同一模型，原文和最终执行输出上限 2400 Token，辅助阶段使用报告记录的分角色上限，最多 3–8 次阶段调用；不启动 Harness。连接 ID 来自 `/api/config` 的 `connections[].id`。评测使用临时数据库，不改已保存策略或任务记录。
 
 ```powershell
 # 会调用所选端点；6 个独立于仓库源码的合成场景只用于流程冒烟，不是生产质量证明。
@@ -303,3 +303,26 @@ node scripts/test_ui.js
 ```
 
 报告逐阶段记录输入/输出 usage、调用状态、修正次数和完整耗时，并汇总全流程 Token。失败调用缺少用量时保留“未知”，不把估算当作实际用量；未通过验收、样本不足或用量不全不能通过门槛。完整流程可能比单次调用更贵。正式质量验证请使用独立标注的留出任务；这六个合成场景不作为泛化或节省承诺。
+
+## 预算、提交恢复与存储管理
+
+- 默认整任务预算 64000 Token，上下文容量 32768 Token；分类摘要、规划、执行、验收的输出上限分别为 1024、1536、2400、1024。发送前检查预估输入加输出预留，已返回的实际 usage 优先记账；未知部分保守估算。Responses/Messages 截断失败时保留已经返回的用量。这是流程约束，不能保证账单或 Harness 内部开销；上下文容量需要按实际模型调整。
+- `/api/tasks/start` 可携带 `request_id`。同一 ID、相同任务资料重复提交会返回已有任务，完成或服务重启后也不会重复执行；同一 ID 携带不同内容会拒绝。页面只在 localStorage 保存待确认请求 ID 和时间，不保存资料。`GET /api/tasks/request/<ID>` 可恢复响应丢失的提交；删除历史后仍保留最小回执，旧请求不会再次执行。
+- 文件导入按文件内容、扩展名、解析器和依赖版本复用成功的解析/OCR 结果。失败结果不缓存。“缓存、历史与保留策略”显示内容容量、数据库文件大小、已保存资料/解析结果和任务数量，并提供删除和可选保留期限。默认 0 不自动清理。启用后在导入、任务结束及保存/整理策略时清理符合条件的记录，运行任务受保护。SQLite 删除后的空间可被复用，文件大小可能暂不减少。
+
+## 真实任务样本准备
+
+历史任务可“导出评测样本草稿”，包含缓存中的原资料和候选回答。草稿的正确答案与关键事实留空，不把模型回答当作标准答案。人工填写 `expected_answer`、`must_keep`、`category`，并核对后将 `label_status` 改为 `verified`，才能准备和评测。原缓存被清理后，需要重新提供资料。
+
+```powershell
+# 创建空白标注模板，不生成或伪造真实任务。
+python scripts/prepare_eval_cases.py --template tmp/real-tasks/manifest.json
+# 填写真实任务及人工答案。source_file 相对清单所在目录；支持 DOCX/XLSX/PDF/图片等。
+python scripts/prepare_eval_cases.py --manifest tmp/real-tasks/manifest.json --output tmp/real-tasks/prepared.json
+# 离线检查，不调用模型。
+python eval_workflow.py --cases tmp/real-tasks/prepared.json --report tmp/real-offline.json
+# 仅明确选择连接与模型后运行；此命令会调用该端点。
+python eval_workflow.py --pipeline --connection <连接ID> --model <模型ID> --cases tmp/real-tasks/prepared.json --min-cases 20 --report tmp/real-pipeline.json
+```
+
+准备后的数据集是可移植的文本快照，去除候选答案。报告按类别比较正确率、完整输入加输出 Token 和中位耗时；完整流程门槛同时检查输入与总 Token 节省。真实样本、原文件和报告建议放入已忽略的 `tmp/`，不随源码提交。模板及回归夹具不算真实评测成绩。

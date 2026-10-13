@@ -44,14 +44,19 @@ def load_cases(path: Path) -> list[dict[str, Any]]:
             if not isinstance(relative, str) or Path(relative).is_absolute():
                 raise ValueError("source_file 必须是样本目录内的相对文件路径")
             source = (root / relative).resolve()
-            if not source.is_relative_to(root) or not source.is_file() or source.stat().st_size > 2_000_000:
-                raise ValueError("source_file 不存在、超出样本目录或超过 2 MB")
-            case["content"] = source.read_text(encoding="utf-8")
+            if not source.is_relative_to(root) or not source.is_file() or source.stat().st_size > 20 * 1024 * 1024:
+                raise ValueError("source_file 不存在、超出样本目录或超过 20 MB")
+            from document_parser import parse_document_file
+            case["content"] = parse_document_file(str(source))["text"]
         loaded.append(case)
     return loaded
 
 
 def _validate_case(case: Any, model_answers: bool) -> None:
+    if isinstance(case, dict) and case.get("source_kind") == "real_task" and case.get("label_status") != "verified":
+        raise ValueError("真实任务样本须人工确认答案和关键事实，并标为 label_status=verified；候选答案不作为正确答案")
+    if isinstance(case, dict) and "category" in case and (not isinstance(case["category"], str) or not 1 <= len(case["category"].strip()) <= 80):
+        raise ValueError("category 须为 1 至 80 个字符")
     if not isinstance(case, dict) or not all(isinstance(case.get(key), str) and case[key].strip() for key in ("task", "content")):
         raise ValueError("评测样本需要非空 task、content 字符串")
     facts = case.get("must_keep")
@@ -101,6 +106,22 @@ def summarize(rows: list[dict[str, Any]], model_answers: bool, min_cases: int, m
                "reported_processed_total_tokens": sum(row["processed_usage"]["total_tokens"] for row in complete) if total_complete else None,
                "raw_median_latency_ms": statistics.median([row["raw_latency_ms"] for row in complete]) if complete else None,
                "processed_median_latency_ms": statistics.median([row["processed_latency_ms"] for row in complete]) if complete else None}
+    raw_total, processed_total = summary["reported_raw_total_tokens"], summary["reported_processed_total_tokens"]
+    summary["reported_total_token_saving_ratio"] = round(1 - processed_total / raw_total, 4) if raw_total else None
+    summary["by_category"] = {}
+    for category in sorted({row.get("category", row["source_kind"]) for row in rows}):
+        group = [r for r in rows if r.get("category", r["source_kind"]) == category]
+        pairs = [r for r in group if "raw_answer_pass" in r and "processed_answer_pass" in r]
+        full_usage = bool(pairs) and all("total_tokens" in r.get(label + "_usage", {}) for r in pairs for label in ("raw", "processed"))
+        summary["by_category"][category] = {
+            "cases": len(group), "completed_pairs": len(pairs),
+            "raw_accuracy": sum(r["raw_answer_pass"] for r in pairs) / len(pairs) if pairs else None,
+            "processed_accuracy": sum(r["processed_answer_pass"] for r in pairs) / len(pairs) if pairs else None,
+            "raw_total_tokens": sum(r["raw_usage"]["total_tokens"] for r in pairs) if full_usage else None,
+            "processed_total_tokens": sum(r["processed_usage"]["total_tokens"] for r in pairs) if full_usage else None,
+            "raw_median_latency_ms": statistics.median(r["raw_latency_ms"] for r in pairs) if pairs else None,
+            "processed_median_latency_ms": statistics.median(r["processed_latency_ms"] for r in pairs) if pairs else None,
+        }
     failures, missing = [], []
     if loss_rate:
         failures.append("处理后丢失了标注的关键事实")
@@ -150,6 +171,7 @@ def evaluate(cases: list[dict[str, Any]], provider: str | None = None, model: st
         workflow = run_workflow(task, raw, lambda _kind, text: json.dumps(chat_messages(task, text), ensure_ascii=False))
         processed = workflow["result"]
         row = {"name": case.get("name", "case"), "source_kind": case.get("source_kind", "user_supplied"),
+               "category": case.get("category", case.get("source_kind", "user_supplied")),
                "source_file": case.get("source_file"), "source_sha256": hashlib.sha256(raw.encode("utf-8")).hexdigest(),
                "raw_prompt_tokens": workflow["baseline"]["estimated_tokens"],
                "processed_prompt_tokens": workflow["optimized"]["estimated_tokens"], "selected_saved_tokens": workflow["saved_tokens"],
@@ -173,7 +195,8 @@ def evaluate(cases: list[dict[str, Any]], provider: str | None = None, model: st
                     row[label + "_answer_pass"] = answer_pass(answer, case["expected_answer"], case.get("answer_match", "exact"))
                     row[label + "_latency_ms"] = round((time.monotonic() - started) * 1000)
                     row[label + "_usage"] = reported_usage(response)
-            except ProviderError:
+            except ProviderError as exc:
+                row[label + "_usage"] = exc.usage
                 row["error"] = "模型请求失败；未完成的样本不计为成功"
         rows.append(row)
         report["summary"], report["quality_gate"] = summarize(rows, client is not None, min_cases, max_accuracy_drop, min_saving, min_accuracy)
@@ -197,6 +220,12 @@ def markdown_report(report: dict[str, Any]) -> str:
     for row in report["cases"]:
         name = str(row["name"]).replace("|", "\\|").replace("\n", " ")
         lines.append(f"| {name} | {row['source_kind']} | {row['compression_applied']} | {row['processed_retains_facts']} | {row.get('raw_answer_pass', '—')} | {row.get('processed_answer_pass', '—')} |")
+    lines.extend(["", "| Category | Pairs / cases | Raw accuracy | Pipeline accuracy | Raw total tokens | Pipeline total tokens | Raw median ms | Pipeline median ms |",
+                  "|---|---|---|---|---|---|---|---|"])
+    for category, values in summary.get("by_category", {}).items():
+        safe = category.replace("|", "\\|").replace("\n", " ")
+        cells = [values[k] for k in ("raw_accuracy", "processed_accuracy", "raw_total_tokens", "processed_total_tokens", "raw_median_latency_ms", "processed_median_latency_ms")]
+        lines.append(f"| {safe} | {values['completed_pairs']} / {values['cases']} | " + " | ".join(str(v) if v is not None else "—" for v in cells) + " |")
     lines.extend(["", "Gate reasons: " + ("; ".join(gate["reasons"]) or "thresholds met for these cases"), ""])
     return "\n".join(lines)
 
@@ -225,7 +254,7 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
     rows = []
     report = {"mode": "full_pipeline_same_model", "model": selected, "cases": rows,
               "expected_cases": len(cases), "model_settings": {"max_tokens": 2400, "max_calls": max_calls},
-              "note": "一次原文调用与完整任务流程成对比较；所有阶段使用同一明确连接和模型，输出上限均为 2400。"
+              "note": "一次原文调用与完整任务流程成对比较；所有阶段使用同一明确连接和模型，原文和最终执行输出上限为 2400，辅助阶段使用记录的分角色上限。"
                       "统计分类摘要、规划、执行、验收和修正的全部调用。估算与提供商 usage 分开，样本通过不证明泛化质量。"}
     with tempfile.TemporaryDirectory(prefix="tokenflow-eval-") as directory:
         store = RuntimeConfig(Path(directory) / "connections.db")
@@ -234,9 +263,11 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
                              "role_models": {role: selected for role in ("local", "planner", "executor", "reviewer")},
                              "max_calls": max_calls})
         documents = DocumentStore(str(Path(directory) / "documents.db"))
+        report["model_settings"].update({k: store.settings()[k] for k in ("output_limits", "context_window_tokens", "max_task_tokens")})
         for index, case in enumerate(cases):
             task, content = case["task"].strip(), case["content"].strip()
             row = {"name": case.get("name", "case"), "source_kind": case.get("source_kind", "user_supplied"),
+                   "category": case.get("category", case.get("source_kind", "user_supplied")),
                    "source_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
                    "compression_applied": False, "processed_retains_facts": True,
                    "raw_usage": {}, "processed_usage": {}}
@@ -244,7 +275,12 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
                 started = time.monotonic()
                 if label == "raw":
                     try:
-                        response = ConnectionClient(profile).chat(selected, chat_messages(task, content), max_tokens=2400)
+                        from token_counter import count_tokens
+                        raw_messages = chat_messages(task, content)
+                        if count_tokens(json.dumps(raw_messages, ensure_ascii=False))["count"] + 2400 > store.settings()["context_window_tokens"]:
+                            raise ValueError("原文超过配置的上下文容量")
+                        response = ConnectionClient(profile).chat(selected, raw_messages, max_tokens=2400)
+                        row["raw_usage"] = reported_usage(response)
                         if any(c.get("finish_reason") == "length" for c in response.get("choices", []) if isinstance(c, dict)):
                             raise ProviderError("原文回答被截断")
                         answer = response_text(response)
@@ -256,7 +292,8 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
                         if all(k in usage for k in ("prompt_tokens", "completion_tokens")):
                             usage.setdefault("total_tokens", usage["prompt_tokens"] + usage["completion_tokens"])
                         row.update(raw_answer=answer, raw_answer_pass=answer_pass(answer, case["expected_answer"], case.get("answer_match", "exact")), raw_usage=usage)
-                    except (ProviderError, ValueError):
+                    except (ProviderError, ValueError) as exc:
+                        row["raw_usage"] = (exc.usage or row["raw_usage"]) if isinstance(exc, ProviderError) else row["raw_usage"]
                         row["error"] = "原文模型调用失败，不能计为完整对比"
                 else:
                     runner = TaskRun(store, task, content, document_store=documents, source_name=str(row["name"]), allow_harnesses=False)
@@ -270,7 +307,7 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
                                model_calls=metrics["model_calls"], repairs=sum(c["purpose"] == "repair" for c in run["calls"]),
                                estimated_input_tokens=metrics["estimated_input_tokens"],
                                estimated_output_tokens=metrics["estimated_output_tokens"], usage_complete=metrics["usage_complete"],
-                               stages=[{k: c.get(k) for k in ("purpose", "status", "usage", "duration_ms", "estimated_input_tokens", "estimated_output_tokens")} for c in run["calls"]],
+                               stages=[{k: c.get(k) for k in ("purpose", "status", "usage", "duration_ms", "estimated_input_tokens", "estimated_output_tokens", "max_output_tokens")} for c in run["calls"]],
                                cache_reused=run.get("document_cache", {}).get("reused", False))
                     if metrics["usage_complete"]:
                         row["processed_usage"] = {"prompt_tokens": metrics["reported_input_tokens"],
@@ -285,7 +322,11 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
                            reported_pipeline_input_tokens=sum(r["processed_usage"]["prompt_tokens"] for r in rows) if all(r["usage_complete"] for r in rows) else None,
                            reported_pipeline_output_tokens=sum(r["processed_usage"]["completion_tokens"] for r in rows) if all(r["usage_complete"] for r in rows) else None,
                            reported_pipeline_total_tokens=sum(r["processed_usage"]["total_tokens"] for r in rows) if all(r["usage_complete"] for r in rows) else None,
-                           usage_complete=all(r["usage_complete"] and "completion_tokens" in r["raw_usage"] for r in rows))
+                           usage_complete=all(r["usage_complete"] and all(k in r["raw_usage"] for k in ("prompt_tokens", "completion_tokens")) for r in rows))
+            gate["thresholds"]["min_total_token_saving_ratio"] = min_saving
+            if summary["reported_total_token_saving_ratio"] is not None and summary["reported_total_token_saving_ratio"] < min_saving:
+                gate["status"] = "failed"
+                gate["reasons"].append("完整输入加输出 Token 节省未达到阈值")
             if any(r["pipeline_status"] != "completed" for r in rows):
                 gate["status"] = "failed"
                 gate["reasons"].append("存在执行失败、取消或未通过验收的任务")
