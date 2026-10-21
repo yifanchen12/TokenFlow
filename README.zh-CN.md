@@ -28,7 +28,7 @@ English documentation: [README.md](README.md)。
 
 ### 保存连接、检测模型与 Harness 绑定
 
-在“模型提供商与 Harness 配置”中保存连接名称、Base URL、API Key 和协议（Chat Completions、Responses 或 Anthropic Messages）。保存后请求 `/models`，当前目录和历史模型记录跨重启保留；不提供目录的端点可以手动登记 ID。检测失败保留原记录并显示错误。自动本地检测仅探测已配置或默认的回环 Ollama / FreeToken 端点，不生成文本或下载模型。
+在“模型提供商与 Harness 配置”中保存连接名称、Base URL、API Key 和协议（Chat Completions、Ollama 本机、Responses 或 Anthropic Messages）。保存后请求 `/models`，当前目录和历史模型记录跨重启保留；不提供目录的端点可以手动登记 ID。检测失败保留原记录并显示错误。自动本地检测仅探测已配置或默认的回环 Ollama / FreeToken 端点，不生成文本或下载模型。
 
 Codex 模型来自本机配置及可见模型缓存，Claude 来自本机配置中的模型 ID。缓存和手工记录不保证当前账户可调用。Codex 绑定需要 Responses，Claude 需要 Messages；DSH 可绑定 Chat Completions 连接（包括北邮 API），使用临时 profile 补丁，不改全局配置。原生订阅登录仍由 Harness 使用。支持导入现有 API Key 连接，Key 不回显；绑定只影响 TokenFlow 启动的子进程，密钥通过子进程环境传递。默认继续使用只读 / 计划模式。
 
@@ -278,7 +278,7 @@ GitHub Actions 会在 Windows 自动自检、构建 EXE，通过 `scripts/smoke_
 
 ## 本地文字识别
 
-PNG/JPEG/WebP/BMP 使用本地 RapidOCR 中英文识别，默认 CPU 离线运行。PDF 有文字的页直接提取，无文字的页由 PyMuPDF 渲染后进行 OCR，每份文件最多识别 30 个扫描页。识别内容可在布置任务前核对、编辑；OCR 不调用云端、不占用独立显卡显存。可选依赖：`rapidocr_onnxruntime==1.2.3`、`Pillow`、`PyMuPDF`。安装后，构建脚本会把 OCR 配置和模型打包进 EXE。
+PNG/JPEG/WebP/BMP 使用本地 RapidOCR 中英文识别，默认 CPU 离线运行。PDF 先提取文字；无文字页，以及存在较大图片区域但该区域文字很少的混合页，由 PyMuPDF 渲染后补充 OCR，每份文件最多识别 30 页。已有文字与新增识别行合并去重，结果记录 `ocr_pages`、置信度与警告；小 logo 不触发识别。这是版面启发式检查，识别内容仍需核对、编辑。缺少 PyMuPDF 时，文字页会提示未检查图片正文，扫描页会报错。OCR 不调用云端、不占用独立显卡显存。可选依赖：`rapidocr_onnxruntime==1.2.3`、`Pillow`、`PyMuPDF`。安装后，构建脚本会把 OCR 配置和模型打包进 EXE。
 
 分类摘要角色可显式选择云端 API，调用统计会按实际连接归类。可从本机 `BUPT_API_BASE_URL` / `BUPT_API_KEY` 导入北邮连接。DSH headless 通过临时补丁绑定模型；Codex 原生登录使用 HTTPS，模型目录可由 CLI `model/list` 检测，避免使用不可调用的应用缓存模型。
 
@@ -344,3 +344,56 @@ python eval_workflow.py --cases tmp/synthetic-eval/all.json --offline-task-conte
 检索前三条现在只作为搜索预览；它们不能排除其他明确命中的原文。Python 抽取补充可解析的模块级常量、导入和辅助函数依赖；动态查找、嵌套定义、复杂写入或抽取超限时回退原文。`sources_scope=search_preview` 区分搜索预览与实际选取范围。
 
 模型评测和编排共用完整文本检查；截断、工具调用待续、空答案或无效文本结构不能成为完整答案对比，已返回的 usage 仍记录。报告按来源及类别分别统计，合成、仓库问答和真实任务不混作同一类质量证据。每个来源/类别沿用整体正确率及下降门槛，并至少需要 10 对完整结果（`--min-category-cases` 可调整）；某类失败阻止整体通过，样本不足标为未评测。调整阈值只改变所提供样本的门槛，不代表生产质量已被证明。
+
+## 统计可靠性、验收预检与历史查询
+
+- 表格求和和中位数按输入位数、指数跨度及行数设置 Decimal 精度；数值或精度超出 4096 的安全范围时拒绝计算。均值的 `mean_exact=false` 表示有限精度下有舍入。缺缓存公式保留占位和 `missing_formula_count`；包含缺失公式或混合非数值的部分数值统计标为 `needs_review`，不能通过验收。只统计行列数不因此失败。解析警告随上传资料和路径任务进入结果，公式仍须在表格软件中重新计算并保存。
+- 首次模型调用前检查原文验收最低上下文与预算，规划后及后续阶段前继续预留验收开销；已知不可行时提前停止。动态输出、估算误差和 Harness 内部调用仍受原有计量边界限制。可见原文基线使用执行器的相同消息封装（`baseline_scope=executor_visible_prompt`），`metrics.by_role` 列出各用途调用的输入/输出估算和已报告用量。
+- 历史区域支持任务文字、状态筛选和翻页；筛选不会改变当前运行任务。受保护的 `GET /api/tasks` 增加 `limit`（1–100，默认 20）、`offset`（0–1000000）、`query`（最多 200 字符）、`status` 参数。文字按字面子串匹配，状态包括 `running`、`cancelling`、`completed`、`failed`、`cancelled`、`needs_review`、`interrupted`。返回 `total`、`offset`、`limit`、`has_more`；按 ID 读取保持兼容。
+
+本机 Ollama 完整流程评测可使用原生 API，固定上下文、温度 0、关闭思考；原文与全部阶段使用同一连接和模型。显式 Ollama 本机协议在日常调用中也使用这些设置；旧版回环 Chat Completions 连接可通过下列参数仅在评测中启用原生设置，不修改保存协议：
+
+```powershell
+python eval_workflow.py --pipeline --ollama-native --connection <本机Ollama连接ID> --model qwen3.5:9b --ollama-context 32768 --cases tmp/synthetic-eval/holdout.json --report tmp/pipeline-ollama.json
+```
+
+完整对比正确率只覆盖成功配对，须同时检查 `accepted_correct_cases / cases`。`reported_all_raw_*` 与 `reported_pipeline_*` 保留全部任务的原文和流程用量，`reported_all_*_token_saving_ratio` 比较包含失败调用的总开销；缺用量时仍为未知。上一轮修复和实测结果见 [可靠性验证报告](docs/reports/reliability-2026-10-15.zh-CN.md)。
+
+## 结构化验收与本地单值查询
+
+显式选择“Ollama（本机）”协议时，地址必须是以 `/v1` 结尾的回环地址。日常任务和评测共用 Ollama 原生调用、关闭思考、温度 0 和策略中的上下文容量；规划与验收使用小型 JSON Schema，客户端仍检查结论与字段一致性。单次高级调用保留自己的输出上限。新检测出的 Ollama 使用此协议，旧连接不会自动换协议；原有 Harness 绑定规则保留。
+
+验收只核对候选回答，保留原文依据；只有错误证据确实出现在原文和候选中，才允许预算内的一次修正。格式无效、证据不足或再次验收失败时保留回答并标记需复核。发生修正后，结果区可展开查看原回答、修正结果和各自的验收状态。结构约束和证据存在都不保证模型的事实判断正确。
+
+窄范围的明确 CSV/TSV 查询可直接本地完成，例如 `CSV表格中 "K 17" 的 free_stock 值是多少？只回答数字。`。第一列须是唯一行键，列名须明确唯一。重复键、缺列、目标缺值或公式无缓存标记需复核；多表、模糊问题或多步任务保留原有流程。成功查询为确定性验收，模型调用为 0。
+
+全流程评测另存 `candidates`、首个候选与最终候选正确性、修正改善/退化数和阶段错误类别。可生成独立于旧模板族的 60 题合成验证集（六类各 10 题），输出目录仍须不存在：
+
+```powershell
+python scripts/generate_eval_cases.py --validation-only --seed 20261020 --output-dir tmp/acceptance-validation
+python eval_workflow.py --cases tmp/acceptance-validation/validation.json --offline-task-context --report tmp/acceptance-context.json
+```
+
+离线检查只验证标注保留，模型门槛仍需实际对照评测。实现及两组实测结果见 [2026-10-20 验收验证报告](docs/reports/acceptance-2026-10-20.zh-CN.md)。
+
+## 累计输入费用节省与任务进度
+
+首页突出显示已记录的输入 Token 净减少与费用折算。参考价格固定为 [GPT-6.1 Sol Standard](https://developers.openai.com/api/docs/models/gpt-6.1-sol)（2026-10-20 核对）：未缓存输入 $2/百万 Token，单次输入超过 272K 时整个请求按 $4/百万 Token。基线与每次阶段分别计价；规划、执行、验收、修正和路由回退的已知尝试都会扣除。失败或未通过验收的操作没有正收益，净额为负时显示额外输入开销。
+
+金额为**可见输入的参考费用估算**，并非实际账单。官方缓存输入 $0.10、输出 $10/百万 Token 在详情中作参考；这里不假设原文模型的输出、不计算未知输出节省，也不把本地推理的全部 Token 当成减少的 Token。缺失历史和 Harness 内部未知调用无法补算，口径不完整者单独显示未计入。
+
+统计只保存数值与去重标识，位于现有 `connections.db` 的独立表。重复保存、轮询与请求回执复用不重复计入；重启、删除任务历史和清理解析缓存不清空累计。可恢复的旧任务按已有字段补录，预处理预览及本仓库隔离评测不计入个人累计。`GET /api/config/savings` 沿用本机与会话保护。
+
+任务运行显示当前阶段、已耗时、运转符号与等待进度条，不伪造模型完成百分比。取消中和断线恢复有专门提示，终态停止动画；刷新可恢复正在运行任务的耗时。手机主操作按钮整行显示，减少动态效果设置会关闭动画。
+
+## 端云协同与复杂任务
+
+工作台可选择“端云协同”“仅本地”或“按高级角色配置”。连接设置提供端侧整理连接及复杂任务连接的简化选择；复杂连接可一次应用到规划、执行和验收，也可展开高级分配分别设置。已有角色设置继续保留；旧设置未指定协同策略时按原分工执行。
+
+点击“预览本次分工”只核对配置，不调用模型。启动时自动再预检。端侧推理依据保存连接的 `local` 标记识别，云端网关不能标成本机直接推理；原生 Harness 单独显示，内部执行位置和用量可能未知。“仅本地”禁止调用云端及原生 Harness，纯统计/查表仍可零模型完成。
+
+复杂计划最多四个顺序步骤，可声明 `id`、`depends_on`、`input_scope`（`source` / `dependencies` / `both`）及 `expected_output`。依赖只指向前序步骤，最后一步须汇总必要产出。执行时只交接指定资料和依赖结果；旧格式计划仍按原依赖语义兼容。辅助摘要不替代原文，最终验收继续依据原始资料。
+
+端侧模型步骤实际调用失败后，只有协同策略允许且剩余调用/Token 预算足以预留验收时，才升级一次到已配置的复杂执行器；失败与升级均计入用量。云端失败或预算不足保留已完成步骤，明确显示部分结果，不把中间结果标成最终完成。结果区展示实际分工、依赖、耗时、升级原因和各步产出。
+
+`POST /api/tasks/preview` 与任务接口使用相同的本机/会话保护；启动请求可携带 `collaboration_mode`（`hybrid` / `local_only` / `configured`），参与请求去重。评测保留步骤与实际位置；同模型对照继续使用原角色模式，不混称端云验证。运行 `python test_collaboration.py` 检查分工、交接、禁止外发、预算、部分结果和预检保护。实际模型效果与离线夹具分开报告，不承诺任意复杂任务都正确或必然节省费用。

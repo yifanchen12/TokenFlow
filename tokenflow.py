@@ -41,7 +41,7 @@ from freetoken_manager import (
 from token_counter import count_tokens, self_check as token_counter_self_check, status as token_counter_status
 from document_parser import DocumentParseError, parse_document_bytes, parse_document_file, self_check as document_parser_self_check
 from jev_provider import JevError, decide as jev_decide, self_check as jev_self_check
-from model_providers import ProviderError, chat_messages, configure_omniroute, is_loopback_url, omniroute_config, omniroute_model, omniroute_preview, provider_status, self_check as provider_self_check, unified_chat
+from model_providers import ProviderError, chat_messages, configure_omniroute, is_loopback_url, omniroute_config, omniroute_model, omniroute_preview, provider_status, reported_usage, self_check as provider_self_check, unified_chat
 from omniroute_manager import install as install_omniroute, self_check as omniroute_manager_self_check, start as start_omniroute, status as omniroute_status
 from pc_agent import PCAgentError, execute_actions, plan_actions, self_check as pc_agent_self_check
 from tokenflow_store import DocumentStore, self_check as store_self_check
@@ -702,6 +702,8 @@ def local_chat_workflow(task: str, content: str, requested_model: str = "auto") 
         "base_url": client.base_url,
         "model": selected_model,
         "local_result": response_text(response),
+        "input_attempts": [workflow["optimized"]["estimated_tokens"]],
+        "usage": reported_usage(response),
     }
 
 
@@ -784,8 +786,15 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                 elif self.path == "/api/config/storage":
                     documents = _document_store()
                     result = {"cache": documents.status(), "entries": documents.entries(), "history": RuntimeConfig().manage_history()}
-                elif self.path == "/api/tasks":
-                    result = RuntimeConfig().runs()
+                elif self.path == "/api/config/savings":
+                    result = RuntimeConfig().savings_summary()
+                elif self.path.split("?", 1)[0] == "/api/tasks":
+                    from urllib.parse import parse_qs, urlsplit
+                    query = parse_qs(urlsplit(self.path).query)
+                    if any(k not in {"limit", "offset", "query", "status"} or len(v) != 1 for k, v in query.items()):
+                        raise ValueError("历史查询参数无效")
+                    result = RuntimeConfig().runs(limit=int(query.get("limit", [20])[0]), offset=int(query.get("offset", [0])[0]),
+                                                  query=query.get("query", [""])[0], status=query.get("status", [""])[0])
                 elif self.path.startswith("/api/tasks/request/"):
                     result = RuntimeConfig().request_run(self.path.rsplit("/", 1)[1])
                     if result is None:
@@ -884,6 +893,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             "/api/config/import-native",
             "/api/config/settings",
             "/api/tasks/start",
+            "/api/tasks/preview",
             "/api/tasks/cancel",
             "/api/tasks/delete",
             "/api/tasks/eval-draft",
@@ -893,6 +903,8 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
         ):
             self._send_json({"error": "not found"}, 404)
             return
+        savings_record = None
+        result = None
         try:
             size = int(self.headers.get("Content-Length", "0"))
             if size < 0:
@@ -939,6 +951,9 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                 result = RuntimeConfig().save_settings(data)
             elif self.path == "/api/tasks/start":
                 result = start_task(data)
+            elif self.path == "/api/tasks/preview":
+                from task_orchestrator import task_preflight
+                result = task_preflight(data)
             elif self.path == "/api/tasks/cancel":
                 result = cancel_task(data.get("id", ""))
             elif self.path == "/api/tasks/delete":
@@ -977,6 +992,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             elif self.path == "/api/run":
                 result = run_workflow(str(data.get("task", "")), str(data.get("content", "")))
             elif self.path == "/api/execute":
+                savings_record = {"source": "harness", "created_at": time.time(), "status": "failed", "baseline_input": 0, "inputs": [], "comparable": False}
                 result = execute_workflow(
                     str(data.get("task", "")),
                     str(data.get("content", "")),
@@ -985,22 +1001,28 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                     str(data.get("harness_backend", "direct")),
                 )
             elif self.path == "/api/local-chat":
+                savings_record = {"source": "local_chat", "created_at": time.time(), "status": "failed", "baseline_input": 0, "inputs": [], "comparable": False}
                 result = local_chat_workflow(
                     str(data.get("task", "")),
                     str(data.get("content", "")),
                     str(data.get("model", "auto")),
                 )
             elif self.path == "/api/chat":
+                savings_record = {"source": "chat", "created_at": time.time(), "status": "failed", "baseline_input": 0, "inputs": [], "comparable": False}
                 if data.get("connection_id"):
                     profile = RuntimeConfig().profile(str(data["connection_id"]), True)
                     from model_providers import choose_model as pick_model, response_text as get_text, reported_usage
                     model = pick_model(profile["models"], classify_task(str(data.get("task", "")), str(data.get("content", ""))), str(data.get("model", "auto")))
-                    workflow = run_workflow(str(data.get("task", "")), str(data.get("content", "")))
-                    response = ConnectionClient(profile).chat(model, chat_messages(str(data["task"]), workflow["result"]))
+                    workflow = run_workflow(str(data.get("task", "")), str(data.get("content", "")),
+                                            lambda _kind, text: json.dumps(chat_messages(str(data.get("task", "")).strip(), text), ensure_ascii=False))
+                    savings_record.update(baseline_input=workflow["baseline"]["estimated_tokens"], inputs=[workflow["optimized"]["estimated_tokens"]], comparable=True)
+                    options = {"context_window": RuntimeConfig().settings()["context_window_tokens"]} if profile["protocol"] == "ollama" else {}
+                    response = ConnectionClient(profile).chat(model, chat_messages(str(data["task"]), workflow["result"]), **options)
                     answer = get_text(response)
                     if profile["api_key"]:
                         answer = answer.replace(profile["api_key"], "<REDACTED>")
-                    result = {**workflow, "provider": profile["name"], "model": model, "model_result": answer, "usage": reported_usage(response)}
+                    result = {**workflow, "provider": profile["name"], "model": model, "model_result": answer, "usage": reported_usage(response),
+                              "input_attempts": savings_record["inputs"]}
                 else:
                     result = unified_chat_workflow(
                         str(data.get("task", "")),
@@ -1037,17 +1059,44 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "not found"}, 404)
                 return
         except (ValueError, json.JSONDecodeError) as exc:
+            if savings_record is not None:
+                savings_record["comparable"] = False
             self._send_json({"error": str(exc)}, 400)
             return
         except RuntimeError as exc:
+            if savings_record is not None:
+                attempts = getattr(exc, "input_attempts", None)
+                if attempts is not None:
+                    savings_record.update(inputs=attempts, comparable=True)
+                elif not getattr(exc, "usage", None):
+                    savings_record["comparable"] = False
             self._send_json({"error": str(exc)}, 503)
             return
         except (OSError, sqlite3.Error):
+            if savings_record is not None:
+                savings_record["comparable"] = False
             self._send_json({"error": "无法读写本地配置或任务记录"}, 503)
             return
+        finally:
+            if savings_record is not None:
+                if result is not None:
+                    attempts = result.get("input_attempts")
+                    savings_record.update(status="completed" if result.get("execution", {}).get("ok", True) else "failed",
+                                          baseline_input=result["baseline"]["estimated_tokens"], inputs=attempts or [],
+                                          comparable=attempts is not None,
+                                          output_tokens=result.get("usage", {}).get("completion_tokens") if attempts is not None and len(attempts) == 1 else None)
+                try:
+                    recorded = RuntimeConfig().record_savings("call:" + secrets.token_hex(16), **savings_record)
+                    if result is not None:
+                        result["savings"] = recorded
+                except (OSError, sqlite3.Error, ValueError):
+                    if result is not None:
+                        result["savings"] = {"comparable": False, "error": "用量统计暂不可用"}
         self._send_json(result)
 
     def log_message(self, format: str, *args: Any) -> None:
+        if self.path.startswith("/api/tasks?") and args:
+            args = (str(args[0]).split("?", 1)[0] + " HTTP/1.1",) + args[1:]
         print(f"[TokenFlow] {format % args}")
 
 
@@ -1208,6 +1257,14 @@ def self_check() -> None:
     optimization_self_check()
     from test_controls import self_check as controls_self_check
     controls_self_check()
+    from test_reliability import self_check as reliability_self_check
+    reliability_self_check()
+    from test_acceptance import self_check as acceptance_self_check
+    acceptance_self_check()
+    from test_savings import self_check as savings_self_check
+    savings_self_check()
+    from test_collaboration import self_check as collaboration_self_check
+    collaboration_self_check()
     assert "/api/tokenizer" in "/api/tokenizer"
     print("TokenFlow self-check: PASS")
 

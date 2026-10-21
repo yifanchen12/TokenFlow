@@ -179,15 +179,30 @@ def self_check():
         assert report["summary"]["pipeline_calls"] == 2
         assert report["summary"]["reported_processed_total_tokens"] == 240
         assert report["summary"]["reported_raw_total_tokens"] == 120
+        assert report["summary"]["raw_correct_cases"] == report["summary"]["accepted_correct_cases"] == 1
+        assert report["summary"]["reported_all_total_token_saving_ratio"] == -1
         assert report["quality_gate"]["status"] == "failed"  # full pipeline costs more than one call
-        bad_review = json.dumps({"passed": False, "issues": ["缺少42"], "reason": "回答错误"})
+        bad_review = json.dumps({"passed": False, "issues": ["缺少42"], "reason": "回答错误",
+                                 "evidence": [{"source_quote": "ANSWER = 42", "answer_quote": "wrong", "correction": "42"}]})
         with patch("runtime_config.ConnectionClient.chat", side_effect=[response("42"), response("wrong"), response(bad_review), response("42"), response(review)]):
             repaired = evaluate_pipeline([case], profile, "fixture", min_cases=1, min_saving=0)
         assert repaired["summary"]["pipeline_calls"] == 4 and repaired["summary"]["repair_calls"] == 2
         assert repaired["summary"]["reported_processed_total_tokens"] == 480
+        assert repaired["summary"]["repair_improved_cases"] == 1 and repaired["summary"]["repair_degraded_cases"] == 0
+        with patch("runtime_config.ConnectionClient.chat", side_effect=[response("42"), response("42"), response("invalid review JSON")]):
+            failed = evaluate_pipeline([case], profile, "fixture", min_cases=1, min_saving=0)
+        assert failed["summary"]["completed_pairs"] == 0 and failed["summary"]["accepted_correct_cases"] == 0
+        assert failed["summary"]["raw_correct_cases"] == 1 and failed["summary"]["reported_all_raw_total_tokens"] == 120
+        assert failed["summary"]["reported_pipeline_total_tokens"] == 240 and failed["summary"]["reported_all_total_token_saving_ratio"] == -1
+        from model_providers import ProviderError
+        with patch("runtime_config.ConnectionClient.chat", side_effect=[ProviderError("raw fixture failed", usage={"prompt_tokens":5,"completion_tokens":1}), response("42"), response(review)]):
+            raw_failed = evaluate_pipeline([case], profile, "fixture", min_cases=1, min_saving=0)
+        assert raw_failed["summary"]["raw_correct_cases"] == 0 and raw_failed["summary"]["completed_pairs"] == 0
+        assert raw_failed["summary"]["accepted_correct_cases"] == 1 and raw_failed["summary"]["reported_all_raw_total_tokens"] == 6
         with patch("runtime_config.ConnectionClient.chat", side_effect=[response("42", usage=False), response("42", usage=False), response(review, usage=False)]):
             missing = evaluate_pipeline([case], profile, "fixture", min_cases=1, min_saving=0)
         assert missing["quality_gate"]["status"] == "not_evaluated" and not missing["summary"]["usage_complete"]
+        assert missing["summary"]["reported_all_raw_total_tokens"] is None and missing["summary"]["reported_all_total_token_saving_ratio"] is None
     quality_self_check()
     print("Optimization regression checks: PASS")
 
@@ -205,6 +220,15 @@ def quality_self_check():
     development, holdout = generated[:60], generated[60:]
     assert {c["template"] for c in development}.isdisjoint({c["template"] for c in holdout})
     assert development == generate_cases(20261013, "development")
+    validation = generate_cases(20261020, "validation")
+    assert len(validation) == 60 and validation == generate_cases(20261020, "validation")
+    assert {c["template"] for c in validation}.isdisjoint({c["template"] for c in generated})
+    assert all(sum(c["category"] == category for c in validation) == 10 for category in CATEGORIES)
+    from task_orchestrator import lookup_table
+    for case in validation:
+        if case["category"] == "table":
+            lookup = lookup_table(case["task"], case["content"])
+            assert lookup and not lookup["issues"] and lookup["answer"] == case["expected_answer"]
     for case in generated:
         _validate_case(case, True)
     for fmt in ("txt", "docx", "xlsx"):

@@ -90,7 +90,7 @@ def _xlsx(data: bytes) -> dict:
                 sheets = [(Path(n).stem, n) for n in sorted(
                     (n for n in names if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", n)),
                     key=lambda n: int(re.search(r"sheet(\d+)", n).group(1)))]
-            extracted, total_cells, warnings = [], 0, []
+            extracted, total_cells, warnings, missing_formula_count = [], 0, [], 0
             for title, name in sheets:
                 xml = _read_xml(archive, name, remaining)
                 remaining -= len(xml)
@@ -130,6 +130,7 @@ def _xlsx(data: bytes) -> dict:
                         if formula is not None:
                             if not value:
                                 value = "=" + formula + " [无缓存值]"
+                                missing_formula_count += 1
                             warnings.append("公式使用文件内缓存值，未重新计算；无缓存值时保留公式")
                         cells.extend([""] * (column - len(cells) - 1))
                         cells.append(value)
@@ -145,7 +146,8 @@ def _xlsx(data: bytes) -> dict:
                 extracted.append({"name": title, "text": output.getvalue().rstrip("\n"),
                                   "rows": len(values), "columns": width})
             text = "\n\n".join(("[工作表：" + s["name"] + "]\n" if len(extracted) > 1 else "") + s["text"] for s in extracted)
-            return {"text": text, "sheets": extracted, "warnings": list(dict.fromkeys(warnings))}
+            return {"text": text, "sheets": extracted, "warnings": list(dict.fromkeys(warnings)),
+                    "missing_formula_count": missing_formula_count}
     except DocumentParseError:
         raise
     except (ValueError, KeyError, OSError, RuntimeError, zipfile.BadZipFile, ElementTree.ParseError) as exc:
@@ -159,28 +161,56 @@ def _pdf(data: bytes) -> dict:
         reader = PdfReader(io.BytesIO(data))
         pages = [page.extract_text() or "" for page in reader.pages]
         scanned = [i for i, text in enumerate(pages) if not text.strip()]
-        if len(scanned) > 30:
-            raise DocumentParseError("扫描 PDF 最多识别 30 页，请拆分后处理")
-        metadata = {"method": "pdf_text", "pages": len(pages), "ocr_pages": []}
-        if scanned:
-            try:
-                import fitz
-                from local_ocr import recognize, OCRError
-            except ImportError as exc:
+        metadata = {"method": "pdf_text", "pages": len(pages), "ocr_pages": [], "warnings": [], "ocr_details": []}
+        try:
+            import fitz
+        except ImportError as exc:
+            if scanned:
                 raise DocumentParseError("扫描 PDF 需要本地 OCR 及可选依赖 PyMuPDF") from exc
+            metadata["warnings"].append("未安装 PyMuPDF，未检查混合 PDF 中的图片正文")
+        else:
+            from local_ocr import recognize, OCRError
             with fitz.open(stream=data, filetype="pdf") as pdf:
+                for index, page in enumerate(pdf):
+                    if index in scanned:
+                        continue
+                    blocks = [b for b in page.get_text("blocks") if b[6] == 0]
+                    for item in page.get_image_info():
+                        region = fitz.Rect(item["bbox"]) & page.rect
+                        if region.get_area() < page.rect.get_area() * .05:
+                            continue  # Small logos do not justify another recognition pass.
+                        existing = sum(len(b[4].strip()) for b in blocks if
+                                       (fitz.Rect(b[:4]) & region).get_area() > fitz.Rect(b[:4]).get_area() * .5)
+                        if existing < 20:
+                            scanned.append(index)
+                            break
+                if len(scanned) > 30:
+                    raise DocumentParseError("需 OCR 的 PDF 最多 30 页，请拆分后处理")
                 for index in scanned:
                     page = pdf[index]
                     zoom = min(2, 3000 / max(page.rect.width, page.rect.height))
                     pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
                     try:
-                        pages[index] = recognize(pix.tobytes("png"))["text"]
+                        recognized = recognize(pix.tobytes("png"))
+                        original = pages[index].splitlines()
+                        seen = {re.sub(r"\s+", "", line).casefold() for line in original}
+                        added = []
+                        for line in recognized["text"].splitlines():
+                            key = re.sub(r"\s+", "", line).casefold()
+                            if key and key not in seen:
+                                added.append(line)
+                                seen.add(key)
+                        pages[index] = "\n".join(original + added)
+                        metadata["ocr_details"].append({"page": index + 1, "mean_confidence": recognized.get("mean_confidence"),
+                                                        "added_lines": len(added)})
                     except OCRError as exc:
                         # Blank pages stay blank; unavailable OCR never silently loses a scan.
                         if "未识别出文字" not in str(exc):
                             raise DocumentParseError(f"第 {index + 1} 页：{exc}") from exc
+                        metadata["warnings"].append(f"第 {index + 1} 页图像未识别出文字，请核对原页")
                     metadata["ocr_pages"].append(index + 1)
-            metadata["method"] = "pdf_text_and_local_ocr"
+            if scanned:
+                metadata["method"] = "pdf_text_and_local_ocr"
         return {"text": "\n".join(pages).strip(), **metadata}
     except ImportError as exc:
         raise DocumentParseError("PDF 解析需要可选依赖 pypdf") from exc
@@ -190,7 +220,7 @@ def _pdf(data: bytes) -> dict:
         raise DocumentParseError("PDF 文本提取失败") from exc
 
 
-PARSER_CACHE_VERSION = 1
+PARSER_CACHE_VERSION = 2
 
 
 def parse_document_bytes(name: str, data: bytes, *, use_cache: bool = False) -> dict[str, Any]:

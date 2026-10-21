@@ -215,23 +215,30 @@ class OpenAICompatibleProvider:
         data = value.get("data", [])
         return [item["id"] for item in data if isinstance(item, dict) and isinstance(item.get("id"), str)]
 
-    def chat(self, model: str, messages: list[dict[str, Any]], max_tokens: int = 1024, *, context_window: int | None = None) -> dict[str, Any]:
+    def chat(self, model: str, messages: list[dict[str, Any]], max_tokens: int = 1024, *, context_window: int | None = None, response_schema: dict | None = None) -> dict[str, Any]:
         if self.spec.name == "omniroute":
             model = omniroute_model(model)
         if not model or any(char.isspace() for char in model):
             raise ProviderError("模型名不能为空且不能包含空格")
         if context_window is not None:
-            if self.spec.name != "ollama" or not isinstance(context_window, int) or not 2048 <= context_window <= 131072:
+            allowed = self.spec.name == "ollama" or self.spec.name == "saved_connection" and is_loopback_url(self.base_url)
+            if not allowed or not isinstance(context_window, int) or not 2048 <= context_window <= 131072:
                 raise ProviderError("context_window 仅支持 Ollama，范围为 2048 至 131072")
             if not self.base_url or not self.base_url.endswith("/v1"):
                 raise ProviderError("Ollama 原生评测需要以 /v1 结尾的配置地址")
-            response = self._request("/api/chat", {"model": model, "messages": messages, "stream": False, "think": False,
-                                     "options": {"num_ctx": context_window, "num_predict": max_tokens, "temperature": 0}},
-                                     base_url=self.base_url[:-3])
+            payload = {"model": model, "messages": messages, "stream": False, "think": False,
+                       "options": {"num_ctx": context_window, "num_predict": max_tokens, "temperature": 0}}
+            if response_schema is not None:
+                if not isinstance(response_schema, dict) or len(json.dumps(response_schema)) > 16000:
+                    raise ProviderError("输出结构约束无效或过大")
+                payload["format"] = response_schema
+            response = self._request("/api/chat", payload, base_url=self.base_url[:-3])
             usage = {"prompt_tokens": response.get("prompt_eval_count"), "completion_tokens": response.get("eval_count")}
             if all(isinstance(value, int) for value in usage.values()):
                 usage["total_tokens"] = sum(usage.values())
             return {"choices": [{"message": response.get("message", {}), "finish_reason": response.get("done_reason")}], "usage": usage}
+        if response_schema is not None:
+            raise ProviderError("当前连接未启用原生结构化输出")
         return self._request(
             "/chat/completions",
             {"model": model, "messages": messages, "max_tokens": max_tokens, "stream": False},
@@ -404,6 +411,9 @@ def self_check() -> None:
 
 
 def unified_chat(task: str, content: str, task_type: str, provider: str = "auto", model: str = "auto") -> dict[str, Any]:
+    from token_counter import count_tokens
+    input_tokens = count_tokens(json.dumps(chat_messages(task, content), ensure_ascii=False))["count"]
+    input_attempts = []
     order = [item.strip() for item in os.environ.get("TOKENFLOW_PROVIDER_ORDER", "freetoken,ollama,laya,cloud").split(",") if item.strip()]
     candidates = [provider] if provider != "auto" else _auto_candidates(order)
     if provider == "auto" and not candidates:
@@ -418,9 +428,12 @@ def unified_chat(task: str, content: str, task_type: str, provider: str = "auto"
                 model = omniroute_model(model)
             client = OpenAICompatibleProvider(name, timeout=90 if name == "omniroute" else 20)
             selected = model if name == "omniroute" and model != "auto" else choose_model(client.models(), task_type, model)
+            input_attempts.append(input_tokens)
             response = client.chat(selected, chat_messages(task, content))
             return {"provider": name, "model": selected, "result": response_text(response), "base_url": client.base_url,
-                    "usage": reported_usage(response), "usage_source": "provider_reported"}
+                    "usage": reported_usage(response), "usage_source": "provider_reported", "input_attempts": input_attempts}
         except ProviderError as exc:
             errors.append(f"{name}: {exc}")
-    raise ProviderError("没有可用的模型提供商：" + "；".join(errors))
+    failure = ProviderError("没有可用的模型提供商：" + "；".join(errors))
+    failure.input_attempts = input_attempts
+    raise failure

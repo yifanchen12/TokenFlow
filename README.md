@@ -35,7 +35,7 @@ is never displayed as completed.
 ### Saved connections and detected models
 
 Open **Provider and Harness configuration** in the console to add named
-connections with a Base URL, API Key and protocol (Chat Completions, Responses,
+connections with a Base URL, API Key and protocol (Chat Completions, local Ollama, Responses,
 or Anthropic Messages). Saving probes `/models`; the current catalog and previous
 model records persist across restarts. Endpoints without discovery support can
 use manually registered IDs. Failed discovery preserves existing records and
@@ -316,7 +316,7 @@ Released under the MIT License. See [LICENSE](LICENSE).
 
 ## Local OCR / 本地文字识别
 
-PNG/JPEG/WebP/BMP use optional offline RapidOCR (Chinese/English, CPU). PDF pages with text are extracted directly; only pages without text use local OCR via PyMuPDF, up to 30 scanned pages per file. Recognition text is editable before task submission. OCR makes no cloud calls and does not reserve GPU memory. Optional dependencies: `rapidocr_onnxruntime==1.2.3`, `Pillow`, `PyMuPDF`. The build bundles RapidOCR configs and model files when installed.
+PNG/JPEG/WebP/BMP use optional offline RapidOCR (Chinese/English, CPU). PDF extraction supplements blank pages and mixed pages with large image regions containing little extractable text using PyMuPDF and OCR, up to 30 pages per file. Existing text and new recognition lines are deduplicated; results include OCR pages, confidence and warnings. Small logos are skipped. This layout heuristic still requires checking the extracted content. Without PyMuPDF, text pages warn that image content was not checked; scans fail explicitly. OCR makes no cloud calls and does not reserve GPU memory. Optional dependencies: `rapidocr_onnxruntime==1.2.3`, `Pillow`, `PyMuPDF`. The build bundles RapidOCR configs and model files when installed.
 
 分类摘要角色可显式选择云端 API，调用统计会按实际连接归类。可从本机 `BUPT_API_BASE_URL` / `BUPT_API_KEY` 导入北邮连接。DSH headless 通过临时补丁绑定模型；Codex 原生登录使用 HTTPS，模型目录可由 CLI `model/list` 检测，避免使用不可调用的应用缓存模型。
 ## Input fidelity, task recovery and full-pipeline evaluation
@@ -385,3 +385,54 @@ Both commands are offline. Task-context mode uses isolated databases and the act
 Search results are previews (`sources_scope=search_preview`), and no longer exclude lexical matches elsewhere in the source. Python extraction includes statically resolvable module bindings/imports/helper functions; dynamic lookup, nested definitions, complex writes or oversized selections fall back to the source.
 
 Evaluators and orchestration share complete-text validation: truncated, pending-tool, empty or malformed responses are not complete answer pairs; returned usage is retained. Reports separate source kinds and categories. Each source/category must meet the same accuracy/drop thresholds and at least 10 complete pairs (`--min-category-cases`); a failing category blocks the overall gate, while undersized groups remain not evaluated.
+
+## Reliable statistics, review preflight and history queries
+
+Table sums and medians use Decimal precision derived from the values and row count, with a 4096-digit/exponent safety bound. `mean_exact=false` identifies rounded means. Missing formula caches and mixed nonnumeric values produce partial aggregate results marked `needs_review`; row/column counts remain available. Formula values are never recalculated by TokenFlow, and parsing warnings travel with uploaded and path-based tasks.
+
+Before the first model call, the workflow checks the minimum full-source review budget/context. Planning and later calls reserve review capacity again. Dynamic output, estimation errors and Harness internals retain their existing limits. The raw visible-prompt baseline uses the executor's message framing (`baseline_scope=executor_visible_prompt`); `metrics.by_role` records estimates and reported usage by purpose.
+
+History supports task-text and status filters plus pagination independently of the active run. Protected `GET /api/tasks` accepts `limit` (1–100, default 20), `offset` (0–1000000), `query` (up to 200 characters, literal substring), and `status`. Responses include `total`, `offset`, `limit`, `has_more`; ID lookup stays compatible.
+
+Full-pipeline evaluation supports native Ollama settings: thinking off, temperature 0, matching context and model for raw and all workflow calls. The explicit local Ollama protocol uses these settings in ordinary application calls too; legacy loopback Chat Completions profiles can opt into native evaluation without changing their saved protocol:
+
+```powershell
+python eval_workflow.py --pipeline --ollama-native --connection <local-ollama-id> --model qwen3.5:9b --ollama-context 32768 --cases tmp/synthetic-eval/holdout.json --report tmp/pipeline-ollama.json
+```
+
+Completed-pair accuracy excludes failed workflows: also inspect `accepted_correct_cases / cases`. `reported_all_raw_*`, `reported_pipeline_*` and `reported_all_*_token_saving_ratio` include failed-call costs and preserve unknown usage. See the [2026-10-15 validation report (Chinese)](docs/reports/reliability-2026-10-15.zh-CN.md).
+
+## Structured acceptance and exact table lookups
+
+Select **Ollama (local)** for loopback addresses ending in `/v1`. Daily tasks and evaluation share the native adapter, thinking off, temperature 0 and the configured context capacity. Planning and review request bounded JSON schemas; client checks still reject invalid or inconsistent verdicts. Advanced single calls retain their own output cap. Newly discovered Ollama connections use this protocol; existing saved profiles and Harness binding rules remain unchanged.
+
+Review separates the candidate answer from source material and review metadata. One budgeted repair requires concrete quotes present in both source and candidate. Invalid review output, unsupported corrections or failed rechecks retain the answer for review. After a repair, the result panel can show both candidates and their verdicts. Valid structure and matching quotes do not establish semantic correctness.
+
+Narrow explicit CSV/TSV queries can complete locally with zero model calls, for example `CSV表格中 "K 17" 的 free_stock 值是多少？只回答数字。`. The first column must identify one row and the requested column must be unique. Duplicate keys, missing columns, empty targets or uncached formulas need review. Ambiguous, multi-sheet or multi-step requests retain the existing workflow.
+
+Pipeline reports include candidate history, first/final candidate correctness, repair improvement/degradation counts and stage error codes. Generate a separate 60-case synthetic validation family (ten cases per category) into a new directory:
+
+```powershell
+python scripts/generate_eval_cases.py --validation-only --seed 20261020 --output-dir tmp/acceptance-validation
+python eval_workflow.py --cases tmp/acceptance-validation/validation.json --offline-task-context --report tmp/acceptance-context.json
+```
+
+Offline checks establish labelled-fact retention only. See the [2026-10-20 implementation and evaluation report (Chinese)](docs/reports/acceptance-2026-10-20.zh-CN.md) for both model comparisons and unchanged gates.
+
+## Lifetime input savings and task progress
+
+The home page highlights recorded net visible-input reductions and their reference dollar value using [GPT-6.1 Sol Standard pricing](https://developers.openai.com/api/docs/models/gpt-6.1-sol), checked on 2026-10-20: $2 per million uncached input tokens, or $4 for an entire request exceeding 272K input tokens. The original-input baseline and each workflow call are priced separately. Planning, execution, review, repair and known routing retries are deducted. Unsuccessful operations earn no positive baseline; negative totals display as extra input cost.
+
+This is an **estimated input-only comparison, not an invoice**. Cached input ($0.10/M) and output ($10/M) are reference rates in the details; unknown counterfactual outputs, hidden Harness calls and local inference volume are not invented as savings. Incomplete comparisons are counted separately. A numeric-only ledger in `connections.db` survives restarts and history/cache cleanup. Stable operation IDs prevent duplicate credits. Recoverable retained tasks can be backfilled; preprocessing previews and isolated evaluation databases do not become personal usage. `GET /api/config/savings` uses the existing loopback/session protection.
+
+Running tasks show the current stage, elapsed time, a spinner and an indeterminate bar. Cancellation, reconnection and terminal states remain distinct; no model completion percentage is fabricated. Refresh recovers elapsed time, phone layouts keep the main action on one row, and reduced-motion preferences disable animation.
+
+## Edge/cloud collaboration
+
+The workbench offers hybrid, local-only and configured-role policies, with a no-model dispatch preview before submission. Simplified connection controls assign preparation and complex work; advanced controls retain separate planner/executor/reviewer choices. Existing saved roles remain intact; older settings retain configured-role behavior until another policy is selected.
+
+Plans support up to four sequential steps with `id`, `depends_on`, `input_scope` (`source`, `dependencies`, `both`) and `expected_output`. Each step receives its requested source and prerequisite outputs rather than every earlier result. Legacy plans remain readable. Final acceptance retains the original source; summaries are planning aids. Actual location, dependencies, duration, intermediate output and escalation appear in the result panel.
+
+A failed local model step can escalate once to the configured complex executor when hybrid mode and the remaining call/token budget permit, while reserving acceptance. Failed calls and escalation count toward usage. Cloud failures preserve partial results without labelling them final completion. Local-only mode rejects cloud connections and native Harnesses; deterministic tasks still need no model. Location follows saved connection metadata; native execution and hidden usage remain explicitly uncertain.
+
+`POST /api/tasks/preview` requires the existing loopback/session protection and makes no model calls. `collaboration_mode` participates in task receipt identity. Evaluation records step handoffs and actual locations; same-model evaluation keeps configured-role semantics. Run `python test_collaboration.py` for focused routing, handoff, budget, partial-result, local-only and protected-preview checks. Synthetic fixtures and real model results are reported separately; collaboration is not a guarantee of correctness or cost savings.

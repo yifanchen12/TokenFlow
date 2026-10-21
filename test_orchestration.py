@@ -168,7 +168,8 @@ def self_check():
         assert local_run["status"] == "completed" and local_run["metrics"]["local_calls"] == 1 and local.call_count == 1
         assert "本地摘要：关键事实42" in calls[0][1] and "背景说明。" * 100 not in calls[0][1]
         assert "背景说明。" * 100 in calls[-1][1]  # reviewer checks original source
-        responses = iter([json.dumps(one), "wrong result", json.dumps({"passed": False, "issues": ["缺少42"], "reason": "缺少必要事实"}),
+        responses = iter([json.dumps(one), "wrong result", json.dumps({"passed": False, "issues": ["缺少42"], "reason": "缺少必要事实",
+                          "evidence": [{"source_quote": "事实42", "answer_quote": "wrong result", "correction": "补充事实42"}]}),
                           "correct result42", json.dumps({"passed": True, "issues": [], "reason": "已修正缺失的42"})])
         with patch.object(TaskRun, "local_target", return_value=None), patch.object(tf, "execute_configured_harness", side_effect=lambda *a, **kw: {"ok": True, "output": next(responses)}):
             repaired = TaskRun(store, "分析资料", "事实42").execute()

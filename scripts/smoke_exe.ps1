@@ -53,6 +53,16 @@ try {
     if (-not $page.Contains('orchestrateTask') -or -not $page.Contains('connectionSetup')) { throw 'EXE lacks orchestration UI' }
     if (-not $page.Contains('cancelRunningTask') -or -not $page.Contains('viewedRun')) { throw 'EXE lacks cancellation/history recovery UI' }
     if (-not $page.Contains('budgetFields') -or -not $page.Contains('storageSetup') -or -not $page.Contains('exportDraft') -or -not $page.Contains('request_id')) { throw 'EXE lacks budget/storage/receipt UI' }
+    if (-not $page.Contains('historyQuery') -or -not $page.Contains('historyStatus') -or -not $page.Contains('changeHistoryPage')) { throw 'EXE lacks paged history UI' }
+    if (-not $page.Contains('candidateHistory') -or -not $page.Contains('value="ollama"')) { throw 'EXE lacks candidate history/native Ollama UI' }
+    if (-not $page.Contains('savingsDashboard') -or -not $page.Contains('taskProgress') -or -not $page.Contains('progress-spinner')) { throw 'EXE lacks savings/progress UI' }
+    if (-not $page.Contains('collaborationMode') -or -not $page.Contains('stepBoard') -or -not $page.Contains('quickComplex')) { throw 'EXE lacks collaboration UI' }
+    $tfPreviewBody = [Text.Encoding]::UTF8.GetBytes((@{task='统计字符数'; content='abc'; collaboration_mode='local_only'} | ConvertTo-Json))
+    $tfDispatch = Invoke-RestMethod "$tfBase/api/tasks/preview" -Method Post -Headers $tfHeaders -ContentType 'application/json; charset=utf-8' -Body $tfPreviewBody -TimeoutSec 5
+    if (-not $tfDispatch.ready -or -not $tfDispatch.deterministic -or $tfDispatch.routes.Count -ne 1 -or $tfDispatch.routes[0].location -ne 'local') { throw 'Packaged deterministic dispatch failed' }
+    $tfMissingLocalBody = [Text.Encoding]::UTF8.GetBytes((@{task='分析资料并比较方案'; content='test'; collaboration_mode='local_only'} | ConvertTo-Json))
+    $tfMissingLocal = Invoke-RestMethod "$tfBase/api/tasks/preview" -Method Post -Headers $tfHeaders -ContentType 'application/json; charset=utf-8' -Body $tfMissingLocalBody -TimeoutSec 5
+    if ($tfMissingLocal.ready -or $tfMissingLocal.issues.Count -eq 0) { throw 'Packaged local-only preview failed to reject missing connection' }
     $tfDependencySource = "REFUND_DAYS = 14`n`n" + ("# unrelated`n" * 300) + "def calculate_refund():`n    return REFUND_DAYS`n"
     $tfDependencyBody = @{task='calculate_refund 的返回值是多少？只回答数字。'; content=$tfDependencySource} | ConvertTo-Json
     $tfDependency = Invoke-RestMethod "$tfBase/api/run" -Method Post -Headers $tfHeaders -ContentType 'application/json; charset=utf-8' -Body $tfDependencyBody -TimeoutSec 5
@@ -84,11 +94,34 @@ try {
         Start-Sleep -Milliseconds 100
     }
     if ($result.status -ne 'completed' -or $result.metrics.model_calls -ne 0 -or $result.acceptance.status -ne 'passed') { throw ('Deterministic task failed: ' + ($result | Select-Object status,error,acceptance,metrics | ConvertTo-Json -Depth 4 -Compress)) }
+    $tfPartialBody = [Text.Encoding]::UTF8.GetBytes((@{task='统计表格总和'; content="id,value`nA,10`nB,=5*4 [无缓存值]`n"} | ConvertTo-Json))
+    $tfPartial = Invoke-RestMethod "$tfBase/api/tasks/start" -Method Post -Headers $tfHeaders -ContentType 'application/json; charset=utf-8' -Body $tfPartialBody -TimeoutSec 5
+    for ($i = 0; $i -lt 50; $i++) {
+        $tfPartialResult = Invoke-RestMethod "$tfBase/api/tasks/$($tfPartial.id)" -Headers $tfHeaders -TimeoutSec 5
+        if ($tfPartialResult.status -ne 'running') { break }
+        Start-Sleep -Milliseconds 100
+    }
+    if ($tfPartialResult.status -ne 'needs_review' -or $tfPartialResult.acceptance.status -ne 'failed' -or $tfPartialResult.metrics.model_calls -ne 0) { throw 'Packaged partial statistics incorrectly accepted' }
+    $tfLookupBody = [Text.Encoding]::UTF8.GetBytes((@{task='CSV表格中 "K 17" 的 free_stock 值是多少？只回答数字。'; content="code,free_stock`nK170,80`n`"K 17`",43`n"} | ConvertTo-Json))
+    $tfLookup = Invoke-RestMethod "$tfBase/api/tasks/start" -Method Post -Headers $tfHeaders -ContentType 'application/json; charset=utf-8' -Body $tfLookupBody -TimeoutSec 5
+    for ($i = 0; $i -lt 50; $i++) {
+        $tfLookupResult = Invoke-RestMethod "$tfBase/api/tasks/$($tfLookup.id)" -Headers $tfHeaders -TimeoutSec 5
+        if ($tfLookupResult.status -ne 'running') { break }
+        Start-Sleep -Milliseconds 100
+    }
+    if ($tfLookupResult.status -ne 'completed' -or $tfLookupResult.result -ne '43' -or $tfLookupResult.metrics.model_calls -ne 0) { throw 'Packaged exact lookup failed' }
+    $tfNativeBody = @{id='smoke-native'; name='Native fixture'; base_url='http://127.0.0.1:9/v1'; protocol='ollama'; models=@('smoke-model')} | ConvertTo-Json
+    $tfNative = Invoke-RestMethod "$tfBase/api/config/connection" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body $tfNativeBody -TimeoutSec 5
+    if ($tfNative.protocol -ne 'ollama' -or -not $tfNative.local) { throw 'Packaged native Ollama protocol failed' }
+    $tfHistory = Invoke-RestMethod "$tfBase/api/tasks?limit=1&status=needs_review" -Headers $tfHeaders -TimeoutSec 5
+    if ($tfHistory.total -ne 1 -or $tfHistory.runs[0].id -ne $tfPartial.id -or $tfHistory.has_more) { throw 'Packaged history pagination/filter failed' }
     $tfDuplicate = Invoke-RestMethod "$tfBase/api/tasks/start" -Method Post -Headers $tfHeaders -ContentType 'application/json; charset=utf-8' -Body $tfTaskBody -TimeoutSec 5
     if ($tfDuplicate.id -ne $run.id -or -not $tfDuplicate.reused) { throw 'Packaged task receipt failed' }
+    $tfSavings = Invoke-RestMethod "$tfBase/api/config/savings" -Headers $tfHeaders -TimeoutSec 5
+    if ($tfSavings.records -ne 3 -or $tfSavings.counted_records -ne 3 -or $tfSavings.saved_input_tokens -le 0 -or $tfSavings.price.model -ne 'gpt-6.1-sol') { throw 'Packaged savings or receipt deduplication failed' }
     $tfDraft = Invoke-RestMethod "$tfBase/api/tasks/eval-draft" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body (@{id=$run.id} | ConvertTo-Json) -TimeoutSec 5
     if ($tfDraft.label_status -ne 'draft' -or $tfDraft.expected_answer -or -not $tfDraft.content.Contains('a,2')) { throw 'Packaged evaluation draft failed' }
-    Invoke-RestMethod "$tfBase/api/config/settings" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{"max_task_tokens":48000,"output_limits":{"planner":1024}}' -TimeoutSec 5 | Out-Null
+    Invoke-RestMethod "$tfBase/api/config/settings" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{"max_task_tokens":48000,"output_limits":{"planner":1024},"collaboration_mode":"local_only"}' -TimeoutSec 5 | Out-Null
     Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     if (-not $tfProcess.WaitForExit(10000)) { throw 'EXE did not exit after shutdown' }
     $tfProcess = Start-Process -FilePath $tfPath -WindowStyle Hidden -PassThru
@@ -105,16 +138,21 @@ try {
     if ($reopened.Count -ne 1 -or -not $reopened[0].key_configured -or ($config | ConvertTo-Json -Depth 8).Contains('smoke-connection-key')) { throw 'Restart persistence or key protection failed' }
     $restoredRun = Invoke-RestMethod "$tfBase/api/tasks/$($run.id)" -Headers $tfHeaders -TimeoutSec 5
     if ($restoredRun.status -ne 'completed') { throw 'Task record lost after restart' }
+    $tfRestoredSavings = Invoke-RestMethod "$tfBase/api/config/savings" -Headers $tfHeaders -TimeoutSec 5
+    if ($tfRestoredSavings.records -ne $tfSavings.records -or $tfRestoredSavings.saved_input_usd -ne $tfSavings.saved_input_usd) { throw 'Savings lost or duplicated after restart' }
     if ($config.max_task_tokens -ne 48000 -or $config.output_limits.planner -ne 1024) { throw 'Budget settings lost after restart' }
+    if ($config.collaboration_mode -ne 'local_only') { throw 'Collaboration policy lost after restart' }
     $tfReceipt = Invoke-RestMethod "$tfBase/api/tasks/request/exe-smoke-request-0001" -Headers $tfHeaders -TimeoutSec 5
     if ($tfReceipt.id -ne $run.id) { throw 'Receipt lost after restart' }
     $tfStorage = Invoke-RestMethod "$tfBase/api/config/storage" -Headers $tfHeaders -TimeoutSec 5
     if ($tfStorage.cache.parsed_files -lt 1 -or $tfStorage.cache.content_bytes -le 0) { throw 'Cache capacity unavailable' }
     Invoke-RestMethod "$tfBase/api/tasks/delete" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body (@{id=$run.id} | ConvertTo-Json) -TimeoutSec 5 | Out-Null
+    $tfRetainedSavings = Invoke-RestMethod "$tfBase/api/config/savings" -Headers $tfHeaders -TimeoutSec 5
+    if ($tfRetainedSavings.saved_input_usd -ne $tfSavings.saved_input_usd -or $tfRetainedSavings.records -ne 3) { throw 'History cleanup erased savings' }
     Invoke-RestMethod "$tfBase/api/config/storage/clear" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     if (-not $tfProcess.WaitForExit(10000)) { throw 'Restarted EXE did not exit' }
-    Write-Output 'EXE smoke: PASS (startup, Python dependencies, protected keys, OCR cache, zero-call task, receipts, budgets, draft export, storage, restart, shutdown)'
+    Write-Output 'EXE smoke: PASS (startup, Python dependencies, protected keys, OCR cache, partial statistics, history filters, exact lookup, native Ollama, candidate UI, savings/progress UI, durable savings, zero-call task, receipts, budgets, draft export, storage, restart, shutdown)'
 } finally {
     if ($tfProcess -and -not $tfProcess.HasExited) {
         try { Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 2 | Out-Null } catch {}

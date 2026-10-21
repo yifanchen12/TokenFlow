@@ -9,6 +9,7 @@ import re
 import sqlite3
 import time
 import uuid
+from decimal import Decimal
 from pathlib import Path
 from contextlib import contextmanager, closing
 from typing import Any
@@ -17,9 +18,64 @@ from model_providers import OpenAICompatibleProvider, ProviderError, ProviderSpe
 from tokenflow_store import _db_path
 
 MODEL_RE = re.compile(r"[A-Za-z0-9._:/+-]{1,160}")
-PROTOCOLS = {"openai", "responses", "anthropic"}
+PROTOCOLS = {"openai", "responses", "anthropic", "ollama"}
 HARNESS_PROTOCOLS = {"codex": "responses", "claude": "anthropic", "dsh": "openai"}
 ROLES = ("local", "planner", "executor", "reviewer")
+
+SAVINGS_PRICE = {"model": "gpt-6.1-sol", "currency": "USD", "tier": "Standard",
+                 "input_per_million": "2", "cached_input_per_million": "0.10", "output_per_million": "10",
+                 "long_context_threshold": 272000, "long_input_per_million": "4",
+                 "checked_at": "2026-10-20", "url": "https://developers.openai.com/api/docs/models/gpt-6.1-sol"}
+
+
+def input_cost(tokens: int) -> Decimal:
+    """Reference Standard uncached text price; not a provider invoice."""
+    if type(tokens) is not int or not 0 <= tokens <= 1_000_000_000:
+        raise ValueError("输入 Token 须为有效非负整数")
+    return Decimal(tokens) * (4 if tokens > 272000 else 2) / 1_000_000
+
+
+def _write_savings(db, identity: str, *, source: str, created_at: float, status: str,
+                   baseline_input: int, inputs: list[int], output_tokens: int | None = None, comparable: bool = True):
+    if not re.fullmatch(r"[A-Za-z0-9:._-]{1,160}", identity) or source not in {"task", "chat", "local_chat", "harness"}:
+        raise ValueError("统计来源无效")
+    if status not in {"completed", "failed", "cancelled", "needs_review", "interrupted"}:
+        raise ValueError("仅记录已结束操作")
+    if not isinstance(inputs, list) or len(inputs) > 128 or type(comparable) is not bool:
+        raise ValueError("统计输入无效")
+    baseline_cost = input_cost(baseline_input)
+    spent = sum((input_cost(n) for n in inputs), Decimal(0))
+    if output_tokens is not None:
+        input_cost(output_tokens)  # Same non-negative integer validation; not priced as input.
+    if status != "completed":
+        baseline_input, baseline_cost = 0, Decimal(0)
+    db.execute("""INSERT INTO savings VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                  ON CONFLICT(id) DO UPDATE SET status=excluded.status,baseline_tokens=excluded.baseline_tokens,
+                  input_tokens=excluded.input_tokens,output_tokens=excluded.output_tokens,
+                  baseline_micro_usd=excluded.baseline_micro_usd,input_micro_usd=excluded.input_micro_usd,
+                  comparable=excluded.comparable,calls=excluded.calls""",
+               (identity, source, created_at, status, baseline_input, sum(inputs), output_tokens,
+                int(baseline_cost * 1_000_000), int(spent * 1_000_000), int(comparable), len(inputs)))
+    return {"comparable": comparable, "saved_input_tokens": baseline_input - sum(inputs) if comparable else None,
+            "saved_input_usd": str(baseline_cost - spent) if comparable else None}
+
+
+def _run_savings(db, run: dict):
+    if run.get("status") in {"running", "cancelling"}:
+        return
+    metrics, calls = run.get("metrics", {}), run.get("calls", [])
+    inputs = [c.get("estimated_input_tokens") for c in calls]
+    comparable = (metrics.get("baseline_scope") == "executor_visible_prompt" and
+                  type(metrics.get("single_raw_input_estimate")) is int and
+                  len(calls) == metrics.get("model_calls") and
+                  all(type(n) is int and n >= 0 for n in inputs) and
+                  sum(inputs) == metrics.get("estimated_input_tokens") and
+                  not any(c.get("target", "").startswith("native:") for c in calls))
+    return _write_savings(db, "task:" + run["id"], source="task", created_at=run.get("created_at", time.time()),
+                   status=run.get("status", "interrupted"),
+                   baseline_input=metrics["single_raw_input_estimate"] if comparable else 0,
+                   inputs=inputs if all(type(n) is int and n >= 0 for n in inputs) else [], comparable=comparable,
+                   output_tokens=metrics.get("reported_output_tokens") if metrics.get("usage_complete") else None)
 
 
 def validate_url(value: str) -> str:
@@ -149,10 +205,22 @@ class RuntimeConfig:
                 CREATE TABLE IF NOT EXISTS settings(id TEXT PRIMARY KEY, data TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, data TEXT NOT NULL, updated REAL NOT NULL);
                 CREATE TABLE IF NOT EXISTS task_requests(id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, run_id TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS savings(
+                    id TEXT PRIMARY KEY, source TEXT NOT NULL, created REAL NOT NULL, status TEXT NOT NULL,
+                    baseline_tokens INTEGER NOT NULL, input_tokens INTEGER NOT NULL, output_tokens INTEGER,
+                    baseline_micro_usd INTEGER NOT NULL, input_micro_usd INTEGER NOT NULL,
+                    comparable INTEGER NOT NULL, calls INTEGER NOT NULL);
             """)
             if os.name != "nt":
                 self.path.chmod(0o600)
             with db:
+                if not db.execute("SELECT 1 FROM settings WHERE id='savings:initialized'").fetchone():
+                    for row in db.execute("SELECT data FROM runs"):
+                        run = json.loads(row[0])
+                        if run.get("status") in {"running", "cancelling"} and run.get("process_id") != os.getpid():
+                            run = {**run, "status": "interrupted"}
+                        _run_savings(db, run)
+                    db.execute("INSERT INTO settings VALUES('savings:initialized',?)", (str(time.time()),))
                 yield db
         finally:
             db.close()
@@ -183,8 +251,10 @@ class RuntimeConfig:
             raise ValueError("连接名称须为 1 至 80 个字符")
         protocol = data.get("protocol", "openai")
         if not isinstance(protocol, str) or protocol not in PROTOCOLS:
-            raise ValueError("请选择 Chat Completions、Responses 或 Anthropic Messages 协议")
+            raise ValueError("请选择受支持的连接协议")
         url = validate_url(str(data.get("base_url", "")))
+        if protocol == "ollama" and (not is_loopback_url(url) or not url.endswith("/v1")):
+            raise ValueError("Ollama 原生连接须为本机回环地址，并以 /v1 结尾")
         if data.get("local") is True and not is_loopback_url(url):
             raise ValueError("本机直接推理只能使用回环地址")
         models = clean_models(data.get("models", []))
@@ -203,7 +273,7 @@ class RuntimeConfig:
                 encrypted = ""
             changed = old.get("base_url") != url or old.get("protocol") != protocol
             record = {"id": identity, "name": name, "base_url": url, "protocol": protocol,
-                      "local": is_loopback_url(url) and data.get("local", False) is True,
+                      "local": is_loopback_url(url) and (protocol == "ollama" or data.get("local", False) is True),
                       "models": models, "model_history": list(dict.fromkeys(old.get("model_history", []) + old.get("models", []) + models)),
                       "discovered_at": None if changed else old.get("discovered_at"),
                       "discovery_error": "", "updated_at": time.time()}
@@ -232,7 +302,7 @@ class RuntimeConfig:
     def settings(self) -> dict:
         defaults = {"bindings": {h: {"connection": "native", "model": "auto"} for h in ("codex", "claude", "dsh")},
                     "roles": {"local": "auto", "planner": "native:codex", "executor": "native:codex", "reviewer": "native:codex"},
-                    "role_models": {r: "auto" for r in ROLES}, "max_calls": 6,
+                    "role_models": {r: "auto" for r in ROLES}, "max_calls": 6, "collaboration_mode": "hybrid",
                     "max_task_tokens": 64000, "context_window_tokens": 32768,
                     "output_limits": {"local": 1024, "planner": 1536, "executor": 2400, "reviewer": 1024},
                     "history_max_runs": 0, "history_retention_days": 0, "cache_max_mb": 0, "cache_retention_days": 0}
@@ -244,10 +314,15 @@ class RuntimeConfig:
                 limits = defaults["output_limits"] | saved.get("output_limits", {})
                 defaults.update(saved)
                 defaults["output_limits"] = limits
+                defaults["collaboration_mode"] = saved.get("collaboration_mode", "configured")
         return defaults
 
     def save_settings(self, data: dict) -> dict:
         result = self.settings()
+        mode = data.get("collaboration_mode", result["collaboration_mode"])
+        if not isinstance(mode, str) or mode not in {"hybrid", "local_only", "configured"}:
+            raise ValueError("协同策略无效")
+        result["collaboration_mode"] = mode
         if any(not isinstance(data.get(k, {}), dict) for k in ("bindings", "roles", "role_models")):
             raise ValueError("绑定、角色和角色模型须为对象")
         for harness, binding in data.get("bindings", {}).items():
@@ -372,7 +447,7 @@ class RuntimeConfig:
             if existing:
                 return self.discover(identity)
             profile = {"id": identity, "name": name.capitalize() + " 本地", "base_url": url,
-                       "protocol": "openai", "local": True, "api_key": ""}
+                       "protocol": "ollama" if name == "ollama" else "openai", "local": True, "api_key": ""}
             try:
                 profile["models"] = clean_models(ConnectionClient(profile, timeout=2).models())
                 if profile["models"]:
@@ -415,9 +490,37 @@ class RuntimeConfig:
 
     def save_run(self, run: dict, *, request_id: str = "", fingerprint: str = "") -> None:
         with self.connect() as db:
+            if run.get("metrics") and run.get("finished_at"):
+                run["savings"] = _run_savings(db, run)
             db.execute("INSERT OR REPLACE INTO runs VALUES(?,?,?)", (run["id"], json.dumps(run, ensure_ascii=False), time.time()))
             if request_id:
                 db.execute("INSERT INTO task_requests VALUES(?,?,?)", (request_id, fingerprint, run["id"]))
+
+    def record_savings(self, identity: str, **record) -> dict:
+        with self.connect() as db:
+            return _write_savings(db, identity, **record)
+
+    def savings_summary(self) -> dict:
+        result = {"price": SAVINGS_PRICE, "scope": "visible_input_estimate", "records": 0, "counted_records": 0,
+                  "uncounted_records": 0, "since": None, "baseline_input_tokens": 0, "input_tokens": 0,
+                  "saved_input_tokens": 0, "saved_input_usd": "0", "reported_output_tokens": 0,
+                  "output_unknown_records": 0, "model_calls": 0}
+        if not self.path.exists():
+            return result
+        with self.connect() as db:
+            rows = db.execute("""SELECT COUNT(*) records,MIN(created) since,SUM(comparable) counted,
+                COALESCE(SUM(CASE WHEN comparable THEN baseline_tokens ELSE 0 END),0) baseline,
+                COALESCE(SUM(CASE WHEN comparable THEN input_tokens ELSE 0 END),0) inputs,
+                COALESCE(SUM(CASE WHEN comparable THEN baseline_micro_usd-input_micro_usd ELSE 0 END),0) saved_micro,
+                COALESCE(SUM(output_tokens),0) outputs,SUM(output_tokens IS NULL) unknown_outputs,
+                COALESCE(SUM(calls),0) calls FROM savings""").fetchone()
+        result.update(records=rows["records"], since=rows["since"], counted_records=rows["counted"] or 0,
+                      uncounted_records=rows["records"] - (rows["counted"] or 0), baseline_input_tokens=rows["baseline"],
+                      input_tokens=rows["inputs"], saved_input_tokens=rows["baseline"] - rows["inputs"],
+                      saved_input_usd=str(Decimal(rows["saved_micro"]) / 1_000_000),
+                      reported_output_tokens=rows["outputs"], output_unknown_records=rows["unknown_outputs"] or 0,
+                      model_calls=rows["calls"])
+        return result
 
     def request_run(self, identity: str, fingerprint: str | None = None) -> dict | None:
         if not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", identity):
@@ -454,9 +557,14 @@ class RuntimeConfig:
             count = db.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
         return {"runs": count, "deleted": len(remove), "database_bytes": self.path.stat().st_size if self.path.exists() else 0}
 
-    def runs(self, identity: str = "") -> dict:
+    def runs(self, identity: str = "", *, limit: int = 20, offset: int = 0, query: str = "", status: str = "") -> dict:
+        states = {"running", "cancelling", "completed", "failed", "cancelled", "needs_review", "interrupted"}
+        if type(limit) is not int or not 1 <= limit <= 100 or type(offset) is not int or not 0 <= offset <= 1_000_000:
+            raise ValueError("分页参数无效：每页 1–100 条，偏移不超过 1000000")
+        if not isinstance(query, str) or len(query) > 200 or not isinstance(status, str) or status and status not in states:
+            raise ValueError("搜索文字或任务状态无效")
         if not self.path.exists():
-            return {"runs": []}
+            return {"runs": [], "total": 0, "offset": offset, "limit": limit, "has_more": False}
         with self.connect() as db:
             if identity:
                 row = db.execute("SELECT data FROM runs WHERE id=?", (identity,)).fetchone()
@@ -466,11 +574,22 @@ class RuntimeConfig:
                 if result["status"] in {"running", "cancelling"} and result.get("process_id") != os.getpid():
                     result.update(status="interrupted", error="服务重启中断了任务；可重新布置")
                 return result
-            items = [json.loads(r[0]) for r in db.execute("SELECT data FROM runs ORDER BY updated DESC LIMIT 20")]
+            effective = "CASE WHEN json_extract(data,'$.status') IN ('running','cancelling') AND COALESCE(json_extract(data,'$.process_id'),-1) != ? THEN 'interrupted' ELSE json_extract(data,'$.status') END"
+            where, parameters = [], []
+            if query.strip():
+                where.append("instr(lower(json_extract(data,'$.task')),lower(?)) > 0")
+                parameters.append(query.strip())
+            if status:
+                where.append(effective + "=?")
+                parameters.extend((os.getpid(), status))
+            clause = " WHERE " + " AND ".join(where) if where else ""
+            total = db.execute("SELECT COUNT(*) FROM runs" + clause, parameters).fetchone()[0]
+            items = [json.loads(r[0]) for r in db.execute("SELECT data FROM runs" + clause + " ORDER BY updated DESC,id DESC LIMIT ? OFFSET ?", parameters + [limit, offset])]
         for item in items:
             if item["status"] in {"running", "cancelling"} and item.get("process_id") != os.getpid():
                 item["status"] = "interrupted"
-        return {"runs": [{k: r.get(k) for k in ("id", "task", "status", "created_at")} for r in items]}
+        return {"runs": [{k: r.get(k) for k in ("id", "task", "status", "created_at")} for r in items],
+                "total": total, "offset": offset, "limit": limit, "has_more": offset + len(items) < total}
 
 
 class ConnectionClient(OpenAICompatibleProvider):
@@ -526,6 +645,13 @@ class ConnectionClient(OpenAICompatibleProvider):
         if not MODEL_RE.fullmatch(model):
             raise ProviderError("模型 ID 无效")
         protocol = self.profile["protocol"]
+        if protocol == "ollama" or kwargs.get("context_window") is not None:
+            if protocol not in {"openai", "ollama"}:
+                raise ProviderError("Ollama 原生评测需要本机 OpenAI 兼容连接")
+            return super().chat(model, messages, max_tokens, context_window=kwargs.get("context_window") or 32768,
+                                response_schema=kwargs.get("response_schema"))
+        if kwargs.get("response_schema") is not None:
+            raise ProviderError("当前连接未启用原生结构化输出")
         if protocol == "openai":
             return super().chat(model, messages, max_tokens)
         if protocol == "responses":

@@ -10,6 +10,7 @@ import statistics
 import time
 import tempfile
 import unicodedata
+from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
@@ -274,9 +275,13 @@ def markdown_report(report: dict[str, Any]) -> str:
     summary, gate = report["summary"], report["quality_gate"]
     fence = chr(96) * 3
     lines = ["# TokenFlow quality comparison", "", report["note"], "", f"Gate: **{gate['status']}** ({gate['scope']})", "",
-             "Repository QA and synthetic tasks are not representative production task logs. Usage is provider-reported, not a bill.", "",
-             fence + "json", json.dumps(summary, ensure_ascii=False, indent=2), fence, "",
-             "| Case | Source | Compressed | Facts retained | Raw answer pass | Processed answer pass |", "|---|---|---|---|---|---|"]
+             "Repository QA and synthetic tasks are not representative production task logs. Usage is provider-reported, not a bill.", ""]
+    if report.get("mode") == "full_pipeline_same_model":
+        lines.extend([f"All attempted cases: raw correct {summary.get('raw_correct_cases', 'unknown')}/{summary['cases']}; "
+                      f"accepted and correct {summary.get('accepted_correct_cases', 'unknown')}/{summary['cases']}. "
+                      "Accuracy and paired totals below exclude incomplete pairs; all-attempt totals include failed workflow calls.", ""])
+    lines.extend([fence + "json", json.dumps(summary, ensure_ascii=False, indent=2), fence, "",
+                  "| Case | Source | Compressed | Facts retained | Raw answer pass | Processed answer pass |", "|---|---|---|---|---|---|"])
     for row in report["cases"]:
         name = str(row["name"]).replace("|", "\\|").replace("\n", " ")
         lines.append(f"| {name} | {row['source_kind']} | {row['compression_applied']} | {row['processed_retains_facts']} | {row.get('raw_answer_pass', '—')} | {row.get('processed_answer_pass', '—')} |")
@@ -298,7 +303,7 @@ def markdown_report(report: dict[str, Any]) -> str:
 
 def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "auto", *,
                       min_cases: int = 50, min_saving: float = .05, min_accuracy: float = .9,
-                      max_accuracy_drop: float = .02, max_calls: int = 6, min_category_cases: int = 10,
+                      max_accuracy_drop: float = .02, max_calls: int = 6, min_category_cases: int = 10, ollama_context: int | None = None,
                       progress: Callable[[dict[str, Any]], None] | None = None) -> dict:
     """Compare a raw call with the real orchestration, using one explicit API model.
 
@@ -307,7 +312,7 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
     contain answers and aggregate usage, never connection secrets or endpoints.
     """
     from runtime_config import RuntimeConfig, ConnectionClient
-    from task_orchestrator import TaskRun
+    from task_orchestrator import TaskRun, stage_input
     from tokenflow_store import DocumentStore
 
     if not isinstance(cases, list) or not cases:
@@ -317,6 +322,13 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
     if min_cases < 1 or min_category_cases < 1 or not all(0 <= v <= 1 for v in (min_saving, min_accuracy, max_accuracy_drop)):
         raise ValueError("评测门槛格式无效")
     selected = choose_model(profile["models"], "general", model)
+    if profile["protocol"] == "ollama" and ollama_context is None:
+        ollama_context = 32768
+    if ollama_context is not None:
+        from model_providers import is_loopback_url
+        if profile["protocol"] not in {"openai", "ollama"} or not is_loopback_url(profile["base_url"]) or not 2048 <= ollama_context <= 131072:
+            raise ValueError("Ollama 原生评测需要明确的本机兼容连接及有效上下文")
+    options = {"context_window": ollama_context} if ollama_context is not None else {}
     rows = []
     report = {"mode": "full_pipeline_same_model", "model": selected, "cases": rows,
               "expected_cases": len(cases), "model_settings": {"max_tokens": 2400, "max_calls": max_calls},
@@ -327,9 +339,12 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
         saved = store.save_profile({**profile, "id": "evaluation", "models": [selected]})
         store.save_settings({"roles": {role: saved["id"] for role in ("local", "planner", "executor", "reviewer")},
                              "role_models": {role: selected for role in ("local", "planner", "executor", "reviewer")},
-                             "max_calls": max_calls})
+                             "max_calls": max_calls, "collaboration_mode": "configured"})
         documents = DocumentStore(str(Path(directory) / "documents.db"))
         report["model_settings"].update({k: store.settings()[k] for k in ("output_limits", "context_window_tokens", "max_task_tokens")})
+        if ollama_context is not None:
+            store.save_settings({"context_window_tokens": ollama_context})
+            report["model_settings"].update(context_window_tokens=ollama_context, ollama_think=False, temperature=0, transport="ollama_native", structured_reviews=True)
         for index, case in enumerate(cases):
             task, content = case["task"].strip(), case["content"].strip()
             row = {"name": case.get("name", "case"), "source_kind": case.get("source_kind", "user_supplied"),
@@ -342,10 +357,10 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
                 if label == "raw":
                     try:
                         from token_counter import count_tokens
-                        raw_messages = chat_messages(task, content)
+                        raw_messages = stage_input(task, content)
                         if count_tokens(json.dumps(raw_messages, ensure_ascii=False))["count"] + 2400 > store.settings()["context_window_tokens"]:
                             raise ValueError("原文超过配置的上下文容量")
-                        response = ConnectionClient(profile).chat(selected, raw_messages, max_tokens=2400)
+                        response = ConnectionClient(profile).chat(selected, raw_messages, max_tokens=2400, **options)
                         row["raw_usage"] = reported_usage(response)
                         answer = response_text(response)
                         if profile.get("api_key"):
@@ -358,7 +373,7 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
                         row["raw_usage"] = (exc.usage or row["raw_usage"]) if isinstance(exc, ProviderError) else row["raw_usage"]
                         row["error"] = "原文模型调用失败，不能计为完整对比"
                 else:
-                    runner = TaskRun(store, task, content, document_store=documents, source_name=str(row["name"]), allow_harnesses=False)
+                    runner = TaskRun(store, task, content, document_store=documents, source_name=str(row["name"]), allow_harnesses=False, ollama_context=ollama_context)
                     run = runner.execute()
                     metrics = run["metrics"]
                     row.update(processed_answer=run["result"],
@@ -368,8 +383,20 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
                                model_calls=metrics["model_calls"], repairs=sum(c["purpose"] == "repair" for c in run["calls"]),
                                estimated_input_tokens=metrics["estimated_input_tokens"],
                                estimated_output_tokens=metrics["estimated_output_tokens"], usage_complete=metrics["usage_complete"],
-                               stages=[{k: c.get(k) for k in ("purpose", "status", "usage", "duration_ms", "estimated_input_tokens", "estimated_output_tokens", "max_output_tokens")} for c in run["calls"]],
+                               stages=[{k: c.get(k) for k in ("purpose", "status", "error_code", "usage", "duration_ms", "estimated_input_tokens", "estimated_output_tokens", "max_output_tokens")} for c in run["calls"]],
                                cache_reused=run.get("document_cache", {}).get("reused", False))
+                    candidates = run.get("candidates", [])
+                    row["candidates"] = candidates
+                    row["first_answer"] = candidates[0]["answer"] if candidates else run["result"]
+                    row["first_answer_pass"] = answer_pass(row["first_answer"], case["expected_answer"], case.get("answer_match", "exact"))
+                    row["final_candidate_pass"] = answer_pass(run["result"], case["expected_answer"], case.get("answer_match", "exact"))
+                    row["pipeline_error_code"] = run.get("error_code") or run["acceptance"].get("error_code")
+                    row["by_role"] = metrics["by_role"]
+                    row["collaboration_mode"] = run.get("collaboration_mode")
+                    row["step_results"] = run.get("step_results", [])
+                    row["upgrades"] = run.get("upgrades", [])
+                    for recorded, call in zip(row["stages"], run["calls"]):
+                        recorded.update({k: call.get(k) for k in ("step_id", "location", "target", "name")})
                     if run["status"] == "completed":
                         row["processed_answer_pass"] = answer_pass(run["result"], case["expected_answer"], case.get("answer_match", "exact"))
                     if metrics["usage_complete"]:
@@ -386,6 +413,19 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
                            reported_pipeline_output_tokens=sum(r["processed_usage"]["completion_tokens"] for r in rows) if all(r["usage_complete"] for r in rows) else None,
                            reported_pipeline_total_tokens=sum(r["processed_usage"]["total_tokens"] for r in rows) if all(r["usage_complete"] for r in rows) else None,
                            usage_complete=all(r["usage_complete"] and all(k in r["raw_usage"] for k in ("prompt_tokens", "completion_tokens")) for r in rows))
+            summary.update(raw_correct_cases=sum(r.get("raw_answer_pass") is True for r in rows),
+                           accepted_correct_cases=sum(r["pipeline_status"] == "completed" and r["processed_answer_pass"] is True for r in rows))
+            summary.update(first_candidate_correct_cases=sum(r["first_answer_pass"] for r in rows),
+                           final_candidate_correct_cases=sum(r["final_candidate_pass"] for r in rows),
+                           repair_improved_cases=sum(r["repairs"] > 0 and not r["first_answer_pass"] and r["final_candidate_pass"] for r in rows),
+                           repair_degraded_cases=sum(r["repairs"] > 0 and r["first_answer_pass"] and not r["final_candidate_pass"] for r in rows),
+                           stage_errors=dict(Counter(c["error_code"] for r in rows for c in r["stages"] if c.get("error_code"))))
+            raw_complete = all(all(k in r["raw_usage"] for k in ("prompt_tokens", "completion_tokens")) for r in rows)
+            summary["reported_all_raw_prompt_tokens"] = sum(r["raw_usage"]["prompt_tokens"] for r in rows) if raw_complete else None
+            summary["reported_all_raw_total_tokens"] = sum(r["raw_usage"].get("total_tokens", r["raw_usage"]["prompt_tokens"] + r["raw_usage"]["completion_tokens"]) for r in rows) if raw_complete else None
+            for metric, baseline, processed in (("prompt", "reported_all_raw_prompt_tokens", "reported_pipeline_input_tokens"),
+                                                ("total", "reported_all_raw_total_tokens", "reported_pipeline_total_tokens")):
+                summary[f"reported_all_{metric}_token_saving_ratio"] = round(1 - summary[processed] / summary[baseline], 4) if summary[baseline] and summary[processed] is not None else None
             gate["thresholds"]["min_total_token_saving_ratio"] = min_saving
             if summary["reported_total_token_saving_ratio"] is not None and summary["reported_total_token_saving_ratio"] < min_saving:
                 gate["status"] = "failed"
@@ -448,6 +488,7 @@ def main() -> None:
     parser.add_argument("--provider", choices=tuple(PROVIDERS), help="Explicit provider; omitted means offline-only")
     parser.add_argument("--offline-task-context", action="store_true", help="Offline parse/index/retrieval/selection in isolated databases; no model calls")
     parser.add_argument("--pipeline", action="store_true", help="Compare one raw call with the full orchestration (explicit --connection required)")
+    parser.add_argument("--ollama-native", action="store_true", help="Use fixed-context local Ollama native API for full-pipeline comparison")
     parser.add_argument("--connection", help="Saved API connection ID for full-pipeline evaluation; all roles use this connection")
     parser.add_argument("--max-calls", type=int, default=6, help="Full-pipeline call budget, 3–8")
     parser.add_argument("--model", default="auto")
@@ -471,7 +512,9 @@ def main() -> None:
         parser.error("离线任务上下文模式不能使用模型或完整流程参数")
     if args.pipeline and (not args.connection or args.provider):
         parser.error("完整流程评测需要 --connection；不能同时使用 --provider")
-    if args.pipeline and (args.max_tokens != 512 or args.timeout != 120 or args.ollama_context != 32768):
+    if args.ollama_native and not args.pipeline:
+        parser.error("--ollama-native 仅用于 --pipeline；单次提示词使用 --provider ollama")
+    if args.pipeline and (args.max_tokens != 512 or args.timeout != 120 or args.ollama_context != 32768 and not args.ollama_native):
         parser.error("完整流程使用运行时默认请求参数；--max-tokens、--timeout 和 --ollama-context 仅用于单次提示词评测")
     if args.connection and not args.pipeline:
         parser.error("--connection 仅用于 --pipeline")
@@ -493,7 +536,8 @@ def main() -> None:
             report = evaluate_pipeline(cases[:args.limit] if args.limit else cases,
                           RuntimeConfig().profile(args.connection, True), args.model,
                           min_cases=args.min_cases, min_saving=args.min_saving, min_accuracy=args.min_accuracy,
-                          max_accuracy_drop=args.max_accuracy_drop, max_calls=args.max_calls, min_category_cases=args.min_category_cases, progress=progress)
+                          max_accuracy_drop=args.max_accuracy_drop, max_calls=args.max_calls, min_category_cases=args.min_category_cases,
+                          ollama_context=args.ollama_context if args.ollama_native else None, progress=progress)
         else:
             report = evaluate(cases[:args.limit] if args.limit else cases, args.provider, args.model,
                           timeout=args.timeout, max_tokens=args.max_tokens, min_cases=args.min_cases,
