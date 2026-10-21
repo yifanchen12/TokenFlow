@@ -7,14 +7,17 @@ const nodes = new Map(), storage = new Map(), timers = new Map();
 let timerId = 0;
 function node() {
   const classes = new Set();
-  return {value: '', textContent: '', disabled: false, files: [], children: [], attributes: {},
+  return {value: '', textContent: '', disabled: false, open: false, files: [], children: [], attributes: {},
     classList: {add: x => classes.add(x), remove: x => classes.delete(x), contains: x => classes.has(x),
       toggle(x, on) {if (on) classes.add(x); else classes.delete(x);}},
-    replaceChildren(...children) {this.children = children;}, append(...children) {this.children.push(...children);}, addEventListener() {}, setAttribute(k,v) {this.attributes[k]=v;}};
+    replaceChildren(...children) {this.children = children;}, append(...children) {this.children.push(...children);}, addEventListener() {}, setAttribute(k,v) {this.attributes[k]=v;},
+    focus() {document.activeElement=this;}, scrollIntoView() {}, showModal() {this.open=true;document.activeElement=this;}, close() {this.open=false;}};
 }
 const document = {getElementById(id) {if (!nodes.has(id)) nodes.set(id, node()); return nodes.get(id);},
   createElement: node, querySelectorAll: () => []};
+let copiedText='';
 const context = vm.createContext({document, console, location: {host: '127.0.0.1'}, URLSearchParams, crypto: require('node:crypto').webcrypto, AbortController,
+  navigator: {clipboard:{writeText:async value=>{copiedText=value;}}},
   localStorage: {setItem: (k,v) => storage.set(k,v), getItem: k => storage.get(k) || null, removeItem: k => storage.delete(k)},
   setTimeout: fn => {timers.set(++timerId,fn); return timerId;}, clearTimeout: id => timers.delete(id)});
 const html = fs.readFileSync(path.join(__dirname, '..', 'ui_page.py'), 'utf8');
@@ -143,6 +146,8 @@ context.post = async (url, body) => {
   context.savedFixture=saved;
   run('renderSavings(savedFixture)');
   assert.equal(nodes.get('savingsAmount').textContent,'$0.1234');
+  run("renderSavings({...savedFixture,saved_input_usd:'14.400074'})");
+  assert.equal(nodes.get('savingsAmount').textContent,'$14.40');
   assert.match(nodes.get('savingsScope').textContent,/1 条口径不完整/);
   run("renderSavings({...savedFixture,saved_input_usd:'-0.000002',saved_input_tokens:-1})");
   assert.equal(nodes.get('savingsAmount').textContent,'$0.000002');
@@ -162,5 +167,26 @@ context.post = async (url, body) => {
   context.get=async()=>{throw Error('fixture offline')};
   await run('loadSavings()');
   assert.equal(nodes.get('savingsAmount').textContent,'—');
+  const trigger=document.getElementById('settingsTrigger');document.activeElement=trigger;
+  run("openSettings('connectionSetup')");
+  assert.equal(nodes.get('settingsDialog').open,true);assert.equal(nodes.get('connectionSetup').open,true);
+  run('closeSettings()');assert.equal(nodes.get('settingsDialog').open,false);assert.equal(document.activeElement,trigger);
+  run("switchResultView('process')");
+  assert.equal(nodes.get('tab-process').attributes['aria-selected'],'true');assert.equal(nodes.get('view-result').classList.contains('hidden'),true);
+  run("renderRun({task:'Saved task',status:'completed',result:'<b>SAFE TEXT</b>',calls:[],stages:[],acceptance:{status:'passed',method:'model_review'}})");
+  assert.equal(nodes.get('resultTask').textContent,'Saved task');
+  assert.equal(run('resultView'),'process');assert.equal(nodes.get('acceptanceBadge').textContent,'模型复核通过');
+  let prevented=false;context.tabKey={key:'ArrowRight',preventDefault(){prevented=true;}};
+  run('handleResultTabKey(tabKey)');assert.equal(prevented,true);assert.equal(run('resultView'),'history');
+  assert.equal(document.activeElement,nodes.get('tab-history'));
+  await run('copyResult()');assert.equal(copiedText,'<b>SAFE TEXT</b>');
+  context.navigator.clipboard.writeText=async()=>{throw Error('fixture permission denied')};
+  await run('copyResult()');assert.match(nodes.get('toast').textContent,/复制未成功/);
+  run("renderRun({status:'needs_review',result:'candidate',calls:[],stages:[],acceptance:{status:'failed',method:'model_review'}})");
+  assert.equal(nodes.get('acceptanceBadge').attributes['data-state'],'warning');
+  run("renderOutcome({status:'cancelled',acceptance:{status:'passed',method:'model_review'}})");
+  assert.equal(nodes.get('acceptanceBadge').textContent,'任务已取消');
+  run("activeRun='';clearResult()");assert.equal(nodes.get('copyResult').disabled,true);assert.equal(run('resultView'),'result');
+  run("$('collaborationMode').value='local_only';updatePolicyHint()");assert.match(nodes.get('policyHint').textContent,/不会调用/);
   console.log('UI task/history checks: PASS');
 })().catch(error => {console.error(error);process.exitCode = 1;});

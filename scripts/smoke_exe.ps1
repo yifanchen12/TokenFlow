@@ -51,6 +51,7 @@ try {
     $page = (Invoke-WebRequest "$tfBase/" -TimeoutSec 5 -UseBasicParsing).Content
     if (-not $page.Contains('omAllow') -or -not $page.Contains('/api/omniroute/preview')) { throw 'EXE contains stale UI' }
     if (-not $page.Contains('orchestrateTask') -or -not $page.Contains('connectionSetup')) { throw 'EXE lacks orchestration UI' }
+    if (-not $page.Contains('settingsDialog') -or -not $page.Contains('tab-process') -or -not $page.Contains('copyResult')) { throw 'EXE lacks workspace drawer, result views or copying' }
     if (-not $page.Contains('cancelRunningTask') -or -not $page.Contains('viewedRun')) { throw 'EXE lacks cancellation/history recovery UI' }
     if (-not $page.Contains('budgetFields') -or -not $page.Contains('storageSetup') -or -not $page.Contains('exportDraft') -or -not $page.Contains('request_id')) { throw 'EXE lacks budget/storage/receipt UI' }
     if (-not $page.Contains('historyQuery') -or -not $page.Contains('historyStatus') -or -not $page.Contains('changeHistoryPage')) { throw 'EXE lacks paged history UI' }

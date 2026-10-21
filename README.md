@@ -34,7 +34,15 @@ is never displayed as completed.
 
 ### Saved connections and detected models
 
-Open **Provider and Harness configuration** in the console to add named
+The workspace highlights lifetime estimated input savings and puts task input
+beside the result. **Result**, **Execution process** and **Task history** are
+separate keyboard-accessible views. Results show their task and distinguish
+local validation from model review; the copy button copies plain text.
+**Settings** opens a drawer for connections, budgets, storage and advanced tools;
+Escape closes it and returns focus. The layout adapts to phones and respects
+reduced-motion preferences. [UI validation and screenshots](docs/reports/premium-workspace-ui-2026-10-21.zh-CN.md).
+
+Open **Settings → Provider and Harness configuration** in the console to add named
 connections with a Base URL, API Key and protocol (Chat Completions, local Ollama, Responses,
 or Anthropic Messages). Saving probes `/models`; the current catalog and previous
 model records persist across restarts. Endpoints without discovery support can
@@ -103,7 +111,7 @@ Open <http://127.0.0.1:8765>. On Windows, double-click `start_tokenflow.cmd`.
 
 ### Windows executable
 
-Download the ready-to-run [Windows executable from the latest GitHub Release](https://github.com/yifanchen12/TokenFlow/releases/latest/download/TokenFlow.exe), or run `build_tokenflow_exe.cmd` to build `dist/TokenFlow.exe` yourself. The executable starts the local server and opens the TokenFlow console in the default browser. Use **Close service** in the page to stop it. Generated binaries stay out of source commits and are distributed as release assets.
+Download the ready-to-run [Windows executable from the latest GitHub Release](https://github.com/yifanchen12/TokenFlow/releases/latest/download/TokenFlow.exe), or run `build_tokenflow_exe.cmd` to build `dist/TokenFlow.exe` yourself. The executable starts the local server and opens the TokenFlow console in the default browser. Use **Settings → Runtime environment → Close service** to stop it. Generated binaries stay out of source commits and are distributed as release assets.
 
 The SQLite cache is stored in the current user's application-data directory by default (for example, `%LOCALAPPDATA%\TokenFlow\tokenflow.db` on Windows). Set `TOKENFLOW_DB_PATH` to use a different location. Opening the status page does not create the database; it is initialized when documents are indexed.
 

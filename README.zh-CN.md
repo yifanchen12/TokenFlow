@@ -28,7 +28,9 @@ English documentation: [README.md](README.md)。
 
 ### 保存连接、检测模型与 Harness 绑定
 
-在“模型提供商与 Harness 配置”中保存连接名称、Base URL、API Key 和协议（Chat Completions、Ollama 本机、Responses 或 Anthropic Messages）。保存后请求 `/models`，当前目录和历史模型记录跨重启保留；不提供目录的端点可以手动登记 ID。检测失败保留原记录并显示错误。自动本地检测仅探测已配置或默认的回环 Ollama / FreeToken 端点，不生成文本或下载模型。
+工作空间醒目展示累计输入费用节省估算，任务输入与结果并排。右侧“结果 / 执行过程 / 任务记录”分别显示答案、步骤交接与历史；结果标明所属任务，并区分本地校验与模型复核，可复制纯文本。连接、预算、存储和高级工具统一放在“设置”抽屉，Escape 关闭后焦点返回入口；支持手机布局、方向键切换标签和减少动态效果偏好。[界面验证与截图](docs/reports/premium-workspace-ui-2026-10-21.zh-CN.md)。
+
+在“设置 → 模型提供商与 Harness 配置”中保存连接名称、Base URL、API Key 和协议（Chat Completions、Ollama 本机、Responses 或 Anthropic Messages）。保存后请求 `/models`，当前目录和历史模型记录跨重启保留；不提供目录的端点可以手动登记 ID。检测失败保留原记录并显示错误。自动本地检测仅探测已配置或默认的回环 Ollama / FreeToken 端点，不生成文本或下载模型。
 
 Codex 模型来自本机配置及可见模型缓存，Claude 来自本机配置中的模型 ID。缓存和手工记录不保证当前账户可调用。Codex 绑定需要 Responses，Claude 需要 Messages；DSH 可绑定 Chat Completions 连接（包括北邮 API），使用临时 profile 补丁，不改全局配置。原生订阅登录仍由 Harness 使用。支持导入现有 API Key 连接，Key 不回显；绑定只影响 TokenFlow 启动的子进程，密钥通过子进程环境传递。默认继续使用只读 / 计划模式。
 
@@ -65,7 +67,7 @@ python tokenflow.py
 
 ### Windows 可执行文件
 
-可从 [GitHub 最新 Release 下载 Windows 可执行文件](https://github.com/yifanchen12/TokenFlow/releases/latest/download/TokenFlow.exe)，也可以执行 `build_tokenflow_exe.cmd` 自行生成 `dist/TokenFlow.exe`。程序会启动本地服务并在默认浏览器打开 TokenFlow 控制台；使用页面上的“关闭服务”按钮即可停止。二进制文件不提交到源码分支，而通过 Release 附件分发。
+可从 [GitHub 最新 Release 下载 Windows 可执行文件](https://github.com/yifanchen12/TokenFlow/releases/latest/download/TokenFlow.exe)，也可以执行 `build_tokenflow_exe.cmd` 自行生成 `dist/TokenFlow.exe`。程序会启动本地服务并在默认浏览器打开 TokenFlow 控制台；通过“设置 → 运行环境与本机服务 → 关闭服务”即可停止。二进制文件不提交到源码分支，而通过 Release 附件分发。
 
 SQLite 缓存默认保存在当前用户的应用数据目录（Windows 示例：`%LOCALAPPDATA%\TokenFlow\tokenflow.db`）。设置 `TOKENFLOW_DB_PATH` 可指定其他位置。打开状态页不会创建数据库；首次索引文档时才会初始化。
 
