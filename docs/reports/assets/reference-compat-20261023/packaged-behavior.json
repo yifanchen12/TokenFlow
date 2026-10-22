@@ -1,0 +1,99 @@
+{
+  "passed": true,
+  "scope": "fake_api_packaged_behavior_only",
+  "cases": [
+    {
+      "case": 0,
+      "status": "needs_review",
+      "answer": "{\"grams\":8310}",
+      "selection": {
+        "candidate_index": 0,
+        "reason": "保留执行器原答案"
+      },
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "独立合计",
+        "reference_answer": "{\"grams\":8360}",
+        "source_quotes": [
+          "重量分别为70、6250、1750、10、280克。"
+        ],
+        "calculations": [
+          {
+            "path": "/grams",
+            "expression": "70+6250+1750+10+280"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 1,
+          "semantic_truth_proven": false
+        }
+      }
+    },
+    {
+      "case": 1,
+      "status": "needs_review",
+      "answer": "{\"grams\":8310}",
+      "selection": {
+        "candidate_index": 0,
+        "reason": "保留执行器原答案"
+      },
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      }
+    },
+    {
+      "case": 2,
+      "status": "completed",
+      "answer": "{\"grams\":8360}",
+      "selection": {
+        "candidate_index": 1,
+        "reason": "采用保值格式整理"
+      },
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "独立合计",
+        "reference_answer": "{\"grams\":8360}",
+        "source_quotes": [
+          "重量分别为70、6250、1750、10、280克。"
+        ],
+        "calculations": [
+          {
+            "path": "/grams",
+            "expression": "70+6250+1750+10+280"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 1,
+          "semantic_truth_proven": false
+        }
+      }
+    }
+  ]
+}

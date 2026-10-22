@@ -1,0 +1,118 @@
+{
+  "status": "evaluation_only",
+  "scope": "fixed_synthetic_reference_diagnostics_not_full_pipeline",
+  "pilot": {
+    "local-baseline": {
+      "cases": 12,
+      "valid_references": 0,
+      "gold_agreements": 0,
+      "accepted_correct": 0,
+      "false_accepts": 0,
+      "false_rejects": 12,
+      "reference_errors": {
+        "invalid reference answer or reason": 7,
+        "not a bounded number": 1,
+        "calculation contradicts reference field": 2,
+        "reference quote not grounded": 2
+      },
+      "model_calls": 12,
+      "reported_total_tokens": 7484,
+      "unknown_usage_calls": 0
+    },
+    "local-candidate": {
+      "cases": 12,
+      "valid_references": 7,
+      "gold_agreements": 4,
+      "accepted_correct": 4,
+      "false_accepts": 0,
+      "false_rejects": 8,
+      "reference_errors": {
+        "calculation contradicts reference field": 4,
+        "unsupported calculation": 1
+      },
+      "model_calls": 12,
+      "reported_total_tokens": 7927,
+      "unknown_usage_calls": 0
+    },
+    "native-baseline": {
+      "cases": 12,
+      "valid_references": 7,
+      "gold_agreements": 6,
+      "accepted_correct": 6,
+      "false_accepts": 0,
+      "false_rejects": 6,
+      "reference_errors": {
+        "calculation contradicts reference field": 1,
+        "invalid calculation fields": 1,
+        "invalid calculations": 1,
+        "reference quote not grounded": 2
+      },
+      "model_calls": 12,
+      "reported_total_tokens": 94722,
+      "unknown_usage_calls": 0
+    },
+    "native-candidate": {
+      "cases": 12,
+      "valid_references": 10,
+      "gold_agreements": 9,
+      "accepted_correct": 9,
+      "false_accepts": 0,
+      "false_rejects": 3,
+      "reference_errors": {
+        "calculation contradicts reference field": 1
+      },
+      "model_calls": 12,
+      "reported_total_tokens": 95841,
+      "unknown_usage_calls": 0
+    }
+  },
+  "local_replay": "not_started_pilot_failed",
+  "native_replay": {
+    "cases": 60,
+    "valid_references": 44,
+    "gold_agreements": 24,
+    "accepted_correct": 10,
+    "false_accepts": 0,
+    "false_rejects": 14,
+    "reference_errors": {
+      "calculation contradicts reference field": 10,
+      "reference quote not grounded": 5,
+      "numeric fields require bound calculations": 1
+    },
+    "model_calls": 60,
+    "reported_total_tokens": 486458,
+    "unknown_usage_calls": 0
+  },
+  "native_replay_previous": {
+    "valid_references": 24,
+    "accepted_correct": 10,
+    "false_accepts": 0,
+    "false_rejects": 14
+  },
+  "artifact": {
+    "path": "dist\\reference-compat\\TokenFlow.exe",
+    "bytes": 122012211,
+    "sha256": "468886b5be056df4f89ba64b554635277f5f76d6235e0c6ad93af311a7480455"
+  },
+  "handoffs_passed": 2,
+  "handoffs_total": 2,
+  "model_calls": 116,
+  "native_calls": 90,
+  "reported_total_tokens": 740260,
+  "unknown_usage_calls": 0,
+  "usage_scope": "product_experiments_only_excludes_coding_assistant_and_fake_APIs",
+  "checks": {
+    "source": true,
+    "evaluation": true,
+    "exe_smoke": true,
+    "build": true
+  },
+  "packaged_reference_cases": 3,
+  "source_sha256": {
+    "answer_checks.py": "de55498630b985d481a481d1bf19c9009b36192d8cf10272b8372d228b54ecc0",
+    "task_orchestrator.py": "64d0f97d9726b83f889ed26cc2a8113d6426e3f3442e30c632aec726c1a21c35",
+    "scripts/check_reference_protocol.py": "ab388d80397d535daf68ace403f9d6c1a95a879d95dd78adf60d858dff5526a4"
+  },
+  "current_cli_sha256": "b027d6751ce5fe019f8723e5c4dab1cd50662fbcb6d158ac87a37cec48057126",
+  "post_evaluation_change": "CLI input paths only; generated/public corpora equal measured inputs; frozen evaluated harness archived"
+}

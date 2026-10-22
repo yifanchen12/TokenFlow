@@ -116,13 +116,14 @@ def self_check():
 
         stats = local_statistics("name,value\na,2\nb,4\n")
         assert stats["table"]["rows"] == 2 and stats["table"]["columns"]["value"]["mean"] == "3"
-        snapshots, save_run = [], store.save_run
-        def capture(record):
+        snapshots, save_run = [], RuntimeConfig.save_run
+        def capture(config, record):
             snapshots.append(json.loads(json.dumps(record)))
-            save_run(record)
-        with patch.object(store, "save_run", side_effect=capture), patch.object(tf, "execute_configured_harness", side_effect=AssertionError("statistics must not use a model")):
+            save_run(config, record)
+        with patch.object(RuntimeConfig, "save_run", capture), patch.object(tf, "execute_configured_harness", side_effect=AssertionError("statistics must not use a model")):
             run = TaskRun(store, "统计CSV的行数和平均值", "name,value\na,2\nb,4\n").execute()
         assert run["status"] == "completed" and run["metrics"]["model_calls"] == 0 and run["acceptance"]["method"] == "deterministic"
+        assert snapshots and any(r['status'] == 'completed' for r in snapshots)
         assert all("metrics" in r for r in snapshots if r["status"] == "completed")
 
         store.save_settings({"roles": {"local": "auto"}, "max_calls": 6})
@@ -164,7 +165,7 @@ def self_check():
         local_response = {"choices": [{"message": {"content": "本地摘要：关键事实42"}}], "usage": {"prompt_tokens": 100, "completion_tokens": 20}}
         with patch.object(tf, "detect_harnesses", return_value={h: {"installed": True, "configured": True} for h in ("codex", "claude", "dsh")}), \
              patch.object(tf, "execute_configured_harness", side_effect=harness), patch("task_orchestrator.ConnectionClient.chat", return_value=local_response) as local:
-            local_run = TaskRun(store, "分析资料并完成结论", "背景说明。" * 1500 + "关键事实42").execute()
+            local_run = TaskRun(store, "分析资料并完成结论", "背景说明。" * 1500 + "关键事实42", collaboration_mode="configured").execute()
         assert local_run["status"] == "completed" and local_run["metrics"]["local_calls"] == 1 and local.call_count == 1
         assert "本地摘要：关键事实42" in calls[0][1] and "背景说明。" * 100 not in calls[0][1]
         assert "背景说明。" * 100 in calls[-1][1]  # reviewer checks original source
@@ -173,7 +174,8 @@ def self_check():
                           "correct result42", json.dumps({"passed": True, "issues": [], "reason": "已修正缺失的42"})])
         with patch.object(TaskRun, "local_target", return_value=None), patch.object(tf, "execute_configured_harness", side_effect=lambda *a, **kw: {"ok": True, "output": next(responses)}):
             repaired = TaskRun(store, "分析资料", "事实42").execute()
-        assert repaired["status"] == "completed" and len(repaired["calls"]) == 5 and repaired["result"] == "correct result42"
+        assert repaired["status"] == "needs_review" and len(repaired["calls"]) == 3 and repaired["result"] == "wrong result"
+        assert repaired["acceptance"]["suggestion_grounded"]
         assert store.runs(run["id"])["result"] == "final result 42"
         assert "test-fixture-key" not in json.dumps(store.runs())
     print("Orchestration self-check: PASS")

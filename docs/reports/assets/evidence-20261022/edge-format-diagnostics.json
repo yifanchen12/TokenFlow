@@ -1,0 +1,11 @@
+{
+  "scope": "offline_format_diagnostic_only",
+  "counts": {
+    "strict_correct": 0,
+    "only_fence_removal_correct": 0,
+    "fenced_outputs": 19,
+    "other_failures": 60
+  },
+  "fence_only_cases": [],
+  "note": "Official strict score remains unchanged. Removing a complete outer code fence is diagnostic only; other failures include calculation, field, type and formatting errors."
+}

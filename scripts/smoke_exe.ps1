@@ -17,8 +17,17 @@ $env:TOKENFLOW_DB_PATH = $tfDb
 $env:TOKENFLOW_CONFIG_DB = Join-Path $tfTemporary 'connections.db'
 $env:TOKENFLOW_OPEN_BROWSER = '0'
 $tfProcess = $null
+$tfSecondProcess = $null
 $tfHeaders = $null
 $tfBase = "http://127.0.0.1:$tfPort"
+function Stop-SmokeProcess($owned) {
+    if (-not $owned) { return }
+    # PyInstaller onefile has a child process; stopping only the bootstrap leaves it alive.
+    $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($owned.Id)" | Where-Object { $_.ExecutablePath -eq $tfPath })
+    foreach ($child in $children) { & taskkill /PID $child.ProcessId /T /F 2>$null | Out-Null }
+    if (-not $owned.HasExited) { & taskkill /PID $owned.Id /T /F 2>$null | Out-Null }
+    $owned.WaitForExit(5000) | Out-Null
+}
 try {
     $tfProcess = Start-Process -FilePath $tfPath -WindowStyle Hidden -PassThru
     $tfReady = $false
@@ -30,6 +39,17 @@ try {
         } catch {}
     }
     if (-not $tfReady) { throw 'EXE did not start the service' }
+    # A second port must not create a second service for the same configuration DB.
+    $tfSecondListener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+    $tfSecondListener.Start()
+    $tfSecondPort = ([Net.IPEndPoint]$tfSecondListener.LocalEndpoint).Port
+    $tfSecondListener.Stop()
+    $env:TOKENFLOW_PORT = [string]$tfSecondPort
+    $tfSecondProcess = Start-Process -FilePath $tfPath -WindowStyle Hidden -PassThru
+    $env:TOKENFLOW_PORT = [string]$tfPort
+    if (-not $tfSecondProcess.WaitForExit(20000)) { throw 'Second EXE created another service for the same DB' }
+    if ($tfSecondProcess.ExitCode -ne 0) { throw 'Second EXE did not exit normally' }
+    if ((Invoke-RestMethod "$tfBase/health" -TimeoutSec 2).status -ne 'ok') { throw 'Second launch disturbed primary service' }
     $session = Invoke-RestMethod "$tfBase/api/session" -TimeoutSec 5
     $tfHeaders = @{'X-TokenFlow-Token'=$session.token}
     $body = @{url='http://127.0.0.1:20128/v1'; api_key='smoke-dummy-key'; allowed_models=@('smoke-model')} | ConvertTo-Json
@@ -58,6 +78,8 @@ try {
     if (-not $page.Contains('candidateHistory') -or -not $page.Contains('value="ollama"')) { throw 'EXE lacks candidate history/native Ollama UI' }
     if (-not $page.Contains('savingsDashboard') -or -not $page.Contains('taskProgress') -or -not $page.Contains('progress-spinner')) { throw 'EXE lacks savings/progress UI' }
     if (-not $page.Contains('collaborationMode') -or -not $page.Contains('stepBoard') -or -not $page.Contains('quickComplex')) { throw 'EXE lacks collaboration UI' }
+    if (-not $page.Contains('progressExecutor') -or -not $page.Contains('copyAnswer') -or -not $page.Contains('/api/tasks/retry')) { throw 'EXE lacks fixed progress, pure answer or recovery' }
+    if (-not $page.Contains('.result-tools .btn:not(.icon-button){width:auto;white-space:nowrap}')) { throw 'EXE contains stale result-action sizing' }
     $tfPreviewBody = [Text.Encoding]::UTF8.GetBytes((@{task='统计字符数'; content='abc'; collaboration_mode='local_only'} | ConvertTo-Json))
     $tfDispatch = Invoke-RestMethod "$tfBase/api/tasks/preview" -Method Post -Headers $tfHeaders -ContentType 'application/json; charset=utf-8' -Body $tfPreviewBody -TimeoutSec 5
     if (-not $tfDispatch.ready -or -not $tfDispatch.deterministic -or $tfDispatch.routes.Count -ne 1 -or $tfDispatch.routes[0].location -ne 'local') { throw 'Packaged deterministic dispatch failed' }
@@ -150,14 +172,36 @@ try {
     Invoke-RestMethod "$tfBase/api/tasks/delete" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body (@{id=$run.id} | ConvertTo-Json) -TimeoutSec 5 | Out-Null
     $tfRetainedSavings = Invoke-RestMethod "$tfBase/api/config/savings" -Headers $tfHeaders -TimeoutSec 5
     if ($tfRetainedSavings.saved_input_usd -ne $tfSavings.saved_input_usd -or $tfRetainedSavings.records -ne 3) { throw 'History cleanup erased savings' }
+    $tfStaticBody = [Text.Encoding]::UTF8.GetBytes((@{task='report 的返回值是多少？只回答数字。'; content="BASE = 47`ndef free():`n    return BASE - 5`ndef report():`n    return free() + 3`n"} | ConvertTo-Json))
+    $tfStatic = Invoke-RestMethod "$tfBase/api/tasks/start" -Method Post -Headers $tfHeaders -ContentType 'application/json; charset=utf-8' -Body $tfStaticBody -TimeoutSec 5
+    for ($i = 0; $i -lt 50; $i++) {
+        $tfStaticResult = Invoke-RestMethod "$tfBase/api/tasks/$($tfStatic.id)" -Headers $tfHeaders -TimeoutSec 5
+        if ($tfStaticResult.status -ne 'running') { break }
+        Start-Sleep -Milliseconds 100
+    }
+    if ($tfStaticResult.status -ne 'completed' -or $tfStaticResult.result -ne '45' -or $tfStaticResult.verification.method -ne 'static_python' -or $tfStaticResult.metrics.model_calls -ne 0) { throw 'Packaged bounded Python verification failed' }
+    $tfRetryBody = @{id=$tfPartial.id;request_id='exe-recovery-request-0001'} | ConvertTo-Json
+    $tfRetry = Invoke-RestMethod "$tfBase/api/tasks/retry" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body $tfRetryBody -TimeoutSec 5
+    for ($i = 0; $i -lt 50; $i++) {
+        $tfRetryResult = Invoke-RestMethod "$tfBase/api/tasks/$($tfRetry.id)" -Headers $tfHeaders -TimeoutSec 5
+        if ($tfRetryResult.status -ne 'running') { break }
+        Start-Sleep -Milliseconds 100
+    }
+    if ($tfRetry.id -eq $tfPartial.id -or $tfRetryResult.status -ne 'needs_review' -or $tfRetryResult.recovery.previous_run -ne $tfPartial.id -or $tfRetryResult.metrics.model_calls -ne 0) { throw 'Packaged independent recovery failed' }
+    $tfRepeatRetry = Invoke-RestMethod "$tfBase/api/tasks/retry" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body $tfRetryBody -TimeoutSec 5
+    if ($tfRepeatRetry.id -ne $tfRetry.id -or -not $tfRepeatRetry.reused) { throw 'Packaged recovery receipt failed' }
     Invoke-RestMethod "$tfBase/api/config/storage/clear" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     if (-not $tfProcess.WaitForExit(10000)) { throw 'Restarted EXE did not exit' }
-    Write-Output 'EXE smoke: PASS (startup, Python dependencies, protected keys, OCR cache, partial statistics, history filters, exact lookup, native Ollama, candidate UI, savings/progress UI, durable savings, zero-call task, receipts, budgets, draft export, storage, restart, shutdown)'
+    Write-Output 'EXE smoke: PASS (singleton across ports, bounded Python verification, independent recovery and receipt, fixed progress and pure answer UI, protected keys, OCR, statistics, lookup, durable savings, budgets, history, restart and shutdown)'
 } finally {
+    Stop-SmokeProcess $tfSecondProcess
     if ($tfProcess -and -not $tfProcess.HasExited) {
-        try { Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 2 | Out-Null } catch {}
-        if (-not $tfProcess.WaitForExit(3000)) { Stop-Process -Id $tfProcess.Id -Force }
+        try {
+            if (-not $tfHeaders) { $tfSession = Invoke-RestMethod "$tfBase/api/session" -TimeoutSec 2; $tfHeaders = @{'X-TokenFlow-Token'=$tfSession.token} }
+            Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 2 | Out-Null
+        } catch {}
+        if (-not $tfProcess.WaitForExit(3000)) { Stop-SmokeProcess $tfProcess }
     }
     foreach ($name in $tfOriginal.Keys) { [Environment]::SetEnvironmentVariable($name, $tfOriginal[$name], 'Process') }
     $tfResolvedTemporary = [IO.Path]::GetFullPath($tfTemporary)

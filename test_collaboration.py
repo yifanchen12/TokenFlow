@@ -47,6 +47,7 @@ def self_check():
             run = TaskRun(store, **data).execute()
         assert run["status"] == "completed" and [c["location"] for c in run["calls"]] == ["cloud", "local", "cloud", "cloud"]
         assert "EDGE_OUTPUT" in observed[2][1] and "SOURCE_ONLY" not in observed[2][1]
+        assert data['task'] in observed[2][1] and '用户原任务' in observed[2][1]
         assert "SOURCE_ONLY" in observed[3][1]  # Original source still reaches acceptance.
         assert all(s["status"] == "completed" for s in run["step_results"])
         assert store.runs(run["id"])["step_results"][0]["output"].endswith("EDGE_OUTPUT")
@@ -145,6 +146,13 @@ def self_check():
                 response = connection.getresponse()
                 assert response.status == 200 and json.loads(response.read())["ready"]
                 connection.close()
+                for headers, expected in (({'Content-Type': 'application/json'}, 403),
+                    ({'Content-Type': 'application/json', 'X-TokenFlow-Token': tf.SESSION_TOKEN}, 400)):
+                    connection = HTTPConnection('127.0.0.1', server.server_port, timeout=5)
+                    connection.request('POST', '/api/tasks/retry', '{"id":"invalid"}', headers)
+                    response = connection.getresponse()
+                    assert response.status == expected
+                    response.read(); connection.close()
                 called.assert_not_called()
         finally:
             server.shutdown()

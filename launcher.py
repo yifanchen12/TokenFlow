@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import os
-import threading
-import webbrowser
 
 import tokenflow
 
@@ -12,9 +10,7 @@ import tokenflow
 def main() -> None:
     host = os.environ.get("TOKENFLOW_HOST", "127.0.0.1")
     port = int(os.environ.get("TOKENFLOW_PORT", "8765"))
-    if os.environ.get("TOKENFLOW_OPEN_BROWSER", "1") != "0":
-        threading.Timer(0.8, lambda: webbrowser.open(f"http://{host}:{port}")).start()
-    tokenflow.run_server(host, port)
+    tokenflow.run_server(host, port, open_browser=os.environ.get("TOKENFLOW_OPEN_BROWSER", "1") != "0", reuse_existing=True)
 
 
 if __name__ == "__main__":

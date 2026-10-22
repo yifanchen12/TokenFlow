@@ -1,0 +1,76 @@
+[
+  {
+    "name": "signed_amount_handoff",
+    "passed": true,
+    "handoff_observed": true,
+    "native_audited": true,
+    "answer_correct": true,
+    "scope": "two_explicit_handoff_smokes_only",
+    "answer": "39",
+    "targets": [
+      "native:codex",
+      "edge",
+      "native:codex",
+      "native:codex"
+    ],
+    "usage": [
+      {
+        "prompt_tokens": 8072,
+        "completion_tokens": 153,
+        "total_tokens": 8225
+      },
+      {
+        "prompt_tokens": 118,
+        "completion_tokens": 40,
+        "total_tokens": 158
+      },
+      {
+        "prompt_tokens": 7559,
+        "completion_tokens": 5,
+        "total_tokens": 7564
+      },
+      {
+        "prompt_tokens": 7662,
+        "completion_tokens": 38,
+        "total_tokens": 7700
+      }
+    ]
+  },
+  {
+    "name": "group_comparison_handoff",
+    "passed": true,
+    "handoff_observed": true,
+    "native_audited": true,
+    "answer_correct": true,
+    "scope": "two_explicit_handoff_smokes_only",
+    "answer": "{\"winner\":\"乙组\",\"margin\":6}",
+    "targets": [
+      "native:codex",
+      "edge",
+      "native:codex",
+      "native:codex"
+    ],
+    "usage": [
+      {
+        "prompt_tokens": 8125,
+        "completion_tokens": 275,
+        "total_tokens": 8400
+      },
+      {
+        "prompt_tokens": 113,
+        "completion_tokens": 71,
+        "total_tokens": 184
+      },
+      {
+        "prompt_tokens": 7624,
+        "completion_tokens": 14,
+        "total_tokens": 7638
+      },
+      {
+        "prompt_tokens": 7808,
+        "completion_tokens": 151,
+        "total_tokens": 7959
+      }
+    ]
+  }
+]

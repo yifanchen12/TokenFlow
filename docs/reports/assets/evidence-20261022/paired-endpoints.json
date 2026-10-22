@@ -1,0 +1,49 @@
+{
+  "scope": "same_cases_production_connections",
+  "expected_cases": 60,
+  "paired_cases": 60,
+  "categories": {
+    "ledger_revisions": {
+      "pairs": 10,
+      "edge_correct": 0,
+      "native_correct": 9
+    },
+    "unit_conversion": {
+      "pairs": 10,
+      "edge_correct": 0,
+      "native_correct": 5
+    },
+    "dependency_timing": {
+      "pairs": 10,
+      "edge_correct": 0,
+      "native_correct": 3
+    },
+    "cross_document_join": {
+      "pairs": 10,
+      "edge_correct": 0,
+      "native_correct": 5
+    },
+    "threshold_policy": {
+      "pairs": 10,
+      "edge_correct": 0,
+      "native_correct": 7
+    },
+    "budget_selection": {
+      "pairs": 10,
+      "edge_correct": 0,
+      "native_correct": 5
+    }
+  },
+  "counts": {
+    "both_correct": 0,
+    "edge_only_correct": 0,
+    "native_only_correct": 34,
+    "both_incorrect": 26
+  },
+  "reports_sha256": {
+    "edge": "f9cda511968b701869ebe2556cbeca202f04b400f55db84e1fde9c11712094b8",
+    "native": "90d52aa3e56a906995559b07330f17430ab99666a7e4d531f7d95de2fced6c2e"
+  },
+  "note": "API/native prompt framing, tokenizer and hardware differ. Templates are synthetic and correlated; no intrinsic model superiority, latency causality or invoice claim.",
+  "complete": true
+}

@@ -46,7 +46,8 @@ from omniroute_manager import install as install_omniroute, self_check as omniro
 from pc_agent import PCAgentError, execute_actions, plan_actions, self_check as pc_agent_self_check
 from tokenflow_store import DocumentStore, self_check as store_self_check
 from runtime_config import RuntimeConfig, native_catalogs, ConnectionClient
-from task_orchestrator import start_task, cancel_task, TaskCancelled
+from runtime_ownership import FileLease, lease_path, lease_state
+from task_orchestrator import start_task, cancel_task, retry_task, TaskCancelled
 
 
 MAX_COMPRESSED_CHARS = 2400
@@ -523,7 +524,10 @@ def _run_harness(command: list[str], harness: str, prompt: str, env: dict[str, s
 
 
 def execute_harness(harness: str, model: str, prompt: str, backend: str = "direct",
-                    *, cancel_event: threading.Event | None = None) -> dict[str, Any]:
+                    *, cancel_event: threading.Event | None = None, text_only: bool = False,
+                    native_config: dict | None = None) -> dict[str, Any]:
+    if text_only and harness != "codex":
+        raise ValueError("原生纯文本隔离目前仅支持 Codex")
     if backend == "omniroute":
         model = omniroute_model(model)
     executable = _resolve_harness_command(harness)
@@ -531,12 +535,15 @@ def execute_harness(harness: str, model: str, prompt: str, backend: str = "direc
         raise RuntimeError(f"未检测到可用的 {harness} 命令")
     gateway = omniroute_config() if backend == "omniroute" else None
     command = build_harness_args(harness, model, prompt, os.getcwd(), executable, backend, gateway)
-    if harness == "codex" and backend == "direct" and native_catalogs()["codex"].get("provider", "openai") == "openai":
+    native = native_config if native_config is not None else (native_catalogs().get("codex", {}) if harness == 'codex' else {})
+    if text_only and backend == "direct" and native.get("provider", "openai") != "openai":
+        raise ValueError("自定义原生提供商尚不支持纯文本隔离，请使用已保存的 API 连接")
+    if harness == "codex" and backend == "direct" and native.get("provider", "openai") == "openai":
         # Preserve native account auth while using HTTPS on networks blocking WebSockets.
         settings = {"model_provider": "tokenflow_native", "model_providers.tokenflow_native.name": "Native Codex HTTPS",
                     "model_providers.tokenflow_native.requires_openai_auth": True,
                     "model_providers.tokenflow_native.supports_websockets": False}
-        endpoint = native_catalogs()["codex"].get("base_url")
+        endpoint = native.get("base_url")
         if endpoint:
             settings["model_providers.tokenflow_native.base_url"] = endpoint
         command[len(executable) + 1:len(executable) + 1] = [a for k, v in settings.items() for a in ("-c", k + "=" + json.dumps(v))]
@@ -546,6 +553,14 @@ def execute_harness(harness: str, model: str, prompt: str, backend: str = "direc
         if gateway[1]:
             child_env["TOKENFLOW_OMNIROUTE_API_KEY"] = gateway[1]
     started = time.monotonic()
+    if text_only:
+        from native_text import run_text
+        result = run_text(command, prompt, child_env, _run_bounded, MAX_EXEC_SECONDS, cancel_event,
+                          use_cached_catalog=backend == 'direct')
+        if gateway is not None and gateway[1]:
+            result['output'] = result['output'].replace(gateway[1], '<REDACTED>')
+        result.update(harness=harness, model=model, duration_ms=round((time.monotonic() - started) * 1000))
+        return result
     exit_code, output, error, output_truncated, error_truncated, timed_out = _run_harness(command, harness, prompt, child_env, cancel_event)
     if gateway is not None and gateway[1]:
         output = output.replace(gateway[1], "<REDACTED>")
@@ -572,15 +587,18 @@ def execute_harness(harness: str, model: str, prompt: str, backend: str = "direc
 
 
 def execute_configured_harness(harness: str, model: str, prompt: str, store: RuntimeConfig | None = None,
-                               *, cancel_event: threading.Event | None = None) -> dict[str, Any]:
+                               *, cancel_event: threading.Event | None = None, text_only: bool = False) -> dict[str, Any]:
     store = store or RuntimeConfig()
     if harness not in HARNESS_NAMES:
         raise ValueError("不支持的 Harness")
+    if text_only and harness != "codex":
+        raise ValueError("原生纯文本隔离目前仅支持 Codex")
     binding = store.settings()["bindings"][harness]
     selected = model if model != "auto" else binding["model"]
     if binding["connection"] == "native":
         selected = choose_model(harness, "code", prompt) if selected == "auto" else selected
-        return execute_harness(harness, selected, prompt, cancel_event=cancel_event)
+        options = {'text_only': True, 'native_config': store.public()['native']['codex']} if text_only else {}
+        return execute_harness(harness, selected, prompt, cancel_event=cancel_event, **options)
     profile = store.profile(binding["connection"], True)
     from model_providers import choose_model as pick_model
     from runtime_config import HARNESS_PROTOCOLS
@@ -613,6 +631,14 @@ def execute_configured_harness(harness: str, model: str, prompt: str, store: Run
         child_env["ANTHROPIC_BASE_URL"] = profile["base_url"]
         child_env["ANTHROPIC_API_KEY"] = key
     started = time.monotonic()
+    if text_only:
+        from native_text import run_text
+        result = run_text(command, prompt, child_env, _run_bounded, MAX_EXEC_SECONDS, cancel_event)
+        if key:
+            result['output'] = result['output'].replace(key, '<REDACTED>')
+        result.update(harness=harness, model=selected, connection=profile['id'],
+                      duration_ms=round((time.monotonic() - started) * 1000))
+        return result
     if harness == "dsh":
         child_env["DSH_HOME"] = os.environ.get("DSH_HOME", str(Path.home() / ".dsh"))
         child_env["TOKENFLOW_SAVED_API_KEY"] = key
@@ -895,6 +921,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             "/api/tasks/start",
             "/api/tasks/preview",
             "/api/tasks/cancel",
+            "/api/tasks/retry",
             "/api/tasks/delete",
             "/api/tasks/eval-draft",
             "/api/config/storage/delete",
@@ -956,6 +983,8 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                 result = task_preflight(data)
             elif self.path == "/api/tasks/cancel":
                 result = cancel_task(data.get("id", ""))
+            elif self.path == "/api/tasks/retry":
+                result = retry_task(data.get("id", ""), data.get("request_id", ""))
             elif self.path == "/api/tasks/delete":
                 result = RuntimeConfig().manage_history(str(data.get("id", "")))
             elif self.path == "/api/tasks/eval-draft":
@@ -1261,10 +1290,20 @@ def self_check() -> None:
     reliability_self_check()
     from test_acceptance import self_check as acceptance_self_check
     acceptance_self_check()
+    from test_reference_checks import self_check as reference_self_check
+    reference_self_check()
     from test_savings import self_check as savings_self_check
     savings_self_check()
     from test_collaboration import self_check as collaboration_self_check
     collaboration_self_check()
+    from test_lifecycle import self_check as lifecycle_self_check
+    lifecycle_self_check()
+    from test_static_python import self_check as static_python_self_check
+    static_python_self_check()
+    from test_recovery import self_check as recovery_self_check
+    recovery_self_check()
+    from test_native_text import self_check as native_text_self_check
+    native_text_self_check()
     assert "/api/tokenizer" in "/api/tokenizer"
     print("TokenFlow self-check: PASS")
 
@@ -1281,15 +1320,33 @@ def main() -> None:
     run_server(args.host, args.port)
 
 
-def run_server(host: str = "127.0.0.1", port: int = 8765) -> None:
-    server = ThreadingHTTPServer((host, port), TokenFlowHandler)
-    print(f"TokenFlow running at http://{host}:{port}")
+def run_server(host: str = "127.0.0.1", port: int = 8765, *, open_browser: bool = False,
+               reuse_existing: bool = False) -> None:
+    lock_path = lease_path(RuntimeConfig().path, "service")
+    owner = FileLease.acquire(lock_path, {"host": host, "port": port, "pid": os.getpid()})
+    if owner is None:
+        _, current = lease_state(lock_path)
+        if open_browser or reuse_existing:
+            if open_browser and current.get("host") in {"127.0.0.1", "localhost"} and type(current.get("port")) is int and 0 < current["port"] < 65536:
+                import webbrowser
+                webbrowser.open(f"http://{current['host']}:{current['port']}")
+            return
+        raise RuntimeError("已有 TokenFlow 服务正在使用此配置数据库，请返回原窗口或使用独立配置")
+    server = None
     try:
+        server = ThreadingHTTPServer((host, port), TokenFlowHandler)
+        owner.update({"host": host, "port": server.server_port, "pid": os.getpid()})
+        print(f"TokenFlow running at http://{host}:{server.server_port}")
+        if open_browser:
+            import webbrowser
+            threading.Timer(0.8, lambda: webbrowser.open(f"http://{host}:{server.server_port}")).start()
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nTokenFlow stopped")
     finally:
-        server.server_close()
+        if server:
+            server.server_close()
+        owner.close()
 
 
 if __name__ == "__main__":

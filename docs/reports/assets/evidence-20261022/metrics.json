@@ -1,0 +1,4445 @@
+{
+  "scope": "synthetic_regression_and_fresh_rule_generated_validation",
+  "models": {
+    "native": "gpt-6-luna",
+    "local": "qwen3.5:9b"
+  },
+  "runs": {
+    "regression": {
+      "summary": {
+        "cases": 60,
+        "positive_cases": 60,
+        "guard_cases": 0,
+        "arms": {
+          "raw": {
+            "attempted": 60,
+            "calls": 60,
+            "usage_complete": true,
+            "input_tokens": 5414,
+            "total_tokens": 5615,
+            "duration_ms": 40617,
+            "by_role": {
+              "executor": {
+                "calls": 60,
+                "duration_ms": 35652,
+                "input_tokens": 5414,
+                "output_tokens": 201
+              }
+            },
+            "positive_correct": 24,
+            "accepted_correct": 24,
+            "false_accepts": null,
+            "false_rejects": 0,
+            "correct_but_blocked": {},
+            "repair_improved": 0,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {}
+          },
+          "verified_raw": {
+            "attempted": 60,
+            "calls": 136,
+            "usage_complete": true,
+            "input_tokens": 29414,
+            "total_tokens": 39676,
+            "duration_ms": 541496,
+            "by_role": {
+              "executor": {
+                "calls": 60,
+                "duration_ms": 21513,
+                "input_tokens": 5414,
+                "output_tokens": 201
+              },
+              "recheck": {
+                "calls": 8,
+                "duration_ms": 54693,
+                "input_tokens": 2651,
+                "output_tokens": 1070
+              },
+              "repair": {
+                "calls": 8,
+                "duration_ms": 4181,
+                "input_tokens": 1904,
+                "output_tokens": 29
+              },
+              "reviewer": {
+                "calls": 60,
+                "duration_ms": 453964,
+                "input_tokens": 19445,
+                "output_tokens": 8962
+              }
+            },
+            "positive_correct": 32,
+            "accepted_correct": 26,
+            "false_accepts": 2,
+            "false_rejects": 6,
+            "correct_but_blocked": {
+              "invalid_review": 3,
+              "rejected_review": 3
+            },
+            "repair_improved": 8,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {
+              "invalid_verdict": 24
+            }
+          },
+          "collaboration": {
+            "attempted": 60,
+            "calls": 96,
+            "usage_complete": true,
+            "input_tokens": 21579,
+            "total_tokens": 29886,
+            "duration_ms": 429908,
+            "by_role": {
+              "executor": {
+                "calls": 40,
+                "duration_ms": 15772,
+                "input_tokens": 3841,
+                "output_tokens": 142
+              },
+              "recheck": {
+                "calls": 8,
+                "duration_ms": 54991,
+                "input_tokens": 2651,
+                "output_tokens": 1070
+              },
+              "repair": {
+                "calls": 8,
+                "duration_ms": 3550,
+                "input_tokens": 1904,
+                "output_tokens": 29
+              },
+              "reviewer": {
+                "calls": 40,
+                "duration_ms": 349790,
+                "input_tokens": 13183,
+                "output_tokens": 7066
+              }
+            },
+            "positive_correct": 37,
+            "accepted_correct": 31,
+            "false_accepts": 1,
+            "false_rejects": 6,
+            "correct_but_blocked": {
+              "invalid_review": 3,
+              "rejected_review": 3
+            },
+            "repair_improved": 8,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {
+              "invalid_verdict": 20
+            }
+          }
+        },
+        "comparisons": {
+          "raw": {
+            "cases": 60,
+            "source_kinds": [
+              "synthetic"
+            ],
+            "completed_pairs": 60,
+            "compressed_cases": 0,
+            "critical_fact_loss_rate": 0.0,
+            "raw_accuracy": 0.4,
+            "processed_accuracy": 0.5166666666666667,
+            "reported_raw_prompt_tokens": 5414,
+            "reported_processed_prompt_tokens": 21579,
+            "reported_prompt_token_saving_ratio": -2.9858,
+            "reported_raw_total_tokens": 5615,
+            "reported_processed_total_tokens": 29886,
+            "raw_median_latency_ms": 481.0,
+            "processed_median_latency_ms": 7758.5,
+            "reported_total_token_saving_ratio": -4.3225,
+            "by_category": {
+              "code_dependencies": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 870,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 469.0,
+                "processed_median_latency_ms": 36.0
+              },
+              "conflict_resolution": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 0.5,
+                "raw_total_tokens": 927,
+                "processed_total_tokens": 5275,
+                "raw_median_latency_ms": 425.5,
+                "processed_median_latency_ms": 5165.0
+              },
+              "constraint_selection": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.1,
+                "raw_total_tokens": 1036,
+                "processed_total_tokens": 6370,
+                "raw_median_latency_ms": 493.5,
+                "processed_median_latency_ms": 10669.0
+              },
+              "handoff_arithmetic": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.2,
+                "raw_total_tokens": 993,
+                "processed_total_tokens": 8764,
+                "raw_median_latency_ms": 408.0,
+                "processed_median_latency_ms": 12322.5
+              },
+              "instructions_in_source": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.2,
+                "processed_accuracy": 0.3,
+                "raw_total_tokens": 1027,
+                "processed_total_tokens": 9477,
+                "raw_median_latency_ms": 492.0,
+                "processed_median_latency_ms": 12080.0
+              },
+              "table": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 1.0,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 762,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 496.5,
+                "processed_median_latency_ms": 35.5
+              }
+            },
+            "by_source_kind": {
+              "synthetic": {
+                "cases": 60,
+                "completed_pairs": 60,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.4,
+                "processed_accuracy": 0.5166666666666667,
+                "raw_total_tokens": 5615,
+                "processed_total_tokens": 29886,
+                "raw_median_latency_ms": 481.0,
+                "processed_median_latency_ms": 7758.5
+              }
+            },
+            "all_attempt_token_saving_ratio": -4.3225
+          },
+          "verified_raw": {
+            "cases": 60,
+            "source_kinds": [
+              "synthetic"
+            ],
+            "completed_pairs": 60,
+            "compressed_cases": 0,
+            "critical_fact_loss_rate": 0.0,
+            "raw_accuracy": 0.43333333333333335,
+            "processed_accuracy": 0.5166666666666667,
+            "reported_raw_prompt_tokens": 29414,
+            "reported_processed_prompt_tokens": 21579,
+            "reported_prompt_token_saving_ratio": 0.2664,
+            "reported_raw_total_tokens": 39676,
+            "reported_processed_total_tokens": 29886,
+            "raw_median_latency_ms": 8483.0,
+            "processed_median_latency_ms": 7758.5,
+            "reported_total_token_saving_ratio": 0.2467,
+            "by_category": {
+              "code_dependencies": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 5232,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 5833.0,
+                "processed_median_latency_ms": 36.0
+              },
+              "conflict_resolution": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 0.5,
+                "raw_total_tokens": 5275,
+                "processed_total_tokens": 5275,
+                "raw_median_latency_ms": 5229.5,
+                "processed_median_latency_ms": 5165.0
+              },
+              "constraint_selection": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.1,
+                "raw_total_tokens": 6370,
+                "processed_total_tokens": 6370,
+                "raw_median_latency_ms": 10767.5,
+                "processed_median_latency_ms": 10669.0
+              },
+              "handoff_arithmetic": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.2,
+                "processed_accuracy": 0.2,
+                "raw_total_tokens": 8764,
+                "processed_total_tokens": 8764,
+                "raw_median_latency_ms": 12074.5,
+                "processed_median_latency_ms": 12322.5
+              },
+              "instructions_in_source": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.3,
+                "processed_accuracy": 0.3,
+                "raw_total_tokens": 9477,
+                "processed_total_tokens": 9477,
+                "raw_median_latency_ms": 12273.0,
+                "processed_median_latency_ms": 12080.0
+              },
+              "table": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 1.0,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 4558,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 4378.0,
+                "processed_median_latency_ms": 35.5
+              }
+            },
+            "by_source_kind": {
+              "synthetic": {
+                "cases": 60,
+                "completed_pairs": 60,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.43333333333333335,
+                "processed_accuracy": 0.5166666666666667,
+                "raw_total_tokens": 39676,
+                "processed_total_tokens": 29886,
+                "raw_median_latency_ms": 8483.0,
+                "processed_median_latency_ms": 7758.5
+              }
+            },
+            "all_attempt_token_saving_ratio": 0.2467
+          }
+        }
+      },
+      "quality_gate": {
+        "status": "failed",
+        "reasons": [
+          "raw: 处理后答案准确率未达到最低阈值",
+          "raw: 输入 Token 节省未达到阈值",
+          "raw: 类别 synthetic/conflict_resolution 未通过：正确率低于最低阈值",
+          "raw: 类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+          "raw: 类别 synthetic/handoff_arithmetic 未通过：正确率低于最低阈值",
+          "raw: 类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+          "raw: 完整输入加输出 Token 节省未达到阈值",
+          "raw: 存在失败或未通过验收的正向任务",
+          "verified_raw: 处理后答案准确率未达到最低阈值",
+          "verified_raw: 类别 synthetic/conflict_resolution 未通过：正确率低于最低阈值",
+          "verified_raw: 类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+          "verified_raw: 类别 synthetic/handoff_arithmetic 未通过：正确率低于最低阈值",
+          "verified_raw: 类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+          "verified_raw: 存在失败或未通过验收的正向任务"
+        ],
+        "baselines": {
+          "raw": {
+            "status": "failed",
+            "scope": "provided_cases_only",
+            "representative_quality_proven": false,
+            "reasons": [
+              "处理后答案准确率未达到最低阈值",
+              "输入 Token 节省未达到阈值",
+              "类别 synthetic/conflict_resolution 未通过：正确率低于最低阈值",
+              "类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+              "类别 synthetic/handoff_arithmetic 未通过：正确率低于最低阈值",
+              "类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+              "完整输入加输出 Token 节省未达到阈值",
+              "存在失败或未通过验收的正向任务"
+            ],
+            "categories": {
+              "synthetic": {
+                "code_dependencies": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "conflict_resolution": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "constraint_selection": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "handoff_arithmetic": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "instructions_in_source": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "table": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                }
+              }
+            },
+            "thresholds": {
+              "min_cases": 50,
+              "min_category_cases": 10,
+              "min_accuracy": 0.9,
+              "max_accuracy_drop": 0.02,
+              "min_prompt_token_saving_ratio": 0.05
+            },
+            "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+          },
+          "verified_raw": {
+            "status": "failed",
+            "scope": "provided_cases_only",
+            "representative_quality_proven": false,
+            "reasons": [
+              "处理后答案准确率未达到最低阈值",
+              "类别 synthetic/conflict_resolution 未通过：正确率低于最低阈值",
+              "类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+              "类别 synthetic/handoff_arithmetic 未通过：正确率低于最低阈值",
+              "类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+              "存在失败或未通过验收的正向任务"
+            ],
+            "categories": {
+              "synthetic": {
+                "code_dependencies": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "conflict_resolution": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "constraint_selection": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "handoff_arithmetic": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "instructions_in_source": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "table": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                }
+              }
+            },
+            "thresholds": {
+              "min_cases": 50,
+              "min_category_cases": 10,
+              "min_accuracy": 0.9,
+              "max_accuracy_drop": 0.02,
+              "min_prompt_token_saving_ratio": 0.05
+            },
+            "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+          }
+        },
+        "scope": "provided_cases_only",
+        "representative_quality_proven": false,
+        "note": "拒答集合单列，不放宽正向门槛；未知 Harness 用量不记为零；Token 差值不是费用差值。"
+      },
+      "completed_arms": 180,
+      "expected_arms": 180,
+      "corpus_sha256": "5d3fdc4b8977e885c9b1900116a214c9c9b8857ab0e51e2b31d530d0278692fc",
+      "report_sha256": "a8948f4ec6d09ba3104ac1d89c83d1f0677d6e7f510aafc6ef564ab4a74061d2",
+      "stage": "prototype",
+      "configuration": {
+        "edge": "edge",
+        "complex": "edge",
+        "edge_model": "qwen3.5:9b",
+        "complex_model": "qwen3.5:9b",
+        "max_calls": 6,
+        "edge_available": true,
+        "allow_file_harness_steps": false,
+        "output_limits": {
+          "local": 1024,
+          "planner": 1536,
+          "executor": 2400,
+          "reviewer": 1024
+        },
+        "max_task_tokens": 64000,
+        "context_window_tokens": 32768
+      },
+      "categories": {
+        "handoff_arithmetic": {
+          "raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 2,
+            "calls": 26
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 2,
+            "calls": 26
+          }
+        },
+        "conflict_resolution": {
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 20
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 20
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          }
+        },
+        "constraint_selection": {
+          "collaboration": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 20
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 20
+          }
+        },
+        "instructions_in_source": {
+          "raw": {
+            "attempted": 10,
+            "correct": 2,
+            "accepted_correct": 2,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 7,
+            "accepted_correct": 3,
+            "calls": 30
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 7,
+            "accepted_correct": 3,
+            "calls": 30
+          }
+        },
+        "code_dependencies": {
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 20
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 0
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          }
+        },
+        "table": {
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 0
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 20
+          }
+        }
+      },
+      "native_audit": {
+        "calls": 0,
+        "complete": 0,
+        "metadata_fallback_calls": 0,
+        "usage_complete_calls": 0,
+        "cached_catalog_calls": 0,
+        "code_mode_disabled_calls": 0,
+        "text_instruction_calls": 0,
+        "catalog_hashes": [],
+        "instruction_hashes": []
+      },
+      "calls_by_arm_and_target": {
+        "raw": {
+          "edge": 60
+        },
+        "verified_raw": {
+          "edge": 136
+        },
+        "collaboration": {
+          "edge": 96
+        }
+      },
+      "code_manifest": {
+        "file": "tmp\\evidence-eval-20261022\\release-code-manifest.json",
+        "sha256": "c0499281d48bc33a23725f3766e50afbb8b6fac7eb4e6e49cf2b099ad0e7b994"
+      }
+    },
+    "regression-final": {
+      "summary": {
+        "cases": 60,
+        "positive_cases": 60,
+        "guard_cases": 0,
+        "arms": {
+          "raw": {
+            "attempted": 60,
+            "calls": 60,
+            "usage_complete": true,
+            "input_tokens": 5414,
+            "total_tokens": 5615,
+            "duration_ms": 30429,
+            "by_role": {
+              "executor": {
+                "calls": 60,
+                "duration_ms": 25524,
+                "input_tokens": 5414,
+                "output_tokens": 201
+              }
+            },
+            "positive_correct": 24,
+            "accepted_correct": 24,
+            "false_accepts": null,
+            "false_rejects": 0,
+            "correct_but_blocked": {},
+            "repair_improved": 0,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {}
+          },
+          "verified_raw": {
+            "attempted": 60,
+            "calls": 136,
+            "usage_complete": true,
+            "input_tokens": 29414,
+            "total_tokens": 39676,
+            "duration_ms": 536845,
+            "by_role": {
+              "executor": {
+                "calls": 60,
+                "duration_ms": 21244,
+                "input_tokens": 5414,
+                "output_tokens": 201
+              },
+              "recheck": {
+                "calls": 8,
+                "duration_ms": 54520,
+                "input_tokens": 2651,
+                "output_tokens": 1070
+              },
+              "repair": {
+                "calls": 8,
+                "duration_ms": 4595,
+                "input_tokens": 1904,
+                "output_tokens": 29
+              },
+              "reviewer": {
+                "calls": 60,
+                "duration_ms": 449127,
+                "input_tokens": 19445,
+                "output_tokens": 8962
+              }
+            },
+            "positive_correct": 32,
+            "accepted_correct": 26,
+            "false_accepts": 2,
+            "false_rejects": 6,
+            "correct_but_blocked": {
+              "invalid_review": 3,
+              "rejected_review": 3
+            },
+            "repair_improved": 8,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {
+              "invalid_verdict": 24
+            }
+          },
+          "collaboration": {
+            "attempted": 60,
+            "calls": 122,
+            "usage_complete": true,
+            "input_tokens": 44576,
+            "total_tokens": 53716,
+            "duration_ms": 497181,
+            "by_role": {
+              "executor": {
+                "calls": 40,
+                "duration_ms": 22420,
+                "input_tokens": 7817,
+                "output_tokens": 137
+              },
+              "planner": {
+                "calls": 40,
+                "duration_ms": 193580,
+                "input_tokens": 23355,
+                "output_tokens": 3571
+              },
+              "recheck": {
+                "calls": 1,
+                "duration_ms": 3993,
+                "input_tokens": 335,
+                "output_tokens": 76
+              },
+              "repair": {
+                "calls": 1,
+                "duration_ms": 605,
+                "input_tokens": 211,
+                "output_tokens": 4
+              },
+              "reviewer": {
+                "calls": 40,
+                "duration_ms": 269406,
+                "input_tokens": 12858,
+                "output_tokens": 5352
+              }
+            },
+            "positive_correct": 46,
+            "accepted_correct": 44,
+            "false_accepts": 2,
+            "false_rejects": 2,
+            "correct_but_blocked": {
+              "rejected_review": 1,
+              "invalid_review": 1
+            },
+            "repair_improved": 1,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {
+              "invalid_verdict": 8,
+              "inconsistent_arithmetic": 3
+            }
+          }
+        },
+        "comparisons": {
+          "raw": {
+            "cases": 60,
+            "source_kinds": [
+              "synthetic"
+            ],
+            "completed_pairs": 60,
+            "compressed_cases": 0,
+            "critical_fact_loss_rate": 0.0,
+            "raw_accuracy": 0.4,
+            "processed_accuracy": 0.7333333333333333,
+            "reported_raw_prompt_tokens": 5414,
+            "reported_processed_prompt_tokens": 44576,
+            "reported_prompt_token_saving_ratio": -7.2335,
+            "reported_raw_total_tokens": 5615,
+            "reported_processed_total_tokens": 53716,
+            "raw_median_latency_ms": 514.5,
+            "processed_median_latency_ms": 10101.0,
+            "reported_total_token_saving_ratio": -8.5665,
+            "by_category": {
+              "code_dependencies": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 870,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 462.5,
+                "processed_median_latency_ms": 35.5
+              },
+              "conflict_resolution": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 927,
+                "processed_total_tokens": 11496,
+                "raw_median_latency_ms": 519.0,
+                "processed_median_latency_ms": 9328.0
+              },
+              "constraint_selection": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.2,
+                "raw_total_tokens": 1036,
+                "processed_total_tokens": 15874,
+                "raw_median_latency_ms": 590.5,
+                "processed_median_latency_ms": 13439.5
+              },
+              "handoff_arithmetic": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.9,
+                "raw_total_tokens": 993,
+                "processed_total_tokens": 12569,
+                "raw_median_latency_ms": 514.0,
+                "processed_median_latency_ms": 11369.0
+              },
+              "instructions_in_source": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.2,
+                "processed_accuracy": 0.3,
+                "raw_total_tokens": 1027,
+                "processed_total_tokens": 13777,
+                "raw_median_latency_ms": 572.0,
+                "processed_median_latency_ms": 15891.0
+              },
+              "table": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 1.0,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 762,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 482.0,
+                "processed_median_latency_ms": 38.0
+              }
+            },
+            "by_source_kind": {
+              "synthetic": {
+                "cases": 60,
+                "completed_pairs": 60,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.4,
+                "processed_accuracy": 0.7333333333333333,
+                "raw_total_tokens": 5615,
+                "processed_total_tokens": 53716,
+                "raw_median_latency_ms": 514.5,
+                "processed_median_latency_ms": 10101.0
+              }
+            },
+            "all_attempt_token_saving_ratio": -8.5665
+          },
+          "verified_raw": {
+            "cases": 60,
+            "source_kinds": [
+              "synthetic"
+            ],
+            "completed_pairs": 60,
+            "compressed_cases": 0,
+            "critical_fact_loss_rate": 0.0,
+            "raw_accuracy": 0.43333333333333335,
+            "processed_accuracy": 0.7333333333333333,
+            "reported_raw_prompt_tokens": 29414,
+            "reported_processed_prompt_tokens": 44576,
+            "reported_prompt_token_saving_ratio": -0.5155,
+            "reported_raw_total_tokens": 39676,
+            "reported_processed_total_tokens": 53716,
+            "raw_median_latency_ms": 8139.0,
+            "processed_median_latency_ms": 10101.0,
+            "reported_total_token_saving_ratio": -0.3539,
+            "by_category": {
+              "code_dependencies": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 5232,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 5734.0,
+                "processed_median_latency_ms": 35.5
+              },
+              "conflict_resolution": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 5275,
+                "processed_total_tokens": 11496,
+                "raw_median_latency_ms": 5109.5,
+                "processed_median_latency_ms": 9328.0
+              },
+              "constraint_selection": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.2,
+                "raw_total_tokens": 6370,
+                "processed_total_tokens": 15874,
+                "raw_median_latency_ms": 10749.0,
+                "processed_median_latency_ms": 13439.5
+              },
+              "handoff_arithmetic": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.2,
+                "processed_accuracy": 0.9,
+                "raw_total_tokens": 8764,
+                "processed_total_tokens": 12569,
+                "raw_median_latency_ms": 11815.0,
+                "processed_median_latency_ms": 11369.0
+              },
+              "instructions_in_source": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.3,
+                "processed_accuracy": 0.3,
+                "raw_total_tokens": 9477,
+                "processed_total_tokens": 13777,
+                "raw_median_latency_ms": 12203.5,
+                "processed_median_latency_ms": 15891.0
+              },
+              "table": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 1.0,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 4558,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 4365.5,
+                "processed_median_latency_ms": 38.0
+              }
+            },
+            "by_source_kind": {
+              "synthetic": {
+                "cases": 60,
+                "completed_pairs": 60,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.43333333333333335,
+                "processed_accuracy": 0.7333333333333333,
+                "raw_total_tokens": 39676,
+                "processed_total_tokens": 53716,
+                "raw_median_latency_ms": 8139.0,
+                "processed_median_latency_ms": 10101.0
+              }
+            },
+            "all_attempt_token_saving_ratio": -0.3539
+          }
+        }
+      },
+      "quality_gate": {
+        "status": "failed",
+        "reasons": [
+          "raw: 处理后答案准确率未达到最低阈值",
+          "raw: 输入 Token 节省未达到阈值",
+          "raw: 类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+          "raw: 类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+          "raw: 完整输入加输出 Token 节省未达到阈值",
+          "raw: 存在失败或未通过验收的正向任务",
+          "verified_raw: 处理后答案准确率未达到最低阈值",
+          "verified_raw: 输入 Token 节省未达到阈值",
+          "verified_raw: 类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+          "verified_raw: 类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+          "verified_raw: 完整输入加输出 Token 节省未达到阈值",
+          "verified_raw: 存在失败或未通过验收的正向任务"
+        ],
+        "baselines": {
+          "raw": {
+            "status": "failed",
+            "scope": "provided_cases_only",
+            "representative_quality_proven": false,
+            "reasons": [
+              "处理后答案准确率未达到最低阈值",
+              "输入 Token 节省未达到阈值",
+              "类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+              "类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+              "完整输入加输出 Token 节省未达到阈值",
+              "存在失败或未通过验收的正向任务"
+            ],
+            "categories": {
+              "synthetic": {
+                "code_dependencies": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "conflict_resolution": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "constraint_selection": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "handoff_arithmetic": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "instructions_in_source": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "table": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                }
+              }
+            },
+            "thresholds": {
+              "min_cases": 50,
+              "min_category_cases": 10,
+              "min_accuracy": 0.9,
+              "max_accuracy_drop": 0.02,
+              "min_prompt_token_saving_ratio": 0.05
+            },
+            "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+          },
+          "verified_raw": {
+            "status": "failed",
+            "scope": "provided_cases_only",
+            "representative_quality_proven": false,
+            "reasons": [
+              "处理后答案准确率未达到最低阈值",
+              "输入 Token 节省未达到阈值",
+              "类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+              "类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+              "完整输入加输出 Token 节省未达到阈值",
+              "存在失败或未通过验收的正向任务"
+            ],
+            "categories": {
+              "synthetic": {
+                "code_dependencies": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "conflict_resolution": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "constraint_selection": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "handoff_arithmetic": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "instructions_in_source": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "table": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                }
+              }
+            },
+            "thresholds": {
+              "min_cases": 50,
+              "min_category_cases": 10,
+              "min_accuracy": 0.9,
+              "max_accuracy_drop": 0.02,
+              "min_prompt_token_saving_ratio": 0.05
+            },
+            "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+          }
+        },
+        "scope": "provided_cases_only",
+        "representative_quality_proven": false,
+        "note": "拒答集合单列，不放宽正向门槛；未知 Harness 用量不记为零；Token 差值不是费用差值。"
+      },
+      "completed_arms": 180,
+      "expected_arms": 180,
+      "corpus_sha256": "5d3fdc4b8977e885c9b1900116a214c9c9b8857ab0e51e2b31d530d0278692fc",
+      "report_sha256": "085ff2da7c6aed89790c5c9274a033618dbc2e892ee59a488a646869d7b312e4",
+      "stage": "prototype",
+      "configuration": {
+        "edge": "edge",
+        "complex": "edge",
+        "edge_model": "qwen3.5:9b",
+        "complex_model": "qwen3.5:9b",
+        "max_calls": 6,
+        "edge_available": true,
+        "allow_file_harness_steps": false,
+        "output_limits": {
+          "local": 1024,
+          "planner": 1536,
+          "executor": 2400,
+          "reviewer": 1024
+        },
+        "max_task_tokens": 64000,
+        "context_window_tokens": 32768
+      },
+      "categories": {
+        "handoff_arithmetic": {
+          "raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 2,
+            "calls": 26
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 9,
+            "calls": 30
+          }
+        },
+        "conflict_resolution": {
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 20
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 30
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          }
+        },
+        "constraint_selection": {
+          "collaboration": {
+            "attempted": 10,
+            "correct": 2,
+            "accepted_correct": 2,
+            "calls": 30
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 20
+          }
+        },
+        "instructions_in_source": {
+          "raw": {
+            "attempted": 10,
+            "correct": 2,
+            "accepted_correct": 2,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 7,
+            "accepted_correct": 3,
+            "calls": 30
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 3,
+            "calls": 32
+          }
+        },
+        "code_dependencies": {
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 20
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 0
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          }
+        },
+        "table": {
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 0
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 20
+          }
+        }
+      },
+      "native_audit": {
+        "calls": 0,
+        "complete": 0,
+        "metadata_fallback_calls": 0,
+        "usage_complete_calls": 0,
+        "cached_catalog_calls": 0,
+        "code_mode_disabled_calls": 0,
+        "text_instruction_calls": 0,
+        "catalog_hashes": [],
+        "instruction_hashes": []
+      },
+      "calls_by_arm_and_target": {
+        "raw": {
+          "edge": 60
+        },
+        "verified_raw": {
+          "edge": 136
+        },
+        "collaboration": {
+          "edge": 122
+        }
+      },
+      "code_manifest": {
+        "file": "tmp\\evidence-eval-20261022\\final-code-manifest.json",
+        "sha256": "7eeb7f5e9593398d4dfa2dd10e1ca7521bb5a35591c06e3a5407fb7b7a8d1055"
+      }
+    },
+    "regression-checked": {
+      "summary": {
+        "cases": 60,
+        "positive_cases": 60,
+        "guard_cases": 0,
+        "arms": {
+          "raw": {
+            "attempted": 60,
+            "calls": 60,
+            "usage_complete": true,
+            "input_tokens": 5414,
+            "total_tokens": 5615,
+            "duration_ms": 39516,
+            "by_role": {
+              "executor": {
+                "calls": 60,
+                "duration_ms": 34636,
+                "input_tokens": 5414,
+                "output_tokens": 201
+              }
+            },
+            "positive_correct": 24,
+            "accepted_correct": 24,
+            "false_accepts": null,
+            "false_rejects": 0,
+            "correct_but_blocked": {},
+            "repair_improved": 0,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {}
+          },
+          "verified_raw": {
+            "attempted": 60,
+            "calls": 136,
+            "usage_complete": true,
+            "input_tokens": 29414,
+            "total_tokens": 39676,
+            "duration_ms": 574070,
+            "by_role": {
+              "executor": {
+                "calls": 60,
+                "duration_ms": 22589,
+                "input_tokens": 5414,
+                "output_tokens": 201
+              },
+              "recheck": {
+                "calls": 8,
+                "duration_ms": 56935,
+                "input_tokens": 2651,
+                "output_tokens": 1070
+              },
+              "repair": {
+                "calls": 8,
+                "duration_ms": 4696,
+                "input_tokens": 1904,
+                "output_tokens": 29
+              },
+              "reviewer": {
+                "calls": 60,
+                "duration_ms": 482260,
+                "input_tokens": 19445,
+                "output_tokens": 8962
+              }
+            },
+            "positive_correct": 32,
+            "accepted_correct": 26,
+            "false_accepts": 2,
+            "false_rejects": 6,
+            "correct_but_blocked": {
+              "invalid_review": 3,
+              "rejected_review": 3
+            },
+            "repair_improved": 8,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {
+              "invalid_verdict": 24
+            }
+          },
+          "collaboration": {
+            "attempted": 60,
+            "calls": 122,
+            "usage_complete": true,
+            "input_tokens": 44576,
+            "total_tokens": 53716,
+            "duration_ms": 523498,
+            "by_role": {
+              "executor": {
+                "calls": 40,
+                "duration_ms": 23267,
+                "input_tokens": 7817,
+                "output_tokens": 137
+              },
+              "planner": {
+                "calls": 40,
+                "duration_ms": 200058,
+                "input_tokens": 23355,
+                "output_tokens": 3571
+              },
+              "recheck": {
+                "calls": 1,
+                "duration_ms": 4623,
+                "input_tokens": 335,
+                "output_tokens": 76
+              },
+              "repair": {
+                "calls": 1,
+                "duration_ms": 581,
+                "input_tokens": 211,
+                "output_tokens": 4
+              },
+              "reviewer": {
+                "calls": 40,
+                "duration_ms": 287908,
+                "input_tokens": 12858,
+                "output_tokens": 5352
+              }
+            },
+            "positive_correct": 46,
+            "accepted_correct": 44,
+            "false_accepts": 0,
+            "false_rejects": 2,
+            "correct_but_blocked": {
+              "rejected_review": 1,
+              "invalid_review": 1
+            },
+            "repair_improved": 1,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {
+              "invalid_verdict": 8,
+              "inconsistent_arithmetic": 5
+            }
+          }
+        },
+        "comparisons": {
+          "raw": {
+            "cases": 60,
+            "source_kinds": [
+              "synthetic"
+            ],
+            "completed_pairs": 60,
+            "compressed_cases": 0,
+            "critical_fact_loss_rate": 0.0,
+            "raw_accuracy": 0.4,
+            "processed_accuracy": 0.7333333333333333,
+            "reported_raw_prompt_tokens": 5414,
+            "reported_processed_prompt_tokens": 44576,
+            "reported_prompt_token_saving_ratio": -7.2335,
+            "reported_raw_total_tokens": 5615,
+            "reported_processed_total_tokens": 53716,
+            "raw_median_latency_ms": 532.0,
+            "processed_median_latency_ms": 10483.0,
+            "reported_total_token_saving_ratio": -8.5665,
+            "by_category": {
+              "code_dependencies": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 870,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 455.0,
+                "processed_median_latency_ms": 35.0
+              },
+              "conflict_resolution": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 927,
+                "processed_total_tokens": 11496,
+                "raw_median_latency_ms": 509.5,
+                "processed_median_latency_ms": 9399.5
+              },
+              "constraint_selection": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.2,
+                "raw_total_tokens": 1036,
+                "processed_total_tokens": 15874,
+                "raw_median_latency_ms": 601.0,
+                "processed_median_latency_ms": 14419.0
+              },
+              "handoff_arithmetic": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.9,
+                "raw_total_tokens": 993,
+                "processed_total_tokens": 12569,
+                "raw_median_latency_ms": 529.5,
+                "processed_median_latency_ms": 11314.0
+              },
+              "instructions_in_source": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.2,
+                "processed_accuracy": 0.3,
+                "raw_total_tokens": 1027,
+                "processed_total_tokens": 13777,
+                "raw_median_latency_ms": 605.0,
+                "processed_median_latency_ms": 17419.5
+              },
+              "table": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 1.0,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 762,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 509.5,
+                "processed_median_latency_ms": 37.0
+              }
+            },
+            "by_source_kind": {
+              "synthetic": {
+                "cases": 60,
+                "completed_pairs": 60,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.4,
+                "processed_accuracy": 0.7333333333333333,
+                "raw_total_tokens": 5615,
+                "processed_total_tokens": 53716,
+                "raw_median_latency_ms": 532.0,
+                "processed_median_latency_ms": 10483.0
+              }
+            },
+            "all_attempt_token_saving_ratio": -8.5665
+          },
+          "verified_raw": {
+            "cases": 60,
+            "source_kinds": [
+              "synthetic"
+            ],
+            "completed_pairs": 60,
+            "compressed_cases": 0,
+            "critical_fact_loss_rate": 0.0,
+            "raw_accuracy": 0.43333333333333335,
+            "processed_accuracy": 0.7333333333333333,
+            "reported_raw_prompt_tokens": 29414,
+            "reported_processed_prompt_tokens": 44576,
+            "reported_prompt_token_saving_ratio": -0.5155,
+            "reported_raw_total_tokens": 39676,
+            "reported_processed_total_tokens": 53716,
+            "raw_median_latency_ms": 8764.5,
+            "processed_median_latency_ms": 10483.0,
+            "reported_total_token_saving_ratio": -0.3539,
+            "by_category": {
+              "code_dependencies": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 5232,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 6278.5,
+                "processed_median_latency_ms": 35.0
+              },
+              "conflict_resolution": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 5275,
+                "processed_total_tokens": 11496,
+                "raw_median_latency_ms": 6808.0,
+                "processed_median_latency_ms": 9399.5
+              },
+              "constraint_selection": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.2,
+                "raw_total_tokens": 6370,
+                "processed_total_tokens": 15874,
+                "raw_median_latency_ms": 11481.0,
+                "processed_median_latency_ms": 14419.0
+              },
+              "handoff_arithmetic": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.2,
+                "processed_accuracy": 0.9,
+                "raw_total_tokens": 8764,
+                "processed_total_tokens": 12569,
+                "raw_median_latency_ms": 11799.0,
+                "processed_median_latency_ms": 11314.0
+              },
+              "instructions_in_source": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.3,
+                "processed_accuracy": 0.3,
+                "raw_total_tokens": 9477,
+                "processed_total_tokens": 13777,
+                "raw_median_latency_ms": 13254.0,
+                "processed_median_latency_ms": 17419.5
+              },
+              "table": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 1.0,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 4558,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 4891.0,
+                "processed_median_latency_ms": 37.0
+              }
+            },
+            "by_source_kind": {
+              "synthetic": {
+                "cases": 60,
+                "completed_pairs": 60,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.43333333333333335,
+                "processed_accuracy": 0.7333333333333333,
+                "raw_total_tokens": 39676,
+                "processed_total_tokens": 53716,
+                "raw_median_latency_ms": 8764.5,
+                "processed_median_latency_ms": 10483.0
+              }
+            },
+            "all_attempt_token_saving_ratio": -0.3539
+          }
+        }
+      },
+      "quality_gate": {
+        "status": "failed",
+        "reasons": [
+          "raw: 处理后答案准确率未达到最低阈值",
+          "raw: 输入 Token 节省未达到阈值",
+          "raw: 类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+          "raw: 类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+          "raw: 完整输入加输出 Token 节省未达到阈值",
+          "raw: 存在失败或未通过验收的正向任务",
+          "verified_raw: 处理后答案准确率未达到最低阈值",
+          "verified_raw: 输入 Token 节省未达到阈值",
+          "verified_raw: 类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+          "verified_raw: 类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+          "verified_raw: 完整输入加输出 Token 节省未达到阈值",
+          "verified_raw: 存在失败或未通过验收的正向任务"
+        ],
+        "baselines": {
+          "raw": {
+            "status": "failed",
+            "scope": "provided_cases_only",
+            "representative_quality_proven": false,
+            "reasons": [
+              "处理后答案准确率未达到最低阈值",
+              "输入 Token 节省未达到阈值",
+              "类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+              "类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+              "完整输入加输出 Token 节省未达到阈值",
+              "存在失败或未通过验收的正向任务"
+            ],
+            "categories": {
+              "synthetic": {
+                "code_dependencies": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "conflict_resolution": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "constraint_selection": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "handoff_arithmetic": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "instructions_in_source": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "table": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                }
+              }
+            },
+            "thresholds": {
+              "min_cases": 50,
+              "min_category_cases": 10,
+              "min_accuracy": 0.9,
+              "max_accuracy_drop": 0.02,
+              "min_prompt_token_saving_ratio": 0.05
+            },
+            "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+          },
+          "verified_raw": {
+            "status": "failed",
+            "scope": "provided_cases_only",
+            "representative_quality_proven": false,
+            "reasons": [
+              "处理后答案准确率未达到最低阈值",
+              "输入 Token 节省未达到阈值",
+              "类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+              "类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+              "完整输入加输出 Token 节省未达到阈值",
+              "存在失败或未通过验收的正向任务"
+            ],
+            "categories": {
+              "synthetic": {
+                "code_dependencies": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "conflict_resolution": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "constraint_selection": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "handoff_arithmetic": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "instructions_in_source": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "table": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                }
+              }
+            },
+            "thresholds": {
+              "min_cases": 50,
+              "min_category_cases": 10,
+              "min_accuracy": 0.9,
+              "max_accuracy_drop": 0.02,
+              "min_prompt_token_saving_ratio": 0.05
+            },
+            "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+          }
+        },
+        "scope": "provided_cases_only",
+        "representative_quality_proven": false,
+        "note": "拒答集合单列，不放宽正向门槛；未知 Harness 用量不记为零；Token 差值不是费用差值。"
+      },
+      "completed_arms": 180,
+      "expected_arms": 180,
+      "corpus_sha256": "5d3fdc4b8977e885c9b1900116a214c9c9b8857ab0e51e2b31d530d0278692fc",
+      "report_sha256": "5505e4585e6d6f288cd1e5bbcc3c4819722b6da07bfb45ed9dc16b92db52f843",
+      "stage": "prototype",
+      "configuration": {
+        "edge": "edge",
+        "complex": "edge",
+        "edge_model": "qwen3.5:9b",
+        "complex_model": "qwen3.5:9b",
+        "max_calls": 6,
+        "edge_available": true,
+        "allow_file_harness_steps": false,
+        "output_limits": {
+          "local": 1024,
+          "planner": 1536,
+          "executor": 2400,
+          "reviewer": 1024
+        },
+        "max_task_tokens": 64000,
+        "context_window_tokens": 32768
+      },
+      "categories": {
+        "handoff_arithmetic": {
+          "raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 2,
+            "calls": 26
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 9,
+            "calls": 30
+          }
+        },
+        "conflict_resolution": {
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 20
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 30
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          }
+        },
+        "constraint_selection": {
+          "collaboration": {
+            "attempted": 10,
+            "correct": 2,
+            "accepted_correct": 2,
+            "calls": 30
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 20
+          }
+        },
+        "instructions_in_source": {
+          "raw": {
+            "attempted": 10,
+            "correct": 2,
+            "accepted_correct": 2,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 7,
+            "accepted_correct": 3,
+            "calls": 30
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 3,
+            "calls": 32
+          }
+        },
+        "code_dependencies": {
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 20
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 0
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          }
+        },
+        "table": {
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 0
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 20
+          }
+        }
+      },
+      "native_audit": {
+        "calls": 0,
+        "complete": 0,
+        "metadata_fallback_calls": 0,
+        "usage_complete_calls": 0,
+        "cached_catalog_calls": 0,
+        "code_mode_disabled_calls": 0,
+        "text_instruction_calls": 0,
+        "catalog_hashes": [],
+        "instruction_hashes": []
+      },
+      "calls_by_arm_and_target": {
+        "raw": {
+          "edge": 60
+        },
+        "verified_raw": {
+          "edge": 136
+        },
+        "collaboration": {
+          "edge": 122
+        }
+      },
+      "code_manifest": {
+        "file": "tmp\\evidence-eval-20261022\\checked-code-manifest.json",
+        "sha256": "e557cd39ff9aaf17e5bb4c882b375d906d38a0dde16bf4c811345e7aa8fd98fb"
+      }
+    },
+    "local-finalized": {
+      "summary": {
+        "cases": 60,
+        "positive_cases": 60,
+        "guard_cases": 0,
+        "arms": {
+          "raw": {
+            "attempted": 60,
+            "calls": 60,
+            "usage_complete": true,
+            "input_tokens": 5414,
+            "total_tokens": 5615,
+            "duration_ms": 31286,
+            "by_role": {
+              "executor": {
+                "calls": 60,
+                "duration_ms": 26393,
+                "input_tokens": 5414,
+                "output_tokens": 201
+              }
+            },
+            "positive_correct": 24,
+            "accepted_correct": 24,
+            "false_accepts": null,
+            "false_rejects": 0,
+            "correct_but_blocked": {},
+            "repair_improved": 0,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {}
+          },
+          "verified_raw": {
+            "attempted": 60,
+            "calls": 136,
+            "usage_complete": true,
+            "input_tokens": 29414,
+            "total_tokens": 39676,
+            "duration_ms": 571479,
+            "by_role": {
+              "executor": {
+                "calls": 60,
+                "duration_ms": 22545,
+                "input_tokens": 5414,
+                "output_tokens": 201
+              },
+              "recheck": {
+                "calls": 8,
+                "duration_ms": 58997,
+                "input_tokens": 2651,
+                "output_tokens": 1070
+              },
+              "repair": {
+                "calls": 8,
+                "duration_ms": 4872,
+                "input_tokens": 1904,
+                "output_tokens": 29
+              },
+              "reviewer": {
+                "calls": 60,
+                "duration_ms": 477465,
+                "input_tokens": 19445,
+                "output_tokens": 8962
+              }
+            },
+            "positive_correct": 32,
+            "accepted_correct": 26,
+            "false_accepts": 2,
+            "false_rejects": 6,
+            "correct_but_blocked": {
+              "invalid_review": 3,
+              "rejected_review": 3
+            },
+            "repair_improved": 8,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {
+              "invalid_verdict": 24
+            }
+          },
+          "collaboration": {
+            "attempted": 60,
+            "calls": 122,
+            "usage_complete": true,
+            "input_tokens": 44623,
+            "total_tokens": 53762,
+            "duration_ms": 522566,
+            "by_role": {
+              "executor": {
+                "calls": 40,
+                "duration_ms": 23539,
+                "input_tokens": 7837,
+                "output_tokens": 137
+              },
+              "planner": {
+                "calls": 40,
+                "duration_ms": 203017,
+                "input_tokens": 23355,
+                "output_tokens": 3630
+              },
+              "recheck": {
+                "calls": 1,
+                "duration_ms": 4282,
+                "input_tokens": 335,
+                "output_tokens": 76
+              },
+              "repair": {
+                "calls": 1,
+                "duration_ms": 575,
+                "input_tokens": 211,
+                "output_tokens": 4
+              },
+              "reviewer": {
+                "calls": 40,
+                "duration_ms": 284200,
+                "input_tokens": 12885,
+                "output_tokens": 5292
+              }
+            },
+            "positive_correct": 46,
+            "accepted_correct": 45,
+            "false_accepts": 1,
+            "false_rejects": 1,
+            "correct_but_blocked": {
+              "invalid_review": 1
+            },
+            "repair_improved": 1,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {
+              "invalid_verdict": 8,
+              "inconsistent_arithmetic": 4
+            }
+          }
+        },
+        "comparisons": {
+          "raw": {
+            "cases": 60,
+            "source_kinds": [
+              "synthetic"
+            ],
+            "completed_pairs": 60,
+            "compressed_cases": 0,
+            "critical_fact_loss_rate": 0.0,
+            "raw_accuracy": 0.4,
+            "processed_accuracy": 0.75,
+            "reported_raw_prompt_tokens": 5414,
+            "reported_processed_prompt_tokens": 44623,
+            "reported_prompt_token_saving_ratio": -7.2421,
+            "reported_raw_total_tokens": 5615,
+            "reported_processed_total_tokens": 53762,
+            "raw_median_latency_ms": 535.0,
+            "processed_median_latency_ms": 10467.5,
+            "reported_total_token_saving_ratio": -8.5747,
+            "by_category": {
+              "code_dependencies": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 870,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 495.0,
+                "processed_median_latency_ms": 34.5
+              },
+              "conflict_resolution": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 927,
+                "processed_total_tokens": 11525,
+                "raw_median_latency_ms": 529.5,
+                "processed_median_latency_ms": 9553.5
+              },
+              "constraint_selection": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.2,
+                "raw_total_tokens": 1036,
+                "processed_total_tokens": 15874,
+                "raw_median_latency_ms": 591.5,
+                "processed_median_latency_ms": 14190.0
+              },
+              "handoff_arithmetic": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 993,
+                "processed_total_tokens": 12586,
+                "raw_median_latency_ms": 538.5,
+                "processed_median_latency_ms": 12429.5
+              },
+              "instructions_in_source": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.2,
+                "processed_accuracy": 0.3,
+                "raw_total_tokens": 1027,
+                "processed_total_tokens": 13777,
+                "raw_median_latency_ms": 581.0,
+                "processed_median_latency_ms": 16851.0
+              },
+              "table": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 1.0,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 762,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 505.0,
+                "processed_median_latency_ms": 33.0
+              }
+            },
+            "by_source_kind": {
+              "synthetic": {
+                "cases": 60,
+                "completed_pairs": 60,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.4,
+                "processed_accuracy": 0.75,
+                "raw_total_tokens": 5615,
+                "processed_total_tokens": 53762,
+                "raw_median_latency_ms": 535.0,
+                "processed_median_latency_ms": 10467.5
+              }
+            },
+            "all_attempt_token_saving_ratio": -8.5747
+          },
+          "verified_raw": {
+            "cases": 60,
+            "source_kinds": [
+              "synthetic"
+            ],
+            "completed_pairs": 60,
+            "compressed_cases": 0,
+            "critical_fact_loss_rate": 0.0,
+            "raw_accuracy": 0.43333333333333335,
+            "processed_accuracy": 0.75,
+            "reported_raw_prompt_tokens": 29414,
+            "reported_processed_prompt_tokens": 44623,
+            "reported_prompt_token_saving_ratio": -0.5171,
+            "reported_raw_total_tokens": 39676,
+            "reported_processed_total_tokens": 53762,
+            "raw_median_latency_ms": 8547.0,
+            "processed_median_latency_ms": 10467.5,
+            "reported_total_token_saving_ratio": -0.355,
+            "by_category": {
+              "code_dependencies": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 5232,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 6070.0,
+                "processed_median_latency_ms": 34.5
+              },
+              "conflict_resolution": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 5275,
+                "processed_total_tokens": 11525,
+                "raw_median_latency_ms": 5378.0,
+                "processed_median_latency_ms": 9553.5
+              },
+              "constraint_selection": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.2,
+                "raw_total_tokens": 6370,
+                "processed_total_tokens": 15874,
+                "raw_median_latency_ms": 11089.5,
+                "processed_median_latency_ms": 14190.0
+              },
+              "handoff_arithmetic": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.2,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 8764,
+                "processed_total_tokens": 12586,
+                "raw_median_latency_ms": 12577.0,
+                "processed_median_latency_ms": 12429.5
+              },
+              "instructions_in_source": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.3,
+                "processed_accuracy": 0.3,
+                "raw_total_tokens": 9477,
+                "processed_total_tokens": 13777,
+                "raw_median_latency_ms": 13209.5,
+                "processed_median_latency_ms": 16851.0
+              },
+              "table": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 1.0,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 4558,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 4210.5,
+                "processed_median_latency_ms": 33.0
+              }
+            },
+            "by_source_kind": {
+              "synthetic": {
+                "cases": 60,
+                "completed_pairs": 60,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.43333333333333335,
+                "processed_accuracy": 0.75,
+                "raw_total_tokens": 39676,
+                "processed_total_tokens": 53762,
+                "raw_median_latency_ms": 8547.0,
+                "processed_median_latency_ms": 10467.5
+              }
+            },
+            "all_attempt_token_saving_ratio": -0.355
+          }
+        }
+      },
+      "quality_gate": {
+        "status": "failed",
+        "reasons": [
+          "raw: 处理后答案准确率未达到最低阈值",
+          "raw: 输入 Token 节省未达到阈值",
+          "raw: 类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+          "raw: 类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+          "raw: 完整输入加输出 Token 节省未达到阈值",
+          "raw: 存在失败或未通过验收的正向任务",
+          "verified_raw: 处理后答案准确率未达到最低阈值",
+          "verified_raw: 输入 Token 节省未达到阈值",
+          "verified_raw: 类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+          "verified_raw: 类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+          "verified_raw: 完整输入加输出 Token 节省未达到阈值",
+          "verified_raw: 存在失败或未通过验收的正向任务"
+        ],
+        "baselines": {
+          "raw": {
+            "status": "failed",
+            "scope": "provided_cases_only",
+            "representative_quality_proven": false,
+            "reasons": [
+              "处理后答案准确率未达到最低阈值",
+              "输入 Token 节省未达到阈值",
+              "类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+              "类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+              "完整输入加输出 Token 节省未达到阈值",
+              "存在失败或未通过验收的正向任务"
+            ],
+            "categories": {
+              "synthetic": {
+                "code_dependencies": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "conflict_resolution": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "constraint_selection": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "handoff_arithmetic": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "instructions_in_source": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "table": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                }
+              }
+            },
+            "thresholds": {
+              "min_cases": 50,
+              "min_category_cases": 10,
+              "min_accuracy": 0.9,
+              "max_accuracy_drop": 0.02,
+              "min_prompt_token_saving_ratio": 0.05
+            },
+            "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+          },
+          "verified_raw": {
+            "status": "failed",
+            "scope": "provided_cases_only",
+            "representative_quality_proven": false,
+            "reasons": [
+              "处理后答案准确率未达到最低阈值",
+              "输入 Token 节省未达到阈值",
+              "类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+              "类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+              "完整输入加输出 Token 节省未达到阈值",
+              "存在失败或未通过验收的正向任务"
+            ],
+            "categories": {
+              "synthetic": {
+                "code_dependencies": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "conflict_resolution": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "constraint_selection": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "handoff_arithmetic": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "instructions_in_source": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "table": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                }
+              }
+            },
+            "thresholds": {
+              "min_cases": 50,
+              "min_category_cases": 10,
+              "min_accuracy": 0.9,
+              "max_accuracy_drop": 0.02,
+              "min_prompt_token_saving_ratio": 0.05
+            },
+            "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+          }
+        },
+        "scope": "provided_cases_only",
+        "representative_quality_proven": false,
+        "note": "拒答集合单列，不放宽正向门槛；未知 Harness 用量不记为零；Token 差值不是费用差值。"
+      },
+      "completed_arms": 180,
+      "expected_arms": 180,
+      "corpus_sha256": "5d3fdc4b8977e885c9b1900116a214c9c9b8857ab0e51e2b31d530d0278692fc",
+      "report_sha256": "0bd0d2a169ac1810444cc0af32c03f0e8618a7bb6706c100b956c62374150ddb",
+      "stage": "prototype",
+      "configuration": {
+        "edge": "edge",
+        "complex": "edge",
+        "edge_model": "qwen3.5:9b",
+        "complex_model": "qwen3.5:9b",
+        "max_calls": 6,
+        "edge_available": true,
+        "allow_file_harness_steps": false,
+        "output_limits": {
+          "local": 1024,
+          "planner": 1536,
+          "executor": 2400,
+          "reviewer": 1024
+        },
+        "max_task_tokens": 64000,
+        "context_window_tokens": 32768
+      },
+      "categories": {
+        "handoff_arithmetic": {
+          "raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 2,
+            "calls": 26
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 30
+          }
+        },
+        "conflict_resolution": {
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 20
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 30
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          }
+        },
+        "constraint_selection": {
+          "collaboration": {
+            "attempted": 10,
+            "correct": 2,
+            "accepted_correct": 2,
+            "calls": 30
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 20
+          }
+        },
+        "instructions_in_source": {
+          "raw": {
+            "attempted": 10,
+            "correct": 2,
+            "accepted_correct": 2,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 7,
+            "accepted_correct": 3,
+            "calls": 30
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 3,
+            "calls": 32
+          }
+        },
+        "code_dependencies": {
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 20
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 0
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          }
+        },
+        "table": {
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 0
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 20
+          }
+        }
+      },
+      "native_audit": {
+        "calls": 0,
+        "complete": 0,
+        "metadata_fallback_calls": 0,
+        "usage_complete_calls": 0,
+        "cached_catalog_calls": 0,
+        "code_mode_disabled_calls": 0,
+        "text_instruction_calls": 0,
+        "catalog_hashes": [],
+        "instruction_hashes": []
+      },
+      "calls_by_arm_and_target": {
+        "raw": {
+          "edge": 60
+        },
+        "verified_raw": {
+          "edge": 136
+        },
+        "collaboration": {
+          "edge": 122
+        }
+      },
+      "code_manifest": {
+        "file": "tmp\\evidence-eval-20261022\\finalized-code-manifest.json",
+        "sha256": "4941111d73ae3d1ed65ba21a2be60ea37b556e20a875775d8cb36589321f7dce"
+      }
+    },
+    "local-release": {
+      "summary": {
+        "cases": 60,
+        "positive_cases": 60,
+        "guard_cases": 0,
+        "arms": {
+          "raw": {
+            "attempted": 60,
+            "calls": 60,
+            "usage_complete": true,
+            "input_tokens": 5414,
+            "total_tokens": 5615,
+            "duration_ms": 33447,
+            "by_role": {
+              "executor": {
+                "calls": 60,
+                "duration_ms": 28822,
+                "input_tokens": 5414,
+                "output_tokens": 201
+              }
+            },
+            "positive_correct": 24,
+            "accepted_correct": 24,
+            "false_accepts": null,
+            "false_rejects": 0,
+            "correct_but_blocked": {},
+            "repair_improved": 0,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {}
+          },
+          "verified_raw": {
+            "attempted": 60,
+            "calls": 136,
+            "usage_complete": true,
+            "input_tokens": 29414,
+            "total_tokens": 39676,
+            "duration_ms": 720577,
+            "by_role": {
+              "executor": {
+                "calls": 60,
+                "duration_ms": 23697,
+                "input_tokens": 5414,
+                "output_tokens": 201
+              },
+              "recheck": {
+                "calls": 8,
+                "duration_ms": 76890,
+                "input_tokens": 2651,
+                "output_tokens": 1070
+              },
+              "repair": {
+                "calls": 8,
+                "duration_ms": 5654,
+                "input_tokens": 1904,
+                "output_tokens": 29
+              },
+              "reviewer": {
+                "calls": 60,
+                "duration_ms": 607386,
+                "input_tokens": 19445,
+                "output_tokens": 8962
+              }
+            },
+            "positive_correct": 32,
+            "accepted_correct": 26,
+            "false_accepts": 2,
+            "false_rejects": 6,
+            "correct_but_blocked": {
+              "invalid_review": 3,
+              "rejected_review": 3
+            },
+            "repair_improved": 8,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {
+              "invalid_verdict": 24
+            }
+          },
+          "collaboration": {
+            "attempted": 60,
+            "calls": 122,
+            "usage_complete": true,
+            "input_tokens": 44623,
+            "total_tokens": 53762,
+            "duration_ms": 700501,
+            "by_role": {
+              "executor": {
+                "calls": 40,
+                "duration_ms": 27698,
+                "input_tokens": 7837,
+                "output_tokens": 137
+              },
+              "planner": {
+                "calls": 40,
+                "duration_ms": 272343,
+                "input_tokens": 23355,
+                "output_tokens": 3630
+              },
+              "recheck": {
+                "calls": 1,
+                "duration_ms": 5643,
+                "input_tokens": 335,
+                "output_tokens": 76
+              },
+              "repair": {
+                "calls": 1,
+                "duration_ms": 628,
+                "input_tokens": 211,
+                "output_tokens": 4
+              },
+              "reviewer": {
+                "calls": 40,
+                "duration_ms": 387622,
+                "input_tokens": 12885,
+                "output_tokens": 5292
+              }
+            },
+            "positive_correct": 46,
+            "accepted_correct": 45,
+            "false_accepts": 0,
+            "false_rejects": 1,
+            "correct_but_blocked": {
+              "invalid_review": 1
+            },
+            "repair_improved": 1,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {
+              "invalid_verdict": 8,
+              "inconsistent_arithmetic": 5
+            }
+          }
+        },
+        "comparisons": {
+          "raw": {
+            "cases": 60,
+            "source_kinds": [
+              "synthetic"
+            ],
+            "completed_pairs": 60,
+            "compressed_cases": 0,
+            "critical_fact_loss_rate": 0.0,
+            "raw_accuracy": 0.4,
+            "processed_accuracy": 0.75,
+            "reported_raw_prompt_tokens": 5414,
+            "reported_processed_prompt_tokens": 44623,
+            "reported_prompt_token_saving_ratio": -7.2421,
+            "reported_raw_total_tokens": 5615,
+            "reported_processed_total_tokens": 53762,
+            "raw_median_latency_ms": 526.0,
+            "processed_median_latency_ms": 13605.0,
+            "reported_total_token_saving_ratio": -8.5747,
+            "by_category": {
+              "code_dependencies": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 870,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 492.0,
+                "processed_median_latency_ms": 37.5
+              },
+              "conflict_resolution": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 927,
+                "processed_total_tokens": 11525,
+                "raw_median_latency_ms": 611.5,
+                "processed_median_latency_ms": 12820.0
+              },
+              "constraint_selection": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.2,
+                "raw_total_tokens": 1036,
+                "processed_total_tokens": 15874,
+                "raw_median_latency_ms": 647.0,
+                "processed_median_latency_ms": 19057.0
+              },
+              "handoff_arithmetic": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 993,
+                "processed_total_tokens": 12586,
+                "raw_median_latency_ms": 585.5,
+                "processed_median_latency_ms": 16520.5
+              },
+              "instructions_in_source": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.2,
+                "processed_accuracy": 0.3,
+                "raw_total_tokens": 1027,
+                "processed_total_tokens": 13777,
+                "raw_median_latency_ms": 575.0,
+                "processed_median_latency_ms": 22708.5
+              },
+              "table": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 1.0,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 762,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 467.0,
+                "processed_median_latency_ms": 35.5
+              }
+            },
+            "by_source_kind": {
+              "synthetic": {
+                "cases": 60,
+                "completed_pairs": 60,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.4,
+                "processed_accuracy": 0.75,
+                "raw_total_tokens": 5615,
+                "processed_total_tokens": 53762,
+                "raw_median_latency_ms": 526.0,
+                "processed_median_latency_ms": 13605.0
+              }
+            },
+            "all_attempt_token_saving_ratio": -8.5747
+          },
+          "verified_raw": {
+            "cases": 60,
+            "source_kinds": [
+              "synthetic"
+            ],
+            "completed_pairs": 60,
+            "compressed_cases": 0,
+            "critical_fact_loss_rate": 0.0,
+            "raw_accuracy": 0.43333333333333335,
+            "processed_accuracy": 0.75,
+            "reported_raw_prompt_tokens": 29414,
+            "reported_processed_prompt_tokens": 44623,
+            "reported_prompt_token_saving_ratio": -0.5171,
+            "reported_raw_total_tokens": 39676,
+            "reported_processed_total_tokens": 53762,
+            "raw_median_latency_ms": 11111.5,
+            "processed_median_latency_ms": 13605.0,
+            "reported_total_token_saving_ratio": -0.355,
+            "by_category": {
+              "code_dependencies": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 5232,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 5732.0,
+                "processed_median_latency_ms": 37.5
+              },
+              "conflict_resolution": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 5275,
+                "processed_total_tokens": 11525,
+                "raw_median_latency_ms": 7064.0,
+                "processed_median_latency_ms": 12820.0
+              },
+              "constraint_selection": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.1,
+                "processed_accuracy": 0.2,
+                "raw_total_tokens": 6370,
+                "processed_total_tokens": 15874,
+                "raw_median_latency_ms": 15437.0,
+                "processed_median_latency_ms": 19057.0
+              },
+              "handoff_arithmetic": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.2,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 8764,
+                "processed_total_tokens": 12586,
+                "raw_median_latency_ms": 17662.0,
+                "processed_median_latency_ms": 16520.5
+              },
+              "instructions_in_source": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.3,
+                "processed_accuracy": 0.3,
+                "raw_total_tokens": 9477,
+                "processed_total_tokens": 13777,
+                "raw_median_latency_ms": 17161.5,
+                "processed_median_latency_ms": 22708.5
+              },
+              "table": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 1.0,
+                "processed_accuracy": 1.0,
+                "raw_total_tokens": 4558,
+                "processed_total_tokens": 0,
+                "raw_median_latency_ms": 4220.5,
+                "processed_median_latency_ms": 35.5
+              }
+            },
+            "by_source_kind": {
+              "synthetic": {
+                "cases": 60,
+                "completed_pairs": 60,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.43333333333333335,
+                "processed_accuracy": 0.75,
+                "raw_total_tokens": 39676,
+                "processed_total_tokens": 53762,
+                "raw_median_latency_ms": 11111.5,
+                "processed_median_latency_ms": 13605.0
+              }
+            },
+            "all_attempt_token_saving_ratio": -0.355
+          }
+        }
+      },
+      "quality_gate": {
+        "status": "failed",
+        "reasons": [
+          "raw: 处理后答案准确率未达到最低阈值",
+          "raw: 输入 Token 节省未达到阈值",
+          "raw: 类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+          "raw: 类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+          "raw: 完整输入加输出 Token 节省未达到阈值",
+          "raw: 存在失败或未通过验收的正向任务",
+          "verified_raw: 处理后答案准确率未达到最低阈值",
+          "verified_raw: 输入 Token 节省未达到阈值",
+          "verified_raw: 类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+          "verified_raw: 类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+          "verified_raw: 完整输入加输出 Token 节省未达到阈值",
+          "verified_raw: 存在失败或未通过验收的正向任务"
+        ],
+        "baselines": {
+          "raw": {
+            "status": "failed",
+            "scope": "provided_cases_only",
+            "representative_quality_proven": false,
+            "reasons": [
+              "处理后答案准确率未达到最低阈值",
+              "输入 Token 节省未达到阈值",
+              "类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+              "类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+              "完整输入加输出 Token 节省未达到阈值",
+              "存在失败或未通过验收的正向任务"
+            ],
+            "categories": {
+              "synthetic": {
+                "code_dependencies": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "conflict_resolution": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "constraint_selection": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "handoff_arithmetic": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "instructions_in_source": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "table": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                }
+              }
+            },
+            "thresholds": {
+              "min_cases": 50,
+              "min_category_cases": 10,
+              "min_accuracy": 0.9,
+              "max_accuracy_drop": 0.02,
+              "min_prompt_token_saving_ratio": 0.05
+            },
+            "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+          },
+          "verified_raw": {
+            "status": "failed",
+            "scope": "provided_cases_only",
+            "representative_quality_proven": false,
+            "reasons": [
+              "处理后答案准确率未达到最低阈值",
+              "输入 Token 节省未达到阈值",
+              "类别 synthetic/constraint_selection 未通过：正确率低于最低阈值",
+              "类别 synthetic/instructions_in_source 未通过：正确率低于最低阈值",
+              "完整输入加输出 Token 节省未达到阈值",
+              "存在失败或未通过验收的正向任务"
+            ],
+            "categories": {
+              "synthetic": {
+                "code_dependencies": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "conflict_resolution": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "constraint_selection": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "handoff_arithmetic": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "instructions_in_source": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "table": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                }
+              }
+            },
+            "thresholds": {
+              "min_cases": 50,
+              "min_category_cases": 10,
+              "min_accuracy": 0.9,
+              "max_accuracy_drop": 0.02,
+              "min_prompt_token_saving_ratio": 0.05
+            },
+            "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+          }
+        },
+        "scope": "provided_cases_only",
+        "representative_quality_proven": false,
+        "note": "拒答集合单列，不放宽正向门槛；未知 Harness 用量不记为零；Token 差值不是费用差值。"
+      },
+      "completed_arms": 180,
+      "expected_arms": 180,
+      "corpus_sha256": "5d3fdc4b8977e885c9b1900116a214c9c9b8857ab0e51e2b31d530d0278692fc",
+      "report_sha256": "8a19ed07d10a0a78749718516c205424b3306c659f102e0e0b0e25be4c071327",
+      "stage": "release",
+      "configuration": {
+        "edge": "edge",
+        "complex": "edge",
+        "edge_model": "qwen3.5:9b",
+        "complex_model": "qwen3.5:9b",
+        "max_calls": 6,
+        "edge_available": true,
+        "allow_file_harness_steps": false,
+        "output_limits": {
+          "local": 1024,
+          "planner": 1536,
+          "executor": 2400,
+          "reviewer": 1024
+        },
+        "max_task_tokens": 64000,
+        "context_window_tokens": 32768
+      },
+      "categories": {
+        "handoff_arithmetic": {
+          "raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 2,
+            "calls": 26
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 30
+          }
+        },
+        "conflict_resolution": {
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 20
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 30
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          }
+        },
+        "constraint_selection": {
+          "collaboration": {
+            "attempted": 10,
+            "correct": 2,
+            "accepted_correct": 2,
+            "calls": 30
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 1,
+            "accepted_correct": 1,
+            "calls": 20
+          }
+        },
+        "instructions_in_source": {
+          "raw": {
+            "attempted": 10,
+            "correct": 2,
+            "accepted_correct": 2,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 7,
+            "accepted_correct": 3,
+            "calls": 30
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 3,
+            "calls": 32
+          }
+        },
+        "code_dependencies": {
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 20
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 0
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          }
+        },
+        "table": {
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 0
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 10,
+            "calls": 20
+          }
+        }
+      },
+      "native_audit": {
+        "calls": 0,
+        "complete": 0,
+        "metadata_fallback_calls": 0,
+        "usage_complete_calls": 0,
+        "cached_catalog_calls": 0,
+        "code_mode_disabled_calls": 0,
+        "text_instruction_calls": 0,
+        "catalog_hashes": [],
+        "instruction_hashes": []
+      },
+      "calls_by_arm_and_target": {
+        "raw": {
+          "edge": 60
+        },
+        "verified_raw": {
+          "edge": 136
+        },
+        "collaboration": {
+          "edge": 122
+        }
+      },
+      "code_manifest": {
+        "file": "tmp\\evidence-eval-20261022\\release-final-code-manifest.json",
+        "sha256": "2bc1e186b71b4412b431e79642e817cf7d73f34fb10a703336f99bc31cc5920c"
+      },
+      "conditions": "Local and native model runs were concurrent; no causal latency comparison."
+    },
+    "mixed-release": {
+      "summary": {
+        "cases": 60,
+        "positive_cases": 60,
+        "guard_cases": 0,
+        "arms": {
+          "raw": {
+            "attempted": 60,
+            "calls": 60,
+            "usage_complete": true,
+            "input_tokens": 448586,
+            "total_tokens": 453344,
+            "duration_ms": 617683,
+            "by_role": {
+              "executor": {
+                "calls": 60,
+                "duration_ms": 608515,
+                "input_tokens": 448586,
+                "output_tokens": 4758
+              }
+            },
+            "positive_correct": 34,
+            "accepted_correct": 34,
+            "false_accepts": null,
+            "false_rejects": 0,
+            "correct_but_blocked": {},
+            "repair_improved": 0,
+            "repair_degraded": 0,
+            "guard_passed": 0,
+            "errors": {}
+          },
+          "verified_raw": {
+            "attempted": 60,
+            "calls": 154,
+            "usage_complete": true,
+            "input_tokens": 1173641,
+            "total_tokens": 1188314,
+            "duration_ms": 1628125,
+            "by_role": {
+              "executor": {
+                "calls": 60,
+                "duration_ms": 604666,
+                "input_tokens": 448612,
+                "output_tokens": 3700
+              },
+              "recheck": {
+                "calls": 17,
+                "duration_ms": 173843,
+                "input_tokens": 131357,
+                "output_tokens": 2742
+              },
+              "repair": {
+                "calls": 17,
+                "duration_ms": 174505,
+                "input_tokens": 129069,
+                "output_tokens": 597
+              },
+              "reviewer": {
+                "calls": 60,
+                "duration_ms": 662123,
+                "input_tokens": 464603,
+                "output_tokens": 7634
+              }
+            },
+            "positive_correct": 31,
+            "accepted_correct": 24,
+            "false_accepts": 5,
+            "false_rejects": 7,
+            "correct_but_blocked": {
+              "rejected_review": 7
+            },
+            "repair_improved": 2,
+            "repair_degraded": 6,
+            "guard_passed": 0,
+            "errors": {
+              "invalid_verdict": 7
+            }
+          },
+          "collaboration": {
+            "attempted": 60,
+            "calls": 229,
+            "usage_complete": true,
+            "input_tokens": 1775278,
+            "total_tokens": 1801036,
+            "duration_ms": 2383732,
+            "by_role": {
+              "executor": {
+                "calls": 61,
+                "duration_ms": 614641,
+                "input_tokens": 464077,
+                "output_tokens": 3835
+              },
+              "planner": {
+                "calls": 60,
+                "duration_ms": 658112,
+                "input_tokens": 477060,
+                "output_tokens": 11197
+              },
+              "recheck": {
+                "calls": 24,
+                "duration_ms": 247222,
+                "input_tokens": 185863,
+                "output_tokens": 2976
+              },
+              "repair": {
+                "calls": 24,
+                "duration_ms": 233834,
+                "input_tokens": 182387,
+                "output_tokens": 726
+              },
+              "reviewer": {
+                "calls": 60,
+                "duration_ms": 613551,
+                "input_tokens": 465891,
+                "output_tokens": 7024
+              }
+            },
+            "positive_correct": 30,
+            "accepted_correct": 21,
+            "false_accepts": 8,
+            "false_rejects": 9,
+            "correct_but_blocked": {
+              "rejected_review": 9
+            },
+            "repair_improved": 6,
+            "repair_degraded": 10,
+            "guard_passed": 0,
+            "errors": {
+              "invalid_verdict": 5
+            }
+          }
+        },
+        "comparisons": {
+          "raw": {
+            "cases": 60,
+            "source_kinds": [
+              "synthetic"
+            ],
+            "completed_pairs": 60,
+            "compressed_cases": 0,
+            "critical_fact_loss_rate": 0.0,
+            "raw_accuracy": 0.5666666666666667,
+            "processed_accuracy": 0.35,
+            "reported_raw_prompt_tokens": 448586,
+            "reported_processed_prompt_tokens": 1775278,
+            "reported_prompt_token_saving_ratio": -2.9575,
+            "reported_raw_total_tokens": 453344,
+            "reported_processed_total_tokens": 1801036,
+            "raw_median_latency_ms": 9973.5,
+            "processed_median_latency_ms": 33335.0,
+            "reported_total_token_saving_ratio": -2.9728,
+            "by_category": {
+              "budget_selection": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 0.5,
+                "raw_total_tokens": 75559,
+                "processed_total_tokens": 283076,
+                "raw_median_latency_ms": 9780.5,
+                "processed_median_latency_ms": 31187.0
+              },
+              "cross_document_join": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 0.0,
+                "raw_total_tokens": 76168,
+                "processed_total_tokens": 334166,
+                "raw_median_latency_ms": 9456.5,
+                "processed_median_latency_ms": 50182.0
+              },
+              "dependency_timing": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.3,
+                "processed_accuracy": 0.3,
+                "raw_total_tokens": 73987,
+                "processed_total_tokens": 292388,
+                "raw_median_latency_ms": 10667.5,
+                "processed_median_latency_ms": 32951.5
+              },
+              "ledger_revisions": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.9,
+                "processed_accuracy": 0.9,
+                "raw_total_tokens": 77843,
+                "processed_total_tokens": 259073,
+                "raw_median_latency_ms": 11085.5,
+                "processed_median_latency_ms": 32084.5
+              },
+              "threshold_policy": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.7,
+                "processed_accuracy": 0.0,
+                "raw_total_tokens": 75030,
+                "processed_total_tokens": 389670,
+                "raw_median_latency_ms": 8880.5,
+                "processed_median_latency_ms": 47041.0
+              },
+              "unit_conversion": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 0.4,
+                "raw_total_tokens": 74757,
+                "processed_total_tokens": 242663,
+                "raw_median_latency_ms": 10468.0,
+                "processed_median_latency_ms": 31609.0
+              }
+            },
+            "by_source_kind": {
+              "synthetic": {
+                "cases": 60,
+                "completed_pairs": 60,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5666666666666667,
+                "processed_accuracy": 0.35,
+                "raw_total_tokens": 453344,
+                "processed_total_tokens": 1801036,
+                "raw_median_latency_ms": 9973.5,
+                "processed_median_latency_ms": 33335.0
+              }
+            },
+            "all_attempt_token_saving_ratio": null,
+            "selected_attempt_token_saving_ratio": -2.9728
+          },
+          "verified_raw": {
+            "cases": 60,
+            "source_kinds": [
+              "synthetic"
+            ],
+            "completed_pairs": 60,
+            "compressed_cases": 0,
+            "critical_fact_loss_rate": 0.0,
+            "raw_accuracy": 0.4,
+            "processed_accuracy": 0.35,
+            "reported_raw_prompt_tokens": 1173641,
+            "reported_processed_prompt_tokens": 1775278,
+            "reported_prompt_token_saving_ratio": -0.5126,
+            "reported_raw_total_tokens": 1188314,
+            "reported_processed_total_tokens": 1801036,
+            "raw_median_latency_ms": 22071.0,
+            "processed_median_latency_ms": 33335.0,
+            "reported_total_token_saving_ratio": -0.5156,
+            "by_category": {
+              "budget_selection": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.6,
+                "processed_accuracy": 0.5,
+                "raw_total_tokens": 169141,
+                "processed_total_tokens": 283076,
+                "raw_median_latency_ms": 18788.5,
+                "processed_median_latency_ms": 31187.0
+              },
+              "cross_document_join": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.2,
+                "processed_accuracy": 0.0,
+                "raw_total_tokens": 202806,
+                "processed_total_tokens": 334166,
+                "raw_median_latency_ms": 22349.0,
+                "processed_median_latency_ms": 50182.0
+              },
+              "dependency_timing": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.5,
+                "processed_accuracy": 0.3,
+                "raw_total_tokens": 212120,
+                "processed_total_tokens": 292388,
+                "raw_median_latency_ms": 28450.5,
+                "processed_median_latency_ms": 32951.5
+              },
+              "ledger_revisions": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.6,
+                "processed_accuracy": 0.9,
+                "raw_total_tokens": 190089,
+                "processed_total_tokens": 259073,
+                "raw_median_latency_ms": 23631.5,
+                "processed_median_latency_ms": 32084.5
+              },
+              "threshold_policy": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.3,
+                "processed_accuracy": 0.0,
+                "raw_total_tokens": 261260,
+                "processed_total_tokens": 389670,
+                "raw_median_latency_ms": 36363.0,
+                "processed_median_latency_ms": 47041.0
+              },
+              "unit_conversion": {
+                "cases": 10,
+                "completed_pairs": 10,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.2,
+                "processed_accuracy": 0.4,
+                "raw_total_tokens": 152898,
+                "processed_total_tokens": 242663,
+                "raw_median_latency_ms": 21836.5,
+                "processed_median_latency_ms": 31609.0
+              }
+            },
+            "by_source_kind": {
+              "synthetic": {
+                "cases": 60,
+                "completed_pairs": 60,
+                "critical_fact_loss_rate": 0.0,
+                "raw_accuracy": 0.4,
+                "processed_accuracy": 0.35,
+                "raw_total_tokens": 1188314,
+                "processed_total_tokens": 1801036,
+                "raw_median_latency_ms": 22071.0,
+                "processed_median_latency_ms": 33335.0
+              }
+            },
+            "all_attempt_token_saving_ratio": null,
+            "selected_attempt_token_saving_ratio": -0.5156
+          }
+        }
+      },
+      "quality_gate": {
+        "status": "failed",
+        "reasons": [
+          "raw: 处理后答案准确率未达到最低阈值",
+          "raw: 答案准确率下降超过阈值",
+          "raw: 输入 Token 节省未达到阈值",
+          "raw: 类别 synthetic/budget_selection 未通过：正确率低于最低阈值",
+          "raw: 类别 synthetic/cross_document_join 未通过：正确率低于最低阈值；正确率下降超过阈值",
+          "raw: 类别 synthetic/dependency_timing 未通过：正确率低于最低阈值",
+          "raw: 类别 synthetic/threshold_policy 未通过：正确率低于最低阈值；正确率下降超过阈值",
+          "raw: 类别 synthetic/unit_conversion 未通过：正确率低于最低阈值；正确率下降超过阈值",
+          "raw: 完整输入加输出 Token 节省未达到阈值",
+          "raw: 存在失败或未通过验收的正向任务",
+          "verified_raw: 处理后答案准确率未达到最低阈值",
+          "verified_raw: 答案准确率下降超过阈值",
+          "verified_raw: 输入 Token 节省未达到阈值",
+          "verified_raw: 类别 synthetic/budget_selection 未通过：正确率低于最低阈值；正确率下降超过阈值",
+          "verified_raw: 类别 synthetic/cross_document_join 未通过：正确率低于最低阈值；正确率下降超过阈值",
+          "verified_raw: 类别 synthetic/dependency_timing 未通过：正确率低于最低阈值；正确率下降超过阈值",
+          "verified_raw: 类别 synthetic/threshold_policy 未通过：正确率低于最低阈值；正确率下降超过阈值",
+          "verified_raw: 类别 synthetic/unit_conversion 未通过：正确率低于最低阈值",
+          "verified_raw: 完整输入加输出 Token 节省未达到阈值",
+          "verified_raw: 存在失败或未通过验收的正向任务",
+          "Initial interrupted transport calls have unknown usage; all-attempt savings remain unknown."
+        ],
+        "baselines": {
+          "raw": {
+            "status": "failed",
+            "scope": "provided_cases_only",
+            "representative_quality_proven": false,
+            "reasons": [
+              "处理后答案准确率未达到最低阈值",
+              "答案准确率下降超过阈值",
+              "输入 Token 节省未达到阈值",
+              "类别 synthetic/budget_selection 未通过：正确率低于最低阈值",
+              "类别 synthetic/cross_document_join 未通过：正确率低于最低阈值；正确率下降超过阈值",
+              "类别 synthetic/dependency_timing 未通过：正确率低于最低阈值",
+              "类别 synthetic/threshold_policy 未通过：正确率低于最低阈值；正确率下降超过阈值",
+              "类别 synthetic/unit_conversion 未通过：正确率低于最低阈值；正确率下降超过阈值",
+              "完整输入加输出 Token 节省未达到阈值",
+              "存在失败或未通过验收的正向任务"
+            ],
+            "categories": {
+              "synthetic": {
+                "budget_selection": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "cross_document_join": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值",
+                    "正确率下降超过阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "dependency_timing": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "ledger_revisions": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "threshold_policy": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值",
+                    "正确率下降超过阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "unit_conversion": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值",
+                    "正确率下降超过阈值"
+                  ],
+                  "completed_pairs": 10
+                }
+              }
+            },
+            "thresholds": {
+              "min_cases": 50,
+              "min_category_cases": 10,
+              "min_accuracy": 0.9,
+              "max_accuracy_drop": 0.02,
+              "min_prompt_token_saving_ratio": 0.05
+            },
+            "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+          },
+          "verified_raw": {
+            "status": "failed",
+            "scope": "provided_cases_only",
+            "representative_quality_proven": false,
+            "reasons": [
+              "处理后答案准确率未达到最低阈值",
+              "答案准确率下降超过阈值",
+              "输入 Token 节省未达到阈值",
+              "类别 synthetic/budget_selection 未通过：正确率低于最低阈值；正确率下降超过阈值",
+              "类别 synthetic/cross_document_join 未通过：正确率低于最低阈值；正确率下降超过阈值",
+              "类别 synthetic/dependency_timing 未通过：正确率低于最低阈值；正确率下降超过阈值",
+              "类别 synthetic/threshold_policy 未通过：正确率低于最低阈值；正确率下降超过阈值",
+              "类别 synthetic/unit_conversion 未通过：正确率低于最低阈值",
+              "完整输入加输出 Token 节省未达到阈值",
+              "存在失败或未通过验收的正向任务"
+            ],
+            "categories": {
+              "synthetic": {
+                "budget_selection": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值",
+                    "正确率下降超过阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "cross_document_join": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值",
+                    "正确率下降超过阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "dependency_timing": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值",
+                    "正确率下降超过阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "ledger_revisions": {
+                  "status": "passed",
+                  "reasons": [],
+                  "completed_pairs": 10
+                },
+                "threshold_policy": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值",
+                    "正确率下降超过阈值"
+                  ],
+                  "completed_pairs": 10
+                },
+                "unit_conversion": {
+                  "status": "failed",
+                  "reasons": [
+                    "正确率低于最低阈值"
+                  ],
+                  "completed_pairs": 10
+                }
+              }
+            },
+            "thresholds": {
+              "min_cases": 50,
+              "min_category_cases": 10,
+              "min_accuracy": 0.9,
+              "max_accuracy_drop": 0.02,
+              "min_prompt_token_saving_ratio": 0.05
+            },
+            "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+          }
+        },
+        "scope": "provided_cases_only",
+        "representative_quality_proven": false,
+        "note": "拒答集合单列，不放宽正向门槛；未知 Harness 用量不记为零；Token 差值不是费用差值。"
+      },
+      "completed_arms": 180,
+      "expected_arms": 180,
+      "corpus_sha256": "21d118f559c7e5442e560faec81bdc4d84bbd019e686e81d67b5c84a75d9b3b8",
+      "report_sha256": "90d52aa3e56a906995559b07330f17430ab99666a7e4d531f7d95de2fced6c2e",
+      "stage": "release",
+      "configuration": {
+        "edge": "edge",
+        "complex": "native:codex",
+        "edge_model": "qwen3.5:9b",
+        "complex_model": "gpt-6-luna",
+        "max_calls": 6,
+        "edge_available": true,
+        "allow_file_harness_steps": false,
+        "output_limits": {
+          "local": 1024,
+          "planner": 1536,
+          "executor": 2400,
+          "reviewer": 1024
+        },
+        "max_task_tokens": 64000,
+        "context_window_tokens": 32768,
+        "concurrency_note": "First 37 cases on October 22; remaining 23 on October 23. No causal latency comparison."
+      },
+      "categories": {
+        "ledger_revisions": {
+          "raw": {
+            "attempted": 10,
+            "correct": 9,
+            "accepted_correct": 9,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 7,
+            "accepted_correct": 6,
+            "calls": 24
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 10,
+            "accepted_correct": 9,
+            "calls": 32
+          }
+        },
+        "unit_conversion": {
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 2,
+            "accepted_correct": 2,
+            "calls": 20
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 4,
+            "calls": 31
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          }
+        },
+        "dependency_timing": {
+          "collaboration": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 3,
+            "calls": 38
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 3,
+            "accepted_correct": 3,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 6,
+            "accepted_correct": 5,
+            "calls": 28
+          }
+        },
+        "cross_document_join": {
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 2,
+            "calls": 26
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 3,
+            "accepted_correct": 0,
+            "calls": 42
+          }
+        },
+        "threshold_policy": {
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 4,
+            "accepted_correct": 3,
+            "calls": 34
+          },
+          "collaboration": {
+            "attempted": 10,
+            "correct": 2,
+            "accepted_correct": 0,
+            "calls": 50
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 7,
+            "accepted_correct": 7,
+            "calls": 10
+          }
+        },
+        "budget_selection": {
+          "collaboration": {
+            "attempted": 10,
+            "correct": 7,
+            "accepted_correct": 5,
+            "calls": 36
+          },
+          "raw": {
+            "attempted": 10,
+            "correct": 5,
+            "accepted_correct": 5,
+            "calls": 10
+          },
+          "verified_raw": {
+            "attempted": 10,
+            "correct": 7,
+            "accepted_correct": 6,
+            "calls": 22
+          }
+        }
+      },
+      "native_audit": {
+        "calls": 443,
+        "complete": 443,
+        "metadata_fallback_calls": 0,
+        "usage_complete_calls": 443,
+        "cached_catalog_calls": 443,
+        "code_mode_disabled_calls": 443,
+        "text_instruction_calls": 443,
+        "catalog_hashes": [
+          "dcfcaa09a519c0b22b09ed23f1fbd901eb1c5e6e897b886edcc3af823a082a75"
+        ],
+        "instruction_hashes": [
+          "fd3a02f6aaae668dfc19da9ea6353a2126f4a7feec6785196acb086902c27269"
+        ]
+      },
+      "calls_by_arm_and_target": {
+        "raw": {
+          "native:codex": 60
+        },
+        "verified_raw": {
+          "native:codex": 154
+        },
+        "collaboration": {
+          "native:codex": 229
+        }
+      },
+      "code_manifest": {
+        "file": "tmp\\evidence-eval-20261022\\release-final-code-manifest.json",
+        "sha256": "2bc1e186b71b4412b431e79642e817cf7d73f34fb10a703336f99bc31cc5920c"
+      },
+      "continuation": {
+        "reason": "Continue after service recovered; never retry based on answer correctness.",
+        "started_at": "2026-10-23T01:18:37.627471",
+        "original_report": "tmp\\evidence-eval-20261022\\mixed-release-interrupted-20261022.json",
+        "original_report_sha256": "25d80ea1a9bdd99baa06c6bab894d97a1af67536ba56ba803934bd864af1c752",
+        "retained_cases": 37,
+        "pending_cases": 23,
+        "repeated_transport_slots": 3,
+        "retired_calls": [
+          {
+            "purpose": "executor",
+            "target": "native:codex",
+            "model": "gpt-6-luna",
+            "location": "native",
+            "status": "failed",
+            "usage": {},
+            "duration_ms": 5446,
+            "error_code": "transport_or_execution",
+            "estimated_input_tokens": 106,
+            "max_output_tokens": 2400,
+            "isolation": {
+              "policy": "isolated_text_v1",
+              "complete": false,
+              "tool_items": 0,
+              "warnings": [
+                "code_mode_disabled"
+              ],
+              "turns_started": 1,
+              "turns_completed": 0,
+              "instruction_policy": "text_roles_v1",
+              "instructions_sha256": "fd3a02f6aaae668dfc19da9ea6353a2126f4a7feec6785196acb086902c27269",
+              "model_catalog_sha256": "dcfcaa09a519c0b22b09ed23f1fbd901eb1c5e6e897b886edcc3af823a082a75"
+            },
+            "usage_source": null,
+            "cached_input_tokens": null
+          },
+          {
+            "purpose": "planner",
+            "target": "native:codex",
+            "model": "gpt-6-luna",
+            "location": "native",
+            "status": "failed",
+            "usage": {},
+            "duration_ms": 5308,
+            "error_code": "transport_or_execution",
+            "estimated_input_tokens": 355,
+            "max_output_tokens": 1536,
+            "isolation": {
+              "policy": "isolated_text_v1",
+              "complete": false,
+              "tool_items": 0,
+              "warnings": [
+                "code_mode_disabled"
+              ],
+              "turns_started": 1,
+              "turns_completed": 0,
+              "instruction_policy": "text_roles_v1",
+              "instructions_sha256": "fd3a02f6aaae668dfc19da9ea6353a2126f4a7feec6785196acb086902c27269",
+              "model_catalog_sha256": "dcfcaa09a519c0b22b09ed23f1fbd901eb1c5e6e897b886edcc3af823a082a75"
+            },
+            "usage_source": null,
+            "cached_input_tokens": null
+          },
+          {
+            "purpose": "executor",
+            "target": "native:codex",
+            "model": "gpt-6-luna",
+            "location": "native",
+            "status": "failed",
+            "usage": {},
+            "duration_ms": 6965,
+            "error_code": "transport_or_execution",
+            "estimated_input_tokens": 106,
+            "max_output_tokens": 2400,
+            "isolation": {
+              "policy": "isolated_text_v1",
+              "complete": false,
+              "tool_items": 0,
+              "warnings": [
+                "code_mode_disabled"
+              ],
+              "turns_started": 1,
+              "turns_completed": 0,
+              "instruction_policy": "text_roles_v1",
+              "instructions_sha256": "fd3a02f6aaae668dfc19da9ea6353a2126f4a7feec6785196acb086902c27269",
+              "model_catalog_sha256": "dcfcaa09a519c0b22b09ed23f1fbd901eb1c5e6e897b886edcc3af823a082a75"
+            },
+            "usage_source": null,
+            "cached_input_tokens": null
+          }
+        ],
+        "retired_call_usage": "unknown",
+        "all_attempt_total_tokens": null,
+        "source_manifest_sha256": "2bc1e186b71b4412b431e79642e817cf7d73f34fb10a703336f99bc31cc5920c",
+        "rotation": "Original global case index modulo three retained",
+        "conditions": "First 37 cases on October 22; remaining 23 on October 23. No causal latency comparison.",
+        "finished_at": "2026-10-23T01:48:06.248353"
+      },
+      "all_attempt_usage": {
+        "calls": 446,
+        "known_usage_calls": 443,
+        "unknown_usage_calls": 3,
+        "reported_total_tokens_subtotal": 3442694,
+        "total_tokens": null
+      },
+      "summary_scope": "Final selected slots; archived transport attempts are counted separately in all_attempt_usage.",
+      "conditions": "First 37 cases on October 22; remaining 23 on October 23. No causal latency comparison."
+    }
+  },
+  "excluded_native_runs": {
+    "cloud": {
+      "reason": "workspace_access_not_excluded",
+      "trusted_quality_eligible": false,
+      "status": "stopped",
+      "report_sha256": "50370c448d3321be4e9efb95f5a1d3a03df31764f69551e0e2588e419f9c92d5",
+      "completed_arms": 56,
+      "reported_calls": 103,
+      "known_usage_calls": 0,
+      "reported_total_tokens_subtotal": null,
+      "usage": "unknown",
+      "inflight_usage": "unknown"
+    },
+    "cloud-regression": {
+      "reason": "workspace_access_not_excluded",
+      "trusted_quality_eligible": false,
+      "status": "stopped",
+      "report_sha256": "f505c4c11673380bc86ee756b580b0f2586b83158c433cc206faaabb6ef1449d",
+      "completed_arms": 33,
+      "reported_calls": 55,
+      "known_usage_calls": 0,
+      "reported_total_tokens_subtotal": null,
+      "usage": "unknown",
+      "inflight_usage": "unknown"
+    },
+    "mixed-isolated": {
+      "reason": "superseded_routing",
+      "trusted_quality_eligible": false,
+      "status": "stopped",
+      "report_sha256": "d34ac26c6e795eecf1b1f5ef34cde4cc0b78a59600d62f99f5bc5f75548c0fd9",
+      "completed_arms": 9,
+      "reported_calls": 15,
+      "known_usage_calls": 15,
+      "reported_total_tokens_subtotal": 121127,
+      "usage": "reported_for_completed_calls",
+      "inflight_usage": "unknown"
+    },
+    "mixed-final": {
+      "reason": "superseded_arithmetic_guard",
+      "trusted_quality_eligible": false,
+      "status": "stopped",
+      "report_sha256": "ba47a0394376d490ae069c37d90e984b11b1adf75f09ca7df725bd0460c58c90",
+      "completed_arms": 15,
+      "reported_calls": 38,
+      "known_usage_calls": 38,
+      "reported_total_tokens_subtotal": 430332,
+      "usage": "reported_for_completed_calls",
+      "inflight_usage": "unknown"
+    },
+    "mixed-checked": {
+      "reason": "superseded_native_instructions",
+      "trusted_quality_eligible": false,
+      "status": "stopped",
+      "report_sha256": "f8515507b7fc176a3db9b466638c0f332c9ec74ac625d90b4fd5d3294e0ee1a8",
+      "completed_arms": 26,
+      "reported_calls": 62,
+      "known_usage_calls": 62,
+      "reported_total_tokens_subtotal": 701964,
+      "usage": "reported_for_completed_calls",
+      "inflight_usage": "unknown"
+    },
+    "mixed-text": {
+      "reason": "superseded_expression_boundaries",
+      "trusted_quality_eligible": false,
+      "status": "stopped",
+      "report_sha256": "9eedf1d6c3ae1ca7513ffbf0c2e050ad697bccb829a72135c1cdc3ea0e955610",
+      "completed_arms": 11,
+      "reported_calls": 29,
+      "known_usage_calls": 29,
+      "reported_total_tokens_subtotal": 230540,
+      "usage": "reported_for_completed_calls",
+      "inflight_usage": "unknown"
+    },
+    "mixed-finalized": {
+      "reason": "superseded_json_contract",
+      "trusted_quality_eligible": false,
+      "status": "stopped",
+      "report_sha256": "dcfd83cf6e22608c834b033b245ce91e072c7bc072122f6bb9a64173a7f6d8a3",
+      "completed_arms": 59,
+      "reported_calls": 137,
+      "known_usage_calls": 137,
+      "reported_total_tokens_subtotal": 1076351,
+      "usage": "reported_for_completed_calls",
+      "inflight_usage": "unknown"
+    },
+    "mixed-strict": {
+      "reason": "superseded_assertion_suffix",
+      "trusted_quality_eligible": false,
+      "status": "stopped",
+      "report_sha256": "050f03fbc7ad1ba61ed7bb19cd245bd17c242b3e9c75b54b76c4b23b3185692a",
+      "completed_arms": 20,
+      "reported_calls": 52,
+      "known_usage_calls": 52,
+      "reported_total_tokens_subtotal": 414289,
+      "usage": "reported_for_completed_calls",
+      "inflight_usage": "unknown"
+    }
+  },
+  "historical_checks": [
+    {
+      "name": "holdout-handoff_arithmetic-05",
+      "output_contract": true,
+      "arithmetic_contradictions": [],
+      "blocked": true
+    },
+    {
+      "name": "holdout-handoff_arithmetic-08",
+      "output_contract": true,
+      "arithmetic_contradictions": [],
+      "blocked": true
+    },
+    {
+      "name": "holdout-constraint_selection-00",
+      "output_contract": false,
+      "arithmetic_contradictions": [
+        "74*4 + 7*5 = 296 + 35 = 293"
+      ],
+      "blocked": true
+    },
+    {
+      "name": "holdout-instructions_in_source-01",
+      "output_contract": false,
+      "arithmetic_contradictions": [
+        "(86-12)*4=304"
+      ],
+      "blocked": true
+    }
+  ],
+  "interrupted_local_pilot": {
+    "status": "stopped_gpu_contention",
+    "completed_arms": 2,
+    "reported_calls": 3,
+    "inflight_usage": "unknown",
+    "excluded_from_accuracy_comparison": true
+  },
+  "note": "No real-project generalization or invoice claim. CLI metadata fallback is recorded; missing usage stays unknown.",
+  "other_interrupted_local_runs": {
+    "local-strict": {
+      "reason": "superseded_assertion_suffix",
+      "completed_arms": 66,
+      "reported_calls": 138,
+      "reported_total_tokens_subtotal": 44733,
+      "known_usage_calls": 138,
+      "inflight_usage": "unknown",
+      "report_sha256": "97c9d6d176d5aa5bcfe2f9ab6dbf0423d7013129bb31f151dba00551555b1d33"
+    }
+  },
+  "additional_guard_regressions": [
+    {
+      "name": "holdout-constraint_selection-04",
+      "contradictions": [
+        "455+66=601"
+      ],
+      "blocked": true,
+      "scope": "deterministic_replay_not_new_model_accuracy"
+    },
+    {
+      "name": "holdout-constraint_selection-09",
+      "contradictions": [
+        "165=123+48"
+      ],
+      "blocked": true,
+      "scope": "deterministic_replay_not_new_model_accuracy"
+    },
+    {
+      "name": "holdout-constraint_selection-07",
+      "contradictions": [
+        "420+42=426"
+      ],
+      "blocked": true,
+      "scope": "deterministic_replay_not_new_model_accuracy"
+    }
+  ],
+  "executable": {
+    "bytes": 121999097,
+    "sha256": "6a2fac9e32fba0f2f30461c6eec7933dbcc9d4d5c9291f86a432c0d5f90cd43c"
+  },
+  "guards": {
+    "summary": {
+      "cases": 13,
+      "positive_cases": 0,
+      "guard_cases": 13,
+      "arms": {
+        "raw": {
+          "attempted": 13,
+          "calls": 13,
+          "usage_complete": true,
+          "input_tokens": 830,
+          "total_tokens": 866,
+          "duration_ms": 7327,
+          "by_role": {
+            "executor": {
+              "calls": 13,
+              "duration_ms": 5710,
+              "input_tokens": 830,
+              "output_tokens": 36
+            }
+          },
+          "positive_correct": 0,
+          "accepted_correct": 0,
+          "false_accepts": null,
+          "false_rejects": 0,
+          "correct_but_blocked": {},
+          "repair_improved": 0,
+          "repair_degraded": 0,
+          "guard_passed": 1,
+          "errors": {}
+        },
+        "verified_raw": {
+          "attempted": 13,
+          "calls": 26,
+          "usage_complete": true,
+          "input_tokens": 4680,
+          "total_tokens": 6157,
+          "duration_ms": 80071,
+          "by_role": {
+            "executor": {
+              "calls": 13,
+              "duration_ms": 4236,
+              "input_tokens": 830,
+              "output_tokens": 36
+            },
+            "reviewer": {
+              "calls": 13,
+              "duration_ms": 73849,
+              "input_tokens": 3850,
+              "output_tokens": 1441
+            }
+          },
+          "positive_correct": 0,
+          "accepted_correct": 0,
+          "false_accepts": 0,
+          "false_rejects": 0,
+          "correct_but_blocked": {},
+          "repair_improved": 0,
+          "repair_degraded": 0,
+          "guard_passed": 1,
+          "errors": {}
+        },
+        "collaboration": {
+          "attempted": 13,
+          "calls": 2,
+          "usage_complete": true,
+          "input_tokens": 369,
+          "total_tokens": 457,
+          "duration_ms": 5895,
+          "by_role": {
+            "executor": {
+              "calls": 1,
+              "duration_ms": 333,
+              "input_tokens": 68,
+              "output_tokens": 3
+            },
+            "reviewer": {
+              "calls": 1,
+              "duration_ms": 4208,
+              "input_tokens": 301,
+              "output_tokens": 85
+            }
+          },
+          "positive_correct": 0,
+          "accepted_correct": 0,
+          "false_accepts": 0,
+          "false_rejects": 0,
+          "correct_but_blocked": {},
+          "repair_improved": 0,
+          "repair_degraded": 0,
+          "guard_passed": 13,
+          "errors": {}
+        }
+      },
+      "comparisons": {
+        "raw": {
+          "cases": 0,
+          "source_kinds": [],
+          "completed_pairs": 0,
+          "compressed_cases": 0,
+          "critical_fact_loss_rate": 0,
+          "raw_accuracy": null,
+          "processed_accuracy": null,
+          "reported_raw_prompt_tokens": null,
+          "reported_processed_prompt_tokens": null,
+          "reported_prompt_token_saving_ratio": null,
+          "reported_raw_total_tokens": null,
+          "reported_processed_total_tokens": null,
+          "raw_median_latency_ms": null,
+          "processed_median_latency_ms": null,
+          "reported_total_token_saving_ratio": null,
+          "by_category": {},
+          "by_source_kind": {},
+          "all_attempt_token_saving_ratio": 0.4723
+        },
+        "verified_raw": {
+          "cases": 0,
+          "source_kinds": [],
+          "completed_pairs": 0,
+          "compressed_cases": 0,
+          "critical_fact_loss_rate": 0,
+          "raw_accuracy": null,
+          "processed_accuracy": null,
+          "reported_raw_prompt_tokens": null,
+          "reported_processed_prompt_tokens": null,
+          "reported_prompt_token_saving_ratio": null,
+          "reported_raw_total_tokens": null,
+          "reported_processed_total_tokens": null,
+          "raw_median_latency_ms": null,
+          "processed_median_latency_ms": null,
+          "reported_total_token_saving_ratio": null,
+          "by_category": {},
+          "by_source_kind": {},
+          "all_attempt_token_saving_ratio": 0.9258
+        }
+      }
+    },
+    "quality_gate": {
+      "status": "not_evaluated",
+      "reasons": [
+        "raw: 完成样本少于门槛 50",
+        "raw: 缺少提供商报告的输入 Token 用量",
+        "verified_raw: 完成样本少于门槛 50",
+        "verified_raw: 缺少提供商报告的输入 Token 用量"
+      ],
+      "baselines": {
+        "raw": {
+          "status": "not_evaluated",
+          "scope": "provided_cases_only",
+          "representative_quality_proven": false,
+          "reasons": [
+            "完成样本少于门槛 50",
+            "缺少提供商报告的输入 Token 用量"
+          ],
+          "categories": {},
+          "thresholds": {
+            "min_cases": 50,
+            "min_category_cases": 10,
+            "min_accuracy": 0.9,
+            "max_accuracy_drop": 0.02,
+            "min_prompt_token_saving_ratio": 0.05
+          },
+          "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+        },
+        "verified_raw": {
+          "status": "not_evaluated",
+          "scope": "provided_cases_only",
+          "representative_quality_proven": false,
+          "reasons": [
+            "完成样本少于门槛 50",
+            "缺少提供商报告的输入 Token 用量"
+          ],
+          "categories": {},
+          "thresholds": {
+            "min_cases": 50,
+            "min_category_cases": 10,
+            "min_accuracy": 0.9,
+            "max_accuracy_drop": 0.02,
+            "min_prompt_token_saving_ratio": 0.05
+          },
+          "note": "样本集门槛不证明真实业务代表性；实际账单和费用仍由提供商决定。"
+        }
+      },
+      "scope": "provided_cases_only",
+      "representative_quality_proven": false,
+      "note": "拒答集合单列，不放宽正向门槛；未知 Harness 用量不记为零；Token 差值不是费用差值。"
+    },
+    "report_sha256": "9980c606bfef93728a4d7fd8807b5466701c89c0d7b258d23399940d3e46b653"
+  },
+  "release_source_sha256": {
+    "answer_checks.py": "88b6a910bb60bd3fa5eb278b1c150ef3a7cff68acb7a883831e7bbcbcf6cb376",
+    "eval_scenarios.py": "051fe3b3e129fccba93e1ef06635e325516a8fbd2c3a9e0fbe3ab2ed6278f331",
+    "eval_workflow.py": "86bfe63bf906a48e675d6cf3e31eec8f9904d7298a0e6858f61bd5fecd223642",
+    "native_text.py": "ca970a9f852085355239ec48ea19f3d2c8298f1ecc1fc93fcb84e34447b14b06",
+    "scripts/generate_verification_cases.py": "464fab562fa4408e4c6bb0300e9249d5ca4503b98251cf341f2bd6c4168a1e76",
+    "task_orchestrator.py": "7c4cacbf2d8bf38e523435ff2ce6cd13fbfc082d2d4fc5ca633d96f75a002396",
+    "test_acceptance.py": "5a352f20569fc854a606ca9ccd3863e19e6aac63184c0077eb2bf14e6f412bf4",
+    "test_lifecycle.py": "d21220071dcc0095173802ee5a2b0d398716d05dba940d2adaf36ba4e83c624b",
+    "test_native_text.py": "102d1c51327cf5b0862ce4c9f26c6f1c5c3d9e35779059d83ce588c1ebfbbe08",
+    "test_scenarios.py": "a81a2a0f347a3efd88e552e1cc64a856d9a1e67e8b3ab9a147aca6d5ac5e2c30",
+    "test_verification_cases.py": "3be1f2b8a7f0ee586c6928d55c4186f5a5ce00a0890af74c1f6f94a5b457e1d2"
+  }
+}

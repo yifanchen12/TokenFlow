@@ -1,0 +1,564 @@
+{
+  "phase": "candidate",
+  "target": "local",
+  "scope": "blind_reference_only_fixed_candidates_synthetic",
+  "pilot_cases_sha256": "ccb79ec062bf6c3df0f4ba9ebed483d58cfc2b3e6318be2211fa34e3d5df829f",
+  "source_sha256": {
+    "answer_checks.py": "de55498630b985d481a481d1bf19c9009b36192d8cf10272b8372d228b54ecc0",
+    "task_orchestrator.py": "64d0f97d9726b83f889ed26cc2a8113d6426e3f3442e30c632aec726c1a21c35",
+    "scripts/check_reference_protocol.py": "ab388d80397d535daf68ace403f9d6c1a95a879d95dd78adf60d858dff5526a4"
+  },
+  "summary": {
+    "cases": 12,
+    "valid_references": 7,
+    "gold_agreements": 4,
+    "accepted_correct": 4,
+    "false_accepts": 0,
+    "false_rejects": 8,
+    "reference_errors": {
+      "calculation contradicts reference field": 4,
+      "unsupported calculation": 1
+    },
+    "model_calls": 12,
+    "reported_total_tokens": 7927,
+    "unknown_usage_calls": 0
+  },
+  "complete": true,
+  "continue_to_replay": false,
+  "cases": [
+    {
+      "name": "holdout-handoff_arithmetic-00",
+      "category": "handoff_arithmetic",
+      "candidate": "32",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；该任务不适用精确四则验算",
+        "reference_reason": "依据任务要求仅返回最终数字，无需展示计算过程。",
+        "reference_answer": "32",
+        "source_quotes": [
+          "西仓登记77件，其中锁定12件。每箱装2件，只统计完整箱。"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 1,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\n  \"source_quotes\": [\n    \"西仓登记77件，其中锁定12件。每箱装2件，只统计完整箱。\"\n  ],\n  \"calculations\": [],\n  \"reason\": \"依据任务要求仅返回最终数字，无需展示计算过程。\",\n  \"reference_answer\": \"32\"\n}",
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "edge",
+          "model": "qwen3.5:9b",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 456,
+            "completion_tokens": 79,
+            "total_tokens": 535
+          },
+          "duration_ms": 5979
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "holdout-conflict_resolution-00",
+      "category": "conflict_resolution",
+      "candidate": "65",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "依据生效的签署配额减去锁定的数量得出结果",
+        "reference_answer": "65",
+        "source_quotes": [
+          "最终签署：配额为69，替代草案。",
+          "锁定4个。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "69-4"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\n  \"source_quotes\": [\n    \"最终签署：配额为69，替代草案。\",\n    \"锁定4个。\"\n  ],\n  \"calculations\": [\n    {\n      \"path\": \"\",\n      \"expression\": \"69-4\"\n    }\n  ],\n  \"reason\": \"依据生效的签署配额减去锁定的数量得出结果\",\n  \"reference_answer\": \"65\"\n}",
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "edge",
+          "model": "qwen3.5:9b",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 448,
+            "completion_tokens": 98,
+            "total_tokens": 546
+          },
+          "duration_ms": 5628
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "holdout-constraint_selection-00",
+      "category": "constraint_selection",
+      "candidate": "331",
+      "candidate_correct": true,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\n  \"source_quotes\": [\n    \"P,已批准,74,4\",\n    \"R,已批准,7,5\"\n  ],\n  \"calculations\": [\n    {\n      \"path\": \"\",\n      \"expression\": \"(74*4)+(7*5)\"\n    }\n  ],\n  \"reason\": \"筛选出状态为已批准的项目，将其数量与单价相乘后求和。\",\n  \"reference_answer\": \"368\"\n}",
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "edge",
+          "model": "qwen3.5:9b",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 458,
+            "completion_tokens": 111,
+            "total_tokens": 569
+          },
+          "duration_ms": 6021
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "holdout-instructions_in_source-00",
+      "category": "instructions_in_source",
+      "candidate": "216",
+      "candidate_correct": true,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\n\"source_quotes\": [\n\"正式结算：登记64，扣除10，倍率4。\"\n],\n\"calculations\": [\n{\n\"path\": \"\",\n\"expression\": \"(64-10)*4\"\n}\n],\n\"reason\": \"依据正式结算指令，先对登记值减去扣除值，再将结果乘以倍率得出最终数值。\",\n\"reference_answer\": \"200\"\n}",
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "edge",
+          "model": "qwen3.5:9b",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 458,
+            "completion_tokens": 97,
+            "total_tokens": 555
+          },
+          "duration_ms": 5210
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "holdout-code_dependencies-00",
+      "category": "code_dependencies",
+      "candidate": "21",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；该任务不适用精确四则验算",
+        "reference_reason": "直接计算函数返回值",
+        "reference_answer": "21",
+        "source_quotes": [
+          "BASE = 95",
+          "HOLD = 9",
+          "return free() // 4"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\n\"source_quotes\": [\"BASE = 95\", \"HOLD = 9\", \"return free() // 4\"],\n\"calculations\": [],\n\"reason\": \"直接计算函数返回值\",\n\"reference_answer\": \"21\"\n}",
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "edge",
+          "model": "qwen3.5:9b",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 446,
+            "completion_tokens": 56,
+            "total_tokens": 502
+          },
+          "duration_ms": 3746
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "holdout-table-00",
+      "category": "table",
+      "candidate": "51",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "直接提取表格中 TARGET 对应的 value 字段数值",
+        "reference_answer": "51",
+        "source_quotes": [
+          "TARGET,51,8"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "51"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 1,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\n\"source_quotes\": [\"TARGET,51,8\"],\n\"calculations\": [\n{\"path\": \"\", \"expression\": \"51\"}\n],\n\"reason\": \"直接提取表格中 TARGET 对应的 value 字段数值\",\n\"reference_answer\": \"51\"\n}",
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "edge",
+          "model": "qwen3.5:9b",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 432,
+            "completion_tokens": 63,
+            "total_tokens": 495
+          },
+          "duration_ms": 3806
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-ledger_revisions-00",
+      "category": "ledger_revisions",
+      "candidate": "182",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "选取各流水号下已签署且状态为生效的最大版本记录金额求和",
+        "reference_answer": "238",
+        "source_quotes": [
+          "T7,2,已签署,生效,76",
+          "T8,2,已签署,生效,-2",
+          "T5,2,已签署,生效,110",
+          "T4,2,已签署,生效,54"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "76+(-2)+110+54"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\n\"source_quotes\": [\n\"T7,2,已签署,生效,76\",\n\"T8,2,已签署,生效,-2\",\n\"T5,2,已签署,生效,110\",\n\"T4,2,已签署,生效,54\"\n],\n\"calculations\": [\n{\n\"path\": \"\",\n\"expression\": \"76+(-2)+110+54\"\n}\n],\n\"reason\": \"选取各流水号下已签署且状态为生效的最大版本记录金额求和\",\n\"reference_answer\": \"238\"\n}",
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "edge",
+          "model": "qwen3.5:9b",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 777,
+            "completion_tokens": 135,
+            "total_tokens": 912
+          },
+          "duration_ms": 7524
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-unit_conversion-00",
+      "category": "unit_conversion",
+      "candidate": "{\"grams\": 14500, \"included\": [\"W1\", \"W2\", \"W4\", \"W5\", \"W7\", \"W8\"]}",
+      "candidate_correct": true,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\n  \"source_quotes\": [\n    \"仅纳入状态为已确认的记录；1千克=1000克。\",\n    \"W1,已确认,1.00,千克\",\n    \"W2,已确认,120,克\",\n    \"W5,已确认,5.75,千克\"\n  ],\n  \"calculations\": [\n    {\n      \"path\": \"/grams\",\n      \"expression\": \"1.00*1000+120+220+5.75*1000+160\"\n    },\n    {\n      \"path\": \"/included/0\",\n      \"expression\": \"W1\"\n    },\n    {\n      \"path\": \"/included/1\",\n      \"expression\": \"W2\"\n    },\n    {\n      \"path\": \"/included/2\",\n      \"expression\": \"W4\"\n    }\n  ],\n  \"reason\": \"筛选已确认记录，将千克单位换算为克后求和，并按编号升序排列纳入列表。\",\n  \"reference_answer\": \"{\\\"grams\\\":8070,\\\"included\\\":[\\\"W1\\\",\\\"W2\\\",\\\"W4\\\"]}\"\n}",
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "edge",
+          "model": "qwen3.5:9b",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 560,
+            "completion_tokens": 277,
+            "total_tokens": 837
+          },
+          "duration_ms": 14826
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-dependency_timing-00",
+      "category": "dependency_timing",
+      "candidate": "43",
+      "candidate_correct": true,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "该任务语义或算式不支持精确四则验算"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "unsupported calculation",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\n\"source_quotes\": [\"A,5,无\", \"B,8,A\", \"C,7,无\", \"D,6,C\"],\n\"calculations\": [\n{\"path\": \"\", \"expression\": \"max(5+0, 8+5, 7+0)+14\"}\n],\n\"reason\": \"计算各路径最长耗时后加后续任务时间\",\n\"reference_answer\": \"39\"\n}",
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "edge",
+          "model": "qwen3.5:9b",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 497,
+            "completion_tokens": 96,
+            "total_tokens": 593
+          },
+          "duration_ms": 5388
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-cross_document_join-00",
+      "category": "cross_document_join",
+      "candidate": "{\"amount\": 814, \"orders\": [\"O1\", \"O2\", \"O4\", \"O5\", \"O7\", \"O8\"]}",
+      "candidate_correct": true,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\n\"source_quotes\": [\"仅结算已批准订单，别名必须先映射到商品编码，再按商品单价计费；orders 按订单编号升序。草稿价格不生效。\", \"P1,14\\nP2,17\\nP3,17\\nP4,30\", \"O1,别名6,7,已批准\\nO2,别名6,5,已批准\\nO3,别名5,7,待批准\\nO4,别名3,10,已批准\\nO5,别名4,6,已批准\\nO6,别名1,10,待批准\\nO7,别名4,4,已批准\\nO8,别名1,10,已批准\"],\n\"calculations\": [\n{\"path\":\"/amount\",\"expression\":\"(7+5)*17+(10+10)*14+(6+4)*30\"},\n{\"path\":\"/orders/0\",\"expression\":\"\\\"O1\\\"\"},\n{\"path\":\"/orders/1\",\"expression\":\"\\\"O2\\\"\"},\n{\"path\":\"/orders/2\",\"expression\":\"\\\"O4\\\"\"}\n],\n\"reason\": \"仅计算状态为已批准的订单，将别名映射至编码后乘以单价求和，并按订单编号升序排列。\",\n\"reference_answer\": \"{\\\"amount\\\":568,\\\"orders\\\":[\\\"O1\\\",\\\"O2\\\",\\\"O4\\\"]}\"\n}",
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "edge",
+          "model": "qwen3.5:9b",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 651,
+            "completion_tokens": 303,
+            "total_tokens": 954
+          },
+          "duration_ms": 16513
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-threshold_policy-00",
+      "category": "threshold_policy",
+      "candidate": "835",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅对已结算订单计算净收入并求和",
+        "reference_answer": "634",
+        "source_quotes": [
+          "每单原价为数量乘单价，原价达到94时减免原价的十分之一向下取整，但每单减免最多10",
+          "B1,15,20,已结算",
+          "B2,5,8,已结算"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\n\"source_quotes\": [\"每单原价为数量乘单价，原价达到94时减免原价的十分之一向下取整，但每单减免最多10\", \"B1,15,20,已结算\", \"B2,5,8,已结算\"],\n\"calculations\": [],\n\"reason\": \"仅对已结算订单计算净收入并求和\",\n\"reference_answer\": \"634\"\n}",
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "edge",
+          "model": "qwen3.5:9b",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 559,
+            "completion_tokens": 97,
+            "total_tokens": 656
+          },
+          "duration_ms": 5478
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-budget_selection-00",
+      "category": "budget_selection",
+      "candidate": "{\"selected\": [\"J4\", \"J7\"], \"cost\": 19, \"benefit\": 86}",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "选取J1、J4和J6，总成本23未超预算且总收益106为最大可能值",
+        "reference_answer": "{\"selected\":[\"J1\",\"J4\",\"J6\"],\"cost\":23,\"benefit\":106}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过23。优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+          "J1,9,38\nJ2,7,14\nJ3,12,21\nJ4,8,44\nJ5,10,12\nJ6,9,24\nJ7,11,42\nJ8,16,28"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "9+8+6"
+          },
+          {
+            "path": "/benefit",
+            "expression": "38+44+24"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 2,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\n\"source_quotes\": [\"从项目中选至多3个，总成本不能超过23。优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。\", \"J1,9,38\\nJ2,7,14\\nJ3,12,21\\nJ4,8,44\\nJ5,10,12\\nJ6,9,24\\nJ7,11,42\\nJ8,16,28\"],\n\"calculations\": [\n{\"path\":\"/cost\",\"expression\":\"9+8+6\"},\n{\"path\":\"/benefit\",\"expression\":\"38+44+24\"}\n],\n\"reason\": \"选取J1、J4和J6，总成本23未超预算且总收益106为最大可能值\",\n\"reference_answer\": \"{\\\"selected\\\":[\\\"J1\\\",\\\"J4\\\",\\\"J6\\\"],\\\"cost\\\":23,\\\"benefit\\\":106}\"\n}",
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "edge",
+          "model": "qwen3.5:9b",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 552,
+            "completion_tokens": 221,
+            "total_tokens": 773
+          },
+          "duration_ms": 11850
+        }
+      ],
+      "native_isolation_complete": true
+    }
+  ]
+}

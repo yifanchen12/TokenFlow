@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import ctypes
 import json
 import os
@@ -16,6 +17,7 @@ from typing import Any
 
 from model_providers import OpenAICompatibleProvider, ProviderError, ProviderSpec, is_loopback_url
 from tokenflow_store import _db_path
+from runtime_ownership import run_active
 
 MODEL_RE = re.compile(r"[A-Za-z0-9._:/+-]{1,160}")
 PROTOCOLS = {"openai", "responses", "anthropic", "ollama"}
@@ -188,6 +190,20 @@ def native_catalogs() -> dict[str, dict]:
     }
 
 
+def _runtime_settings(saved=None) -> dict:
+    defaults = {"bindings": {h: {"connection": "native", "model": "auto"} for h in ("codex", "claude", "dsh")},
+                "roles": {"local": "auto", "planner": "native:codex", "executor": "native:codex", "reviewer": "native:codex"},
+                "role_models": {r: "auto" for r in ROLES}, "max_calls": 6, "collaboration_mode": "hybrid",
+                "max_task_tokens": 64000, "context_window_tokens": 32768,
+                "output_limits": {"local": 1024, "planner": 1536, "executor": 2400, "reviewer": 1024},
+                "history_max_runs": 0, "history_retention_days": 0, "cache_max_mb": 0, "cache_retention_days": 0}
+    if saved is not None:
+        defaults.update(saved)
+        defaults["output_limits"] = {"local": 1024, "planner": 1536, "executor": 2400, "reviewer": 1024} | saved.get("output_limits", {})
+        defaults["collaboration_mode"] = saved.get("collaboration_mode", "configured")
+    return defaults
+
+
 class RuntimeConfig:
     def __init__(self, path: str | Path | None = None):
         self.path = Path(path or os.environ.get("TOKENFLOW_CONFIG_DB", _db_path().with_name("connections.db")))
@@ -217,7 +233,7 @@ class RuntimeConfig:
                 if not db.execute("SELECT 1 FROM settings WHERE id='savings:initialized'").fetchone():
                     for row in db.execute("SELECT data FROM runs"):
                         run = json.loads(row[0])
-                        if run.get("status") in {"running", "cancelling"} and run.get("process_id") != os.getpid():
+                        if run.get("status") in {"running", "cancelling"} and not run_active(self.path, run):
                             run = {**run, "status": "interrupted"}
                         _run_savings(db, run)
                     db.execute("INSERT INTO settings VALUES('savings:initialized',?)", (str(time.time()),))
@@ -300,22 +316,28 @@ class RuntimeConfig:
         return self.profile(identity)
 
     def settings(self) -> dict:
-        defaults = {"bindings": {h: {"connection": "native", "model": "auto"} for h in ("codex", "claude", "dsh")},
-                    "roles": {"local": "auto", "planner": "native:codex", "executor": "native:codex", "reviewer": "native:codex"},
-                    "role_models": {r: "auto" for r in ROLES}, "max_calls": 6, "collaboration_mode": "hybrid",
-                    "max_task_tokens": 64000, "context_window_tokens": 32768,
-                    "output_limits": {"local": 1024, "planner": 1536, "executor": 2400, "reviewer": 1024},
-                    "history_max_runs": 0, "history_retention_days": 0, "cache_max_mb": 0, "cache_retention_days": 0}
+        row = None
         if self.path.exists():
             with self.connect() as db:
                 row = db.execute("SELECT data FROM settings WHERE id='runtime'").fetchone()
-            if row:
-                saved = json.loads(row[0])
-                limits = defaults["output_limits"] | saved.get("output_limits", {})
-                defaults.update(saved)
-                defaults["output_limits"] = limits
-                defaults["collaboration_mode"] = saved.get("collaboration_mode", "configured")
-        return defaults
+        return _runtime_settings(json.loads(row[0]) if row else None)
+
+    def freeze(self):
+        """Capture one SQLite read transaction; secrets remain only in memory."""
+        if isinstance(self, FrozenConfig):
+            return self
+        native = native_catalogs()
+        with self.connect() as db:
+            if not db.in_transaction:
+                db.execute("BEGIN")
+            row = db.execute("SELECT data FROM settings WHERE id='runtime'").fetchone()
+            settings = _runtime_settings(json.loads(row[0]) if row else None)
+            profiles = {}
+            for entry in db.execute("SELECT data,secret FROM connections ORDER BY rowid"):
+                profile = json.loads(entry["data"]) | {"key_configured": bool(entry["secret"])}
+                profile["api_key"] = _protect(base64.b64decode(entry["secret"]), True).decode() if entry["secret"] else ""
+                profiles[profile["id"]] = profile
+        return FrozenConfig(self.path, profiles, settings, native)
 
     def save_settings(self, data: dict) -> dict:
         result = self.settings()
@@ -540,7 +562,7 @@ class RuntimeConfig:
         settings = self.settings()
         with self.connect() as db:
             rows = [(r["id"], json.loads(r["data"]), r["updated"]) for r in db.execute("SELECT * FROM runs ORDER BY updated DESC")]
-            eligible = [(i, r, t) for i, r, t in rows if not (r["status"] in {"running", "cancelling"} and r.get("process_id") == os.getpid())]
+            eligible = [(i, r, t) for i, r, t in rows if not run_active(self.path, r)]
             if identity:
                 if not re.fullmatch(r"[a-f0-9]{32}", identity):
                     raise ValueError("任务 ID 无效")
@@ -571,25 +593,51 @@ class RuntimeConfig:
                 if not row:
                     raise ValueError("任务记录不存在")
                 result = json.loads(row[0])
-                if result["status"] in {"running", "cancelling"} and result.get("process_id") != os.getpid():
+                if result["status"] in {"running", "cancelling"} and not run_active(self.path, result):
                     result.update(status="interrupted", error="服务重启中断了任务；可重新布置")
                 return result
-            effective = "CASE WHEN json_extract(data,'$.status') IN ('running','cancelling') AND COALESCE(json_extract(data,'$.process_id'),-1) != ? THEN 'interrupted' ELSE json_extract(data,'$.status') END"
+            db.create_function("runtime_active", 1, lambda data: int(run_active(self.path, json.loads(data))))
+            effective = "CASE WHEN json_extract(data,'$.status') IN ('running','cancelling') AND runtime_active(data)=0 THEN 'interrupted' ELSE json_extract(data,'$.status') END"
             where, parameters = [], []
             if query.strip():
                 where.append("instr(lower(json_extract(data,'$.task')),lower(?)) > 0")
                 parameters.append(query.strip())
             if status:
                 where.append(effective + "=?")
-                parameters.extend((os.getpid(), status))
+                parameters.append(status)
             clause = " WHERE " + " AND ".join(where) if where else ""
             total = db.execute("SELECT COUNT(*) FROM runs" + clause, parameters).fetchone()[0]
             items = [json.loads(r[0]) for r in db.execute("SELECT data FROM runs" + clause + " ORDER BY updated DESC,id DESC LIMIT ? OFFSET ?", parameters + [limit, offset])]
         for item in items:
-            if item["status"] in {"running", "cancelling"} and item.get("process_id") != os.getpid():
+            if item["status"] in {"running", "cancelling"} and not run_active(self.path, item):
                 item["status"] = "interrupted"
         return {"runs": [{k: r.get(k) for k in ("id", "task", "status", "created_at")} for r in items],
                 "total": total, "offset": offset, "limit": limit, "has_more": offset + len(items) < total}
+
+
+class FrozenConfig(RuntimeConfig):
+    """Fixed task reads, with persistence inherited from the real database."""
+    def __init__(self, path, profiles, settings, native):
+        self.path = path
+        self._profiles, self._settings, self._native = profiles, settings, native
+
+    def profile(self, identity: str, secret: bool = False) -> dict:
+        if identity not in self._profiles:
+            raise ValueError("未找到本任务固定的提供商连接")
+        result = copy.deepcopy(self._profiles[identity])
+        if not secret:
+            result.pop("api_key", None)
+        return result
+
+    def profiles(self) -> list[dict]:
+        return [self.profile(identity) for identity in self._profiles]
+
+    def settings(self) -> dict:
+        return copy.deepcopy(self._settings)
+
+    def public(self) -> dict:
+        return {"connections": self.profiles(), "native": copy.deepcopy(self._native), **self.settings(),
+                "key_storage": "Windows DPAPI（当前系统用户）" if os.name == "nt" else "仅文件所有者权限"}
 
 
 class ConnectionClient(OpenAICompatibleProvider):

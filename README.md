@@ -28,6 +28,9 @@ The console's primary action now submits a task to a bounded workflow: local
 file reading and statistics, optional configured-model classification/summary,
 model planning, sequential model/Harness assignment, and result acceptance.
 Pure supported counting/statistics requests complete without any model call.
+Explicit bounded integer-return queries over simple Python functions can also
+complete by static interpretation, without executing source. Unsupported or
+ambiguous code retains the model and original-source verification workflow.
 Reasoning results require a valid reviewer verdict; a rejected result may be
 repaired once within the configured call budget. Failed or missing acceptance
 is never displayed as completed.
@@ -41,6 +44,23 @@ local validation from model review; the copy button copies plain text.
 **Settings** opens a drawer for connections, budgets, storage and advanced tools;
 Escape closes it and returns focus. The layout adapts to phones and respects
 reduced-motion preferences. [UI validation and screenshots](docs/reports/premium-workspace-ui-2026-10-21.zh-CN.md).
+
+Active progress stays visible while scrolling, with the actual executor, elapsed
+time and cancellation. Copy the pure answer separately from the full result and
+verification notes. Retry eligible failed tasks using cached original inputs and
+completed read-only steps; retries receive independent IDs, receipts and budgets.
+File-tool plans and missing/replaced source caches require resubmission.
+
+A configuration database has OS-backed service and task ownership. Settings,
+connections and Harness bindings are frozen for each task; changes apply to the
+next task. Native subscription usage remains unknown when not reported.
+
+`eval_workflow.py --scenarios --edge-connection LOCAL_ID --complex-target native:codex`
+compares raw execution, raw plus the production verifier, and collaboration in
+isolated storage. Use `--cases` and `--report`; `--model` selects the complex model.
+`scripts/generate_eval_cases.py --collaboration-only` generates separate 60-case
+development/holdout sets and 13 refusal cases. Failures count toward costs, missing
+usage is never zero, and refusal cases do not relax existing positive gates.
 
 Open **Settings → Provider and Harness configuration** in the console to add named
 connections with a Base URL, API Key and protocol (Chat Completions, local Ollama, Responses,
@@ -414,7 +434,9 @@ Completed-pair accuracy excludes failed workflows: also inspect `accepted_correc
 
 Select **Ollama (local)** for loopback addresses ending in `/v1`. Daily tasks and evaluation share the native adapter, thinking off, temperature 0 and the configured context capacity. Planning and review request bounded JSON schemas; client checks still reject invalid or inconsistent verdicts. Advanced single calls retain their own output cap. Newly discovered Ollama connections use this protocol; existing saved profiles and Harness binding rules remain unchanged.
 
-Review separates the candidate answer from source material and review metadata. One budgeted repair requires concrete quotes present in both source and candidate. Invalid review output, unsupported corrections or failed rechecks retain the answer for review. After a repair, the result panel can show both candidates and their verdicts. Valid structure and matching quotes do not establish semantic correctness.
+Explicit number/JSON tasks use a blind reference: the reviewer receives the task and full source without candidate or planner answers. Local checks compare complete values, verify source quotes and bind bounded arithmetic to numeric fields. Programming, rounding and approximate semantics do not use rational-arithmetic proofs. Only content-preserving format normalization is automatic; semantic references and corrections remain unapplied suggestions. The result panel identifies the selected answer and suggestions. Model agreement and calculation consistency do not establish correct source selection or business semantics.
+
+References generate source quotes and final-field calculations before a short reason and answer. Per-task schemas allow one final expression for a single number and no rational-arithmetic proof for explicit whole-box counting or other rounding semantics. Invalid references distinguish empty answers, duplicate paths and field/calculation conflicts. A fixed pilot must pass before fixed-candidate replay; reviewer-only results are not full-task quality gains. See the [reference compatibility report (Chinese)](docs/reports/reference-compatibility-2026-10-23.zh-CN.md).
 
 Narrow explicit CSV/TSV queries can complete locally with zero model calls, for example `CSV表格中 "K 17" 的 free_stock 值是多少？只回答数字。`. The first column must identify one row and the requested column must be unique. Duplicate keys, missing columns, empty targets or uncached formulas need review. Ambiguous, multi-sheet or multi-step requests retain the existing workflow.
 
@@ -444,3 +466,22 @@ Plans support up to four sequential steps with `id`, `depends_on`, `input_scope`
 A failed local model step can escalate once to the configured complex executor when hybrid mode and the remaining call/token budget permit, while reserving acceptance. Failed calls and escalation count toward usage. Cloud failures preserve partial results without labelling them final completion. Local-only mode rejects cloud connections and native Harnesses; deterministic tasks still need no model. Location follows saved connection metadata; native execution and hidden usage remain explicitly uncertain.
 
 `POST /api/tasks/preview` requires the existing loopback/session protection and makes no model calls. `collaboration_mode` participates in task receipt identity. Evaluation records step handoffs and actual locations; same-model evaluation keeps configured-role semantics. Run `python test_collaboration.py` for focused routing, handoff, budget, partial-result, local-only and protected-preview checks. Synthetic fixtures and real model results are reported separately; collaboration is not a guarantee of correctness or cost savings.
+
+Short source-only single-step requests can skip planning; sequential reasoning retains planning. Explicit delegation, multiple outputs and tool/file operations retain planning. The final planned step receives the original task again, and planner suggestions cannot override its output format. Clear contradictions in numeric review equations or unchanged numeric corrections block automatic acceptance/repair. This bounded rational-arithmetic guard skips programming, floating-point, rounding and ambiguous expressions; it does not prove the source interpretation correct.
+
+Evaluation supports `answer_match: "json"` for strict structured comparison: object key order may differ, while arrays, fields and value types must agree (equivalent JSON numbers compare numerically). Duplicate keys, non-finite numbers, extra prose and excessive nesting are rejected. Reports separate answer correctness, accepted correctness, false acceptance and reasons that correct candidates remain blocked. Source-only three-arm evaluation does not expose additional file Harness steps.
+
+Codex model roles run in an empty temporary workspace, ignore ordinary user configuration, and disable commands, external tools, apps, plugins, memory and project documents. Complete JSONL text-event auditing is required; tool or unknown events fail closed. Reported CLI input/output usage is retained even on failed calls; missing usage stays unknown and model-metadata fallback warnings are recorded. Explicit file Harness steps keep their existing read-only tools. Source-only native evaluation currently supports this Codex path; other models can use API connections. Missing isolation evidence cannot pass the gate.
+
+Native OpenAI bindings load a matching descriptor from the local CLI model cache when available and record its fingerprint, preserving model metadata through the HTTPS adapter without changing ordinary user configuration. Missing metadata stays explicit. Numeric equalities also recognize Chinese “等于”; affirmative “no error” wording cannot exempt a contradictory equation. Negation, approximation and programming semantics retain their existing exclusions.
+
+Text roles load dedicated stage instructions and record their fingerprint. Explicit file Harness steps keep their existing execution path. Arithmetic checks avoid partial expressions containing thousands separators, bitwise operators, roots, units or functions. Format and arithmetic consistency do not prove source selection or semantic correctness; see the [validation report](docs/reports/evidence-checks-2026-10-22.zh-CN.md) for model results and failures.
+
+Planning and review JSON reject duplicate fields, non-finite numbers and nesting beyond 64 levels. Unexpected multi-turn native events still fail closed while retaining reported usage. Missing or mismatched counters leave total usage unknown, retain a known subtotal, and charge at least that subtotal against the workflow budget.
+
+```powershell
+python scripts/generate_verification_cases.py --seed 20261022 --output-dir tmp/verification-v4
+python eval_workflow.py --self-check
+```
+
+The V4 generator creates 60 independently labelled synthetic cases across revision ledgers, unit conversion, dependency timing, joins, threshold policies and budget selection. Labels are checked by separate reference calculations. See the [evidence-checking report (Chinese)](docs/reports/evidence-checks-2026-10-22.zh-CN.md) for validation scope and remaining limitations.

@@ -11,6 +11,7 @@ import time
 import tempfile
 import unicodedata
 from collections import Counter
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Callable
 
@@ -50,7 +51,7 @@ def load_cases(path: Path) -> list[dict[str, Any]]:
             from document_parser import parse_document_file
             parsed = parse_document_file(str(source))
             case["content"] = parsed["text"]
-            case["parsing"] = {"status": "completed", **{k: parsed[k] for k in ("extension", "method", "mean_confidence") if k in parsed}}
+            case["parsing"] = {"status": "completed", **{k: parsed[k] for k in ("extension", "method", "mean_confidence", "warnings") if k in parsed}}
         loaded.append(case)
     return loaded
 
@@ -67,20 +68,35 @@ def _validate_case(case: Any, model_answers: bool) -> None:
         raise ValueError("评测样本需要非空 must_keep 字符串数组")
     if any(fact not in case["content"] for fact in facts):
         raise ValueError("must_keep 的事实必须存在于原文中")
-    if case.get("answer_match", "exact") not in {"exact", "contains_all"}:
-        raise ValueError("answer_match 只能为 exact 或 contains_all")
+    if case.get("answer_match", "exact") not in {"exact", "contains_all", "json"}:
+        raise ValueError("answer_match 只能为 exact、contains_all 或 json")
     if model_answers:
         expected = case.get("expected_answer")
         values = [expected] if isinstance(expected, str) else expected
         if not isinstance(values, list) or not values or not all(isinstance(value, str) and _normalize(value) for value in values):
             raise ValueError("模型评测需要 expected_answer 字符串或非空字符串数组")
+        if case.get('answer_match') == 'json':
+            try:
+                for value in values: _json_answer(value)
+            except (ValueError, RecursionError) as exc:
+                raise ValueError('JSON 标准答案须完整、无重复键和非有限数') from exc
 
 
 def _normalize(answer: str) -> str:
     return unicodedata.normalize("NFKC", answer).strip().strip(chr(96) + "\"' \n\r").rstrip("。.").strip()
 
 
+# Shared production/evaluation JSON semantics; keep private aliases for callers.
+from answer_checks import strict_json as _json_answer, same_json as _same_json
+
+
 def answer_pass(answer: str, expected: str | list[str], method: str = "exact") -> bool:
+    if method == 'json':
+        try:
+            parsed = _json_answer(answer)
+            return any(_same_json(parsed, _json_answer(value)) for value in ([expected] if isinstance(expected, str) else expected))
+        except (ValueError, RecursionError):
+            return False
     answer = _normalize(answer)
     values = [_normalize(value) for value in ([expected] if isinstance(expected, str) else expected)]
     if method == "exact":
@@ -448,6 +464,10 @@ def evaluate_pipeline(cases: list[dict[str, Any]], profile: dict, model: str = "
 
 
 def self_check() -> None:
+    from test_verification_cases import self_check as verification_self_check
+    verification_self_check()
+    from test_scenarios import self_check as scenarios_self_check
+    scenarios_self_check()
     from unittest.mock import patch
 
     report = evaluate(sample_cases())
@@ -456,6 +476,13 @@ def self_check() -> None:
     assert report["quality_gate"]["status"] == "not_evaluated"
     assert answer_pass("7。", "7") and not answer_pass("17", "7") and not answer_pass("不是7", "7")
     assert not answer_pass("17", ["7"], "contains_all")
+    assert answer_pass('{"b":[2,3],"a":1.0}', '{"a":1,"b":[2,3]}', 'json')
+    for actual in ('{"a":1,"a":2}', '{"a":true}', '{"a":1,"extra":0}', '```json\n{"a":1}\n```', '{"a":NaN}', '{"a":Infinity}'):
+        assert not answer_pass(actual, '{"a":1}', 'json'), actual
+    assert not answer_pass('[2,1]', '[1,2]', 'json')
+    assert not answer_pass('1e10000', '1', 'json')
+    assert not answer_pass('1e9999999999999999999999999999', '1', 'json')
+    assert not answer_pass('['*65 + '0' + ']'*65, '[0]', 'json')
     python_source = ("# unrelated\n" * 300) + "def target():\n    value = 42\n    if value < 0:\n        return None\n    return value\n" + ("# unrelated\n" * 300)
     assert "return value" in run_workflow("target 函数返回什么？", python_source)["result"]
     markdown_source = "# Other\n" + "无关内容\n" * 600 + "# 退款期限\n说明。\n说明。\n不得超过7天。\n"
@@ -488,6 +515,10 @@ def main() -> None:
     parser.add_argument("--provider", choices=tuple(PROVIDERS), help="Explicit provider; omitted means offline-only")
     parser.add_argument("--offline-task-context", action="store_true", help="Offline parse/index/retrieval/selection in isolated databases; no model calls")
     parser.add_argument("--pipeline", action="store_true", help="Compare one raw call with the full orchestration (explicit --connection required)")
+    parser.add_argument("--scenarios", action="store_true", help="Three arms: raw, raw plus verifier, production end/cloud collaboration")
+    parser.add_argument("--edge-connection", help="Saved local connection ID for --scenarios")
+    parser.add_argument("--complex-target", help="Saved connection ID or native:codex/claude/dsh; default is current executor")
+    parser.add_argument("--edge-model", default="auto", help="Local preparation model for --scenarios")
     parser.add_argument("--ollama-native", action="store_true", help="Use fixed-context local Ollama native API for full-pipeline comparison")
     parser.add_argument("--connection", help="Saved API connection ID for full-pipeline evaluation; all roles use this connection")
     parser.add_argument("--max-calls", type=int, default=6, help="Full-pipeline call budget, 3–8")
@@ -508,6 +539,12 @@ def main() -> None:
     if args.self_check:
         self_check()
         return
+    if args.scenarios and (args.pipeline or args.provider or args.offline_task_context or args.connection or not args.edge_connection):
+        parser.error("三种对照需要 --edge-connection，不能与单模型、离线或 --connection 混用")
+    if not args.scenarios and (args.edge_connection or args.complex_target or args.edge_model != 'auto'):
+        parser.error("端云连接参数仅用于 --scenarios")
+    if args.scenarios and (args.timeout != 120 or args.max_tokens != 512 or args.ollama_native):
+        parser.error("三种对照沿用运行时输出限制和连接协议，不使用单次提示词参数")
     if args.offline_task_context and (args.provider or args.pipeline or args.connection or args.model != "auto" or args.max_tokens != 512 or args.timeout != 120 or args.ollama_context != 32768):
         parser.error("离线任务上下文模式不能使用模型或完整流程参数")
     if args.pipeline and (not args.connection or args.provider):
@@ -527,11 +564,23 @@ def main() -> None:
         if args.report:
             args.report.parent.mkdir(parents=True, exist_ok=True)
             args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-            args.report.with_suffix(".md").write_text(markdown_report(report), encoding="utf-8")
+            if args.scenarios:
+                from eval_scenarios import markdown_report as render
+            else:
+                render = markdown_report
+            args.report.with_suffix(".md").write_text(render(report), encoding="utf-8")
             print(f"Completed {len(report['cases'])} pairs/cases", flush=True)
     try:
         cases = load_cases(args.cases) if args.cases else sample_cases()
-        if args.pipeline:
+        if args.scenarios:
+            from eval_scenarios import evaluate_scenarios
+            from runtime_config import RuntimeConfig
+            report = evaluate_scenarios(cases[:args.limit] if args.limit else cases, RuntimeConfig(), args.edge_connection,
+                          complex_target=args.complex_target, edge_model=args.edge_model, complex_model=args.model,
+                          min_cases=args.min_cases, min_saving=args.min_saving, min_accuracy=args.min_accuracy,
+                          max_accuracy_drop=args.max_accuracy_drop, max_calls=args.max_calls, min_category_cases=args.min_category_cases,
+                          ollama_context=args.ollama_context, progress=progress)
+        elif args.pipeline:
             from runtime_config import RuntimeConfig
             report = evaluate_pipeline(cases[:args.limit] if args.limit else cases,
                           RuntimeConfig().profile(args.connection, True), args.model,

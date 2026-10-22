@@ -1,0 +1,4011 @@
+{
+  "phase": "replay",
+  "target": "native",
+  "scope": "blind_reference_only_fixed_candidates_synthetic",
+  "pilot_cases_sha256": "ccb79ec062bf6c3df0f4ba9ebed483d58cfc2b3e6318be2211fa34e3d5df829f",
+  "source_sha256": {
+    "answer_checks.py": "de55498630b985d481a481d1bf19c9009b36192d8cf10272b8372d228b54ecc0",
+    "task_orchestrator.py": "64d0f97d9726b83f889ed26cc2a8113d6426e3f3442e30c632aec726c1a21c35",
+    "scripts/check_reference_protocol.py": "ab388d80397d535daf68ace403f9d6c1a95a879d95dd78adf60d858dff5526a4"
+  },
+  "summary": {
+    "cases": 60,
+    "valid_references": 44,
+    "gold_agreements": 24,
+    "accepted_correct": 10,
+    "false_accepts": 0,
+    "false_rejects": 14,
+    "reference_errors": {
+      "calculation contradicts reference field": 10,
+      "reference quote not grounded": 5,
+      "numeric fields require bound calculations": 1
+    },
+    "model_calls": 60,
+    "reported_total_tokens": 486458,
+    "unknown_usage_calls": 0
+  },
+  "complete": true,
+  "cases": [
+    {
+      "name": "validation-v4-ledger_revisions-00",
+      "category": "ledger_revisions",
+      "candidate": "165",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "按各流水号最高已签署版本筛选，撤销记录不计入。",
+        "reference_answer": "165",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。",
+          "T8,2,已签署,生效,20",
+          "T7,2,已签署,生效,-65"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "20-5-65+73+70+72"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。\",\"未签署记录一律忽略。\",\"T8,2,已签署,生效,20\",\"T7,2,已签署,生效,-65\"],\"calculations\":[{\"path\":\"\",\"expression\":\"20-5-65+73+70+72\"}],\"reason\":\"按各流水号最高已签署版本筛选，撤销记录不计入。\",\"reference_answer\":\"165\"}",
+      "previous_acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "各流水号仅取最高已签署版本；撤销记录不计，未签署版本忽略。有效金额合计为165。",
+        "reference_answer": "165",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "20-5-65+73+70+72"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8139,
+            "completion_tokens": 288,
+            "total_tokens": 8427
+          },
+          "duration_ms": 10542
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-ledger_revisions-01",
+      "category": "ledger_revisions",
+      "candidate": "76",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "每个流水号取最高已签署版本，若为撤销则排除，再合计其余金额。",
+        "reference_answer": "150",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "3+0-74+0+119+0+73+29"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。\",\"未签署记录一律忽略。\"],\"calculations\":[{\"path\":\"\",\"expression\":\"3+0-74+0+119+0+73+29\"}],\"reason\":\"每个流水号取最高已签署版本，若为撤销则排除，再合计其余金额。\",\"reference_answer\":\"150\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8141,
+            "completion_tokens": 105,
+            "total_tokens": 8246
+          },
+          "duration_ms": 10021
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-ledger_revisions-02",
+      "category": "ledger_revisions",
+      "candidate": "78",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "每个流水号仅取已签署的最高版本，撤销记录不计入。",
+        "reference_answer": "1",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "96-72-68-70+85-65+30-67+98+34"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。\",\"未签署记录一律忽略。\"],\"calculations\":[{\"path\":\"\",\"expression\":\"96-72-68-70+85-65+30-67+98+34\"}],\"reason\":\"每个流水号仅取已签署的最高版本，撤销记录不计入。\",\"reference_answer\":\"1\"}",
+      "previous_acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "逐流水号选取最高已签署版本，撤销记录不计；有效金额合计为78。",
+        "reference_answer": "78",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "34+98+85-72-67"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8141,
+            "completion_tokens": 104,
+            "total_tokens": 8245
+          },
+          "duration_ms": 8648
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-ledger_revisions-03",
+      "category": "ledger_revisions",
+      "candidate": "59",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "按规则选取各流水号最高已签署版本，撤销记录不计，再汇总金额。",
+        "reference_answer": "59",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "58+60-48-44+94-61"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。\",\"未签署记录一律忽略。\"],\"calculations\":[{\"path\":\"\",\"expression\":\"58+60-48-44+94-61\"}],\"reason\":\"按规则选取各流水号最高已签署版本，撤销记录不计，再汇总金额。\",\"reference_answer\":\"59\"}",
+      "previous_acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "各流水号仅取最高版本的已签署记录；撤销记录剔除后，净金额为59。",
+        "reference_answer": "59",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "58+60-48-44+94-61"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8135,
+            "completion_tokens": 248,
+            "total_tokens": 8383
+          },
+          "duration_ms": 9504
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-ledger_revisions-04",
+      "category": "ledger_revisions",
+      "candidate": "6",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "每个流水号取已签署的最高版本，若为撤销则排除。",
+        "reference_answer": "284",
+        "source_quotes": [
+          "该记录若为撤销则不计入",
+          "未签署记录一律忽略"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "37-35+85+37+97-79+32+22+88"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"该记录若为撤销则不计入\",\"未签署记录一律忽略\"],\"calculations\":[{\"path\":\"\",\"expression\":\"37-35+85+37+97-79+32+22+88\"}],\"reason\":\"每个流水号取已签署的最高版本，若为撤销则排除。\",\"reference_answer\":\"284\"}",
+      "previous_acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "各流水号取最高版本的已签署记录；撤销记录不计，未签署记录忽略。计入T2、T3、T5、T6、T8。",
+        "reference_answer": "6",
+        "source_quotes": [
+          "T2,2,已签署,生效,37",
+          "T3,2,已签署,生效,61",
+          "T5,2,已签署,生效,-79",
+          "T6,2,已签署,生效,-35"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "37+61-79-35+22"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8135,
+            "completion_tokens": 84,
+            "total_tokens": 8219
+          },
+          "duration_ms": 9472
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-ledger_revisions-05",
+      "category": "ledger_revisions",
+      "candidate": "314",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "各流水号取已签署的最高版本，撤销记录不计入。",
+        "reference_answer": "367",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "56+82+105+53+(-14)+85"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。\",\"未签署记录一律忽略。\"],\"calculations\":[{\"path\":\"\",\"expression\":\"56+82+105+53+(-14)+85\"}],\"reason\":\"各流水号取已签署的最高版本，撤销记录不计入。\",\"reference_answer\":\"367\"}",
+      "previous_acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "各流水号仅取已签署的最高版本；撤销版本不计，未签署记录忽略。有效金额为 -14、82、56、85、105。",
+        "reference_answer": "314",
+        "source_quotes": [
+          "T1,2,已签署,生效,-14",
+          "T3,2,已签署,生效,82",
+          "T4,2,已签署,生效,56",
+          "T6,2,已签署,生效,85"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "-14+82+56+85+105"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8135,
+            "completion_tokens": 95,
+            "total_tokens": 8230
+          },
+          "duration_ms": 8360
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-ledger_revisions-06",
+      "category": "ledger_revisions",
+      "candidate": "60",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "逐号取最高已签署版本，撤销记录不计，最后求和。",
+        "reference_answer": "60",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "103-79-67+106-20+17"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。\",\"未签署记录一律忽略。\"],\"calculations\":[{\"path\":\"\",\"expression\":\"103-79-67+106-20+17\"}],\"reason\":\"逐号取最高已签署版本，撤销记录不计，最后求和。\",\"reference_answer\":\"60\"}",
+      "previous_acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "各流水号取已签署的最高版本；最高版本为撤销的流水号不计入。有效金额合计为60。",
+        "reference_answer": "60",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "-67+103-79-20+17+106"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8139,
+            "completion_tokens": 205,
+            "total_tokens": 8344
+          },
+          "duration_ms": 10674
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-ledger_revisions-07",
+      "category": "ledger_revisions",
+      "candidate": "41",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "每个流水号取最高已签署版本，撤销记录不计。",
+        "reference_answer": "162",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "-48+101+76+0+7-36+62+0"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。\",\"未签署记录一律忽略。\"],\"calculations\":[{\"path\":\"\",\"expression\":\"-48+101+76+0+7-36+62+0\"}],\"reason\":\"每个流水号取最高已签署版本，撤销记录不计。\",\"reference_answer\":\"162\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "各流水号取已签署的最高版本；该版本为撤销的T1、T4、T7不计，其余有效金额合计225。",
+        "reference_answer": "225",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "-48+101+65+7+100"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8133,
+            "completion_tokens": 98,
+            "total_tokens": 8231
+          },
+          "duration_ms": 9142
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-ledger_revisions-08",
+      "category": "ledger_revisions",
+      "candidate": "47",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "每个流水号取版本号最大的已签署记录，撤销记录不计，未签署记录忽略。",
+        "reference_answer": "-70",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "-14-68-33+100-67+81-75+6"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。\",\"未签署记录一律忽略。\"],\"calculations\":[{\"path\":\"\",\"expression\":\"-14-68-33+100-67+81-75+6\"}],\"reason\":\"每个流水号取版本号最大的已签署记录，撤销记录不计，未签署记录忽略。\",\"reference_answer\":\"-70\"}",
+      "previous_acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "按每个流水号最高的已签署版本筛选，撤销记录不计入，净金额为47。",
+        "reference_answer": "47",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "-14-33+80+81-67"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8135,
+            "completion_tokens": 108,
+            "total_tokens": 8243
+          },
+          "duration_ms": 8697
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-ledger_revisions-09",
+      "category": "ledger_revisions",
+      "candidate": "141",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "每个流水号取版本号最大的已签署记录，撤销记录不计入。",
+        "reference_answer": "135",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "-56+89+(-6)+82+(-43)+(-6)+75"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。\",\"未签署记录一律忽略。\"],\"calculations\":[{\"path\":\"\",\"expression\":\"-56+89+(-6)+82+(-43)+(-6)+75\"}],\"reason\":\"每个流水号取版本号最大的已签署记录，撤销记录不计入。\",\"reference_answer\":\"135\"}",
+      "previous_acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "各流水号仅取最高版本的已签署记录；T6、T3最高签署版本为撤销，排除，其余金额求和。",
+        "reference_answer": "141",
+        "source_quotes": [
+          "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+          "未签署记录一律忽略。"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "89-6+82-43-56+75"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8137,
+            "completion_tokens": 102,
+            "total_tokens": 8239
+          },
+          "duration_ms": 8579
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-unit_conversion-00",
+      "category": "unit_conversion",
+      "candidate": "{\"grams\":14950,\"included\":[\"W1\",\"W2\",\"W4\",\"W5\",\"W7\",\"W8\"]}",
+      "candidate_correct": false,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅纳入状态为已确认的记录\",\"1千克=1000克\",\"included 按编号升序。\",\"W1,已确认,0.50,千克\"],\"calculations\":[{\"path\":\"/grams\",\"expression\":\"500+260+130+7250+2000+60\"}],\"reason\":\"仅计入已确认记录，将千克换算为克并按编号升序列出。\",\"reference_answer\":\"{\\\"grams\\\":8200,\\\"included\\\":[\\\"W1\\\",\\\"W2\\\",\\\"W4\\\",\\\"W5\\\",\\\"W7\\\",\\\"W8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7892,
+            "completion_tokens": 131,
+            "total_tokens": 8023
+          },
+          "duration_ms": 8399
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-unit_conversion-01",
+      "category": "unit_conversion",
+      "candidate": "{\"grams\":7340,\"included\":[\"W2\",\"W3\",\"W5\",\"W6\",\"W8\"]}",
+      "candidate_correct": true,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "参考引文未在原资料中找到或格式不合规"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅纳入状态为已确认的记录；1千克=1000克。included 按编号升序。\",\"W2,已确认,60,克\",\"W3,已确认,3.25,千克\",\"W5,已确认,3.75,千克\",\"W6,已确认,90,克\"],\"calculations\":[{\"path\":\"/grams\",\"expression\":\"60+3.25*1000+3.75*1000+90+190\"}],\"reason\":\"仅汇总已确认记录，千克按1000克换算，编号升序列出。\",\"reference_answer\":\"{\\\"grams\\\":7340,\\\"included\\\":[\\\"W2\\\",\\\"W3\\\",\\\"W5\\\",\\\"W6\\\",\\\"W8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "invalid calculations",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7894,
+            "completion_tokens": 254,
+            "total_tokens": 8148
+          },
+          "duration_ms": 9403
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-unit_conversion-02",
+      "category": "unit_conversion",
+      "candidate": "{\"grams\":11270,\"included\":[\"W1\",\"W3\",\"W4\",\"W6\",\"W7\"]}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅纳入已确认记录，按编号升序列出并统一换算为克。",
+        "reference_answer": "{\"grams\":9270,\"included\":[\"W1\",\"W3\",\"W4\",\"W6\",\"W7\"]}",
+        "source_quotes": [
+          "1千克=1000克",
+          "W1,已确认,3.25,千克",
+          "W3,已确认,4.00,千克",
+          "W7,已确认,1.50,千克"
+        ],
+        "calculations": [
+          {
+            "path": "/grams",
+            "expression": "3.25*1000+4.00*1000+280+240+1.50*1000"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"1千克=1000克\",\"W1,已确认,3.25,千克\",\"W3,已确认,4.00,千克\",\"W7,已确认,1.50,千克\"],\"calculations\":[{\"path\":\"/grams\",\"expression\":\"3.25*1000+4.00*1000+280+240+1.50*1000\"}],\"reason\":\"仅纳入已确认记录，按编号升序列出并统一换算为克。\",\"reference_answer\":\"{\\\"grams\\\":9270,\\\"included\\\":[\\\"W1\\\",\\\"W3\\\",\\\"W4\\\",\\\"W6\\\",\\\"W7\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计入已确认记录，并将千克换算为克后求和；编号按升序排列。",
+        "reference_answer": "{\"grams\":9270,\"included\":[\"W1\",\"W3\",\"W4\",\"W6\",\"W7\"]}",
+        "source_quotes": [
+          "仅纳入状态为已确认的记录；1千克=1000克。",
+          "W1,已确认,3.25,千克",
+          "W3,已确认,4.00,千克",
+          "W4,已确认,280,克"
+        ],
+        "calculations": [
+          {
+            "path": "/grams",
+            "expression": "3.25*1000+4.00*1000+280+240+1.50*1000"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7894,
+            "completion_tokens": 218,
+            "total_tokens": 8112
+          },
+          "duration_ms": 9023
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-unit_conversion-03",
+      "category": "unit_conversion",
+      "candidate": "{\"grams\":13920,\"included\":[\"W1\",\"W2\",\"W4\",\"W5\",\"W7\",\"W8\"]}",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "只纳入已确认记录，按编号升序列出并将千克换算为克。",
+        "reference_answer": "{\"grams\":13920,\"included\":[\"W1\",\"W2\",\"W4\",\"W5\",\"W7\",\"W8\"]}",
+        "source_quotes": [
+          "1千克=1000克",
+          "W1,已确认,4.50,千克",
+          "W2,已确认,290,克",
+          "W4,已确认,240,克"
+        ],
+        "calculations": [
+          {
+            "path": "/grams",
+            "expression": "4500+290+240+3500+5250+140"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"1千克=1000克\",\"W1,已确认,4.50,千克\",\"W2,已确认,290,克\",\"W4,已确认,240,克\"],\"calculations\":[{\"path\":\"/grams\",\"expression\":\"4500+290+240+3500+5250+140\"}],\"reason\":\"只纳入已确认记录，按编号升序列出并将千克换算为克。\",\"reference_answer\":\"{\\\"grams\\\":13920,\\\"included\\\":[\\\"W1\\\",\\\"W2\\\",\\\"W4\\\",\\\"W5\\\",\\\"W7\\\",\\\"W8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7894,
+            "completion_tokens": 135,
+            "total_tokens": 8029
+          },
+          "duration_ms": 8287
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-unit_conversion-04",
+      "category": "unit_conversion",
+      "candidate": "{\"grams\":9280,\"included\":[\"W2\",\"W3\",\"W5\",\"W6\",\"W8\"]}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计入已确认记录，千克换算为克并按编号升序列出。",
+        "reference_answer": "{\"grams\":6910,\"included\":[\"W2\",\"W3\",\"W5\",\"W6\",\"W8\"]}",
+        "source_quotes": [
+          "仅纳入状态为已确认的记录；1千克=1000克。included 按编号升序。",
+          "W2,已确认,30,克",
+          "W3,已确认,4.50,千克",
+          "W5,已确认,2.00,千克"
+        ],
+        "calculations": [
+          {
+            "path": "/grams",
+            "expression": "30+4.50*1000+2.00*1000+150+230"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅纳入状态为已确认的记录；1千克=1000克。included 按编号升序。\",\"W2,已确认,30,克\",\"W3,已确认,4.50,千克\",\"W5,已确认,2.00,千克\"],\"calculations\":[{\"path\":\"/grams\",\"expression\":\"30+4.50*1000+2.00*1000+150+230\"}],\"reason\":\"仅计入已确认记录，千克换算为克并按编号升序列出。\",\"reference_answer\":\"{\\\"grams\\\":6910,\\\"included\\\":[\\\"W2\\\",\\\"W3\\\",\\\"W5\\\",\\\"W6\\\",\\\"W8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7896,
+            "completion_tokens": 157,
+            "total_tokens": 8053
+          },
+          "duration_ms": 8643
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-unit_conversion-05",
+      "category": "unit_conversion",
+      "candidate": "{\"grams\":13040,\"included\":[\"W1\",\"W3\",\"W4\",\"W6\",\"W7\"]}",
+      "candidate_correct": true,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅纳入状态为已确认的记录\",\"1千克=1000克\",\"W1,已确认,2.50,千克\",\"W3,已确认,7.25,千克\"],\"calculations\":[{\"path\":\"/grams\",\"expression\":\"2500+7250+230+60+3000\"},{\"path\":\"/included/0\",\"expression\":\"1\"}],\"reason\":\"仅统计已确认记录，千克换算为克并按编号升序列出。\",\"reference_answer\":\"{\\\"grams\\\":13040,\\\"included\\\":[\\\"W1\\\",\\\"W3\\\",\\\"W4\\\",\\\"W6\\\",\\\"W7\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "invalid calculations",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7894,
+            "completion_tokens": 142,
+            "total_tokens": 8036
+          },
+          "duration_ms": 9286
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-unit_conversion-06",
+      "category": "unit_conversion",
+      "candidate": "{\"grams\":22930,\"included\":[\"W1\",\"W2\",\"W4\",\"W5\",\"W7\",\"W8\"]}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅合计已确认记录并按千克换算为克，编号升序排列。",
+        "reference_answer": "{\"grams\":15230,\"included\":[\"W1\",\"W2\",\"W4\",\"W5\",\"W7\",\"W8\"]}",
+        "source_quotes": [
+          "仅纳入状态为已确认的记录；1千克=1000克。",
+          "W1,已确认,1.50,千克",
+          "W8,已确认,130,克"
+        ],
+        "calculations": [
+          {
+            "path": "/grams",
+            "expression": "1500+30+70+7000+6500+130"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅纳入状态为已确认的记录；1千克=1000克。\",\"W1,已确认,1.50,千克\",\"W8,已确认,130,克\"],\"calculations\":[{\"path\":\"/grams\",\"expression\":\"1500+30+70+7000+6500+130\"}],\"reason\":\"仅合计已确认记录并按千克换算为克，编号升序排列。\",\"reference_answer\":\"{\\\"grams\\\":15230,\\\"included\\\":[\\\"W1\\\",\\\"W2\\\",\\\"W4\\\",\\\"W5\\\",\\\"W7\\\",\\\"W8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7896,
+            "completion_tokens": 134,
+            "total_tokens": 8030
+          },
+          "duration_ms": 8540
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-unit_conversion-07",
+      "category": "unit_conversion",
+      "candidate": "{\"grams\":9570,\"included\":[\"W2\",\"W3\",\"W5\",\"W6\",\"W8\"]}",
+      "candidate_correct": true,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅纳入状态为已确认的记录；1千克=1000克。\",\"W2,已确认,80,克\",\"W3,已确认,6.00,千克\",\"W5,已确认,3.00,千克\"],\"calculations\":[{\"path\":\"/grams\",\"expression\":\"80+6*1000+3*1000+300+190\"}],\"reason\":\"仅计入已确认记录，千克换算为克，编号按升序排列。\",\"reference_answer\":\"{\\\"grams\\\":6570,\\\"included\\\":[\\\"W2\\\",\\\"W3\\\",\\\"W5\\\",\\\"W6\\\",\\\"W8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7894,
+            "completion_tokens": 145,
+            "total_tokens": 8039
+          },
+          "duration_ms": 8602
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-unit_conversion-08",
+      "category": "unit_conversion",
+      "candidate": "{\"grams\":11980,\"included\":[\"W1\",\"W3\",\"W4\",\"W6\",\"W7\"]}",
+      "candidate_correct": true,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅纳入状态为已确认的记录；1千克=1000克。\",\"W1,已确认,6.75,千克\",\"W3,已确认,3.25,千克\",\"W4,已确认,20,克\"],\"calculations\":[{\"path\":\"/grams\",\"expression\":\"6.75*1000+3.25*1000+20+210+1.75*1000\"}],\"reason\":\"仅统计已确认记录，千克换算为克，编号升序排列。\",\"reference_answer\":\"{\\\"grams\\\":12020,\\\"included\\\":[\\\"W1\\\",\\\"W3\\\",\\\"W4\\\",\\\"W6\\\",\\\"W7\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7896,
+            "completion_tokens": 152,
+            "total_tokens": 8048
+          },
+          "duration_ms": 8863
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-unit_conversion-09",
+      "category": "unit_conversion",
+      "candidate": "{\"grams\":10360,\"included\":[\"W1\",\"W2\",\"W4\",\"W5\",\"W7\",\"W8\"]}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅汇总已确认记录，千克换算为克并按编号升序列出。",
+        "reference_answer": "{\"grams\":10550,\"included\":[\"W1\",\"W2\",\"W4\",\"W5\",\"W7\",\"W8\"]}",
+        "source_quotes": [
+          "仅纳入状态为已确认的记录；1千克=1000克。included 按编号升序。",
+          "W1,已确认,3.25,千克",
+          "W8,已确认,160,克"
+        ],
+        "calculations": [
+          {
+            "path": "/grams",
+            "expression": "3250+210+180+3750+3000+160"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅纳入状态为已确认的记录；1千克=1000克。included 按编号升序。\",\"W1,已确认,3.25,千克\",\"W8,已确认,160,克\"],\"calculations\":[{\"path\":\"/grams\",\"expression\":\"3250+210+180+3750+3000+160\"}],\"reason\":\"仅汇总已确认记录，千克换算为克并按编号升序列出。\",\"reference_answer\":\"{\\\"grams\\\":10550,\\\"included\\\":[\\\"W1\\\",\\\"W2\\\",\\\"W4\\\",\\\"W5\\\",\\\"W7\\\",\\\"W8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "invalid calculations",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7896,
+            "completion_tokens": 226,
+            "total_tokens": 8122
+          },
+          "duration_ms": 9297
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-dependency_timing-00",
+      "category": "dependency_timing",
+      "candidate": "66",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "按依赖关系逐项计算最早完成时刻，取所有任务完成时间的最大值。",
+        "reference_answer": "47",
+        "source_quotes": [
+          "必须等待全部前置任务结束后开始",
+          "E,17,B+C+D"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "17+8+5+17"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"必须等待全部前置任务结束后开始\",\"E,17,B+C+D\"],\"calculations\":[{\"path\":\"\",\"expression\":\"17+8+5+17\"}],\"reason\":\"按依赖关系逐项计算最早完成时刻，取所有任务完成时间的最大值。\",\"reference_answer\":\"47\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "invalid calculation fields",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7838,
+            "completion_tokens": 73,
+            "total_tokens": 7911
+          },
+          "duration_ms": 8697
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-dependency_timing-01",
+      "category": "dependency_timing",
+      "candidate": "57",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "按前置任务全部完成后才能开始、任务可并行计算最长依赖路径。",
+        "reference_answer": "57",
+        "source_quotes": [
+          "F,15,A+B+D",
+          "G,14,E+F"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "16+12+15+14"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"F,15,A+B+D\",\"G,14,E+F\"],\"calculations\":[{\"path\":\"\",\"expression\":\"16+12+15+14\"}],\"reason\":\"按前置任务全部完成后才能开始、任务可并行计算最长依赖路径。\",\"reference_answer\":\"57\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7842,
+            "completion_tokens": 68,
+            "total_tokens": 7910
+          },
+          "duration_ms": 8976
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-dependency_timing-02",
+      "category": "dependency_timing",
+      "candidate": "38",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "按全部依赖计算并取最晚任务完成时刻。",
+        "reference_answer": "38",
+        "source_quotes": [
+          "所有任务时间单位为分钟，可无限并行，必须等待全部前置任务结束后开始",
+          "C,18,A+B"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "38"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"所有任务时间单位为分钟，可无限并行，必须等待全部前置任务结束后开始\",\"C,18,A+B\"],\"calculations\":[{\"path\":\"\",\"expression\":\"38\"}],\"reason\":\"按全部依赖计算并取最晚任务完成时刻。\",\"reference_answer\":\"38\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "invalid calculation fields",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7840,
+            "completion_tokens": 69,
+            "total_tokens": 7909
+          },
+          "duration_ms": 8812
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-dependency_timing-03",
+      "category": "dependency_timing",
+      "candidate": "33",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "按前置任务全部完成后才能开始，并取所有任务路径的最晚完成时间。",
+        "reference_answer": "33",
+        "source_quotes": [
+          "F,9,B+E",
+          "任务,耗时,前置任务"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "10+14+9"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"F,9,B+E\",\"任务,耗时,前置任务\"],\"calculations\":[{\"path\":\"\",\"expression\":\"10+14+9\"}],\"reason\":\"按前置任务全部完成后才能开始，并取所有任务路径的最晚完成时间。\",\"reference_answer\":\"33\"}",
+      "previous_acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "F 需等待 B 和 E；最早于 19 分钟开始，耗时 9 分钟，完成于 28 分钟？全部任务中最晚为 G 7，故需校验：B 于24完成，E于12完成，F于33完成。",
+        "reference_answer": "33",
+        "source_quotes": [
+          "B,14,A",
+          "F,9,B+E"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "10+14+9"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7839,
+            "completion_tokens": 68,
+            "total_tokens": 7907
+          },
+          "duration_ms": 8117
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-dependency_timing-04",
+      "category": "dependency_timing",
+      "candidate": "26",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "按前置任务全部结束后开始、任务可并行，取最晚完成时间。",
+        "reference_answer": "18",
+        "source_quotes": [
+          "必须等待全部前置任务结束后开始",
+          "F,4,A+D",
+          "E,18,无"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "14+4"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"必须等待全部前置任务结束后开始\",\"F,4,A+D\",\"E,18,无\"],\"calculations\":[{\"path\":\"\",\"expression\":\"14+4\"}],\"reason\":\"按前置任务全部结束后开始、任务可并行，取最晚完成时间。\",\"reference_answer\":\"18\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "G在A完成后执行，最早于24分钟完成；其余任务均不晚于此时。",
+        "reference_answer": "24",
+        "source_quotes": [
+          "G,12,A",
+          "必须等待全部前置任务结束后开始"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "12+12"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7839,
+            "completion_tokens": 72,
+            "total_tokens": 7911
+          },
+          "duration_ms": 8331
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-dependency_timing-05",
+      "category": "dependency_timing",
+      "candidate": "56",
+      "candidate_correct": false,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"G,9,B+D+F\"],\"calculations\":[{\"path\":\"\",\"expression\":\"4+5+4+3+18+18+9\"}],\"reason\":\"按依赖关系逐项等待前置任务完成，全部任务可并行执行。\",\"reference_answer\":\"41\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "invalid calculation fields",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7842,
+            "completion_tokens": 67,
+            "total_tokens": 7909
+          },
+          "duration_ms": 8267
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-dependency_timing-06",
+      "category": "dependency_timing",
+      "candidate": "43",
+      "candidate_correct": true,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "部分数值字段缺少唯一绑定算式"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "numeric fields require bound calculations",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"A,10,无\",\"B,15,无\",\"C,3,A\",\"D,14,无\"],\"calculations\":[],\"reason\":\"按依赖关系并行执行并等待所有任务完成。\",\"reference_answer\":\"28\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "unsupported arithmetic",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7840,
+            "completion_tokens": 57,
+            "total_tokens": 7897
+          },
+          "duration_ms": 8781
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-dependency_timing-07",
+      "category": "dependency_timing",
+      "candidate": "36",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "按全部前置任务完成后启动并行任务计算最早完工时间。",
+        "reference_answer": "28",
+        "source_quotes": [
+          "G,13,C+D+E"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "15+13"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 1,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"G,13,C+D+E\"],\"calculations\":[{\"path\":\"\",\"expression\":\"15+13\"}],\"reason\":\"按全部前置任务完成后启动并行任务计算最早完工时间。\",\"reference_answer\":\"28\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "invalid calculation fields",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7839,
+            "completion_tokens": 56,
+            "total_tokens": 7895
+          },
+          "duration_ms": 8146
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-dependency_timing-08",
+      "category": "dependency_timing",
+      "candidate": "56",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "按前置任务全部完成后开始、任务可无限并行计算关键路径。",
+        "reference_answer": "42",
+        "source_quotes": [
+          "从0时刻起，计算全部任务最早完成时间。",
+          "F,9,A+C+E",
+          "G,5,C+E"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "14+10+9+9"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"从0时刻起，计算全部任务最早完成时间。\",\"F,9,A+C+E\",\"G,5,C+E\"],\"calculations\":[{\"path\":\"\",\"expression\":\"14+10+9+9\"}],\"reason\":\"按前置任务全部完成后开始、任务可无限并行计算关键路径。\",\"reference_answer\":\"42\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "invalid calculation fields",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7843,
+            "completion_tokens": 82,
+            "total_tokens": 7925
+          },
+          "duration_ms": 8117
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-dependency_timing-09",
+      "category": "dependency_timing",
+      "candidate": "64",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "按前置任务全部完成后启动并取全项目最晚完成时间。",
+        "reference_answer": "66",
+        "source_quotes": [
+          "F,15,A+D+E",
+          "G,12,无"
+        ],
+        "calculations": [
+          {
+            "path": "",
+            "expression": "11+12+17+11+15"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"F,15,A+D+E\",\"G,12,无\"],\"calculations\":[{\"path\":\"\",\"expression\":\"11+12+17+11+15\"}],\"reason\":\"按前置任务全部完成后启动并取全项目最晚完成时间。\",\"reference_answer\":\"66\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "invalid calculation fields",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7841,
+            "completion_tokens": 67,
+            "total_tokens": 7908
+          },
+          "duration_ms": 8051
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-cross_document_join-00",
+      "category": "cross_document_join",
+      "candidate": "{\"amount\":1366,\"orders\":[\"O1\",\"O2\",\"O4\",\"O5\",\"O7\",\"O8\"]}",
+      "candidate_correct": false,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅结算已批准订单\",\"别名必须先映射到商品编码，再按商品单价计费\",\"草稿价格不生效\",\"P1,33\\nP2,18\\nP3,5\\nP4,27\"],\"calculations\":[{\"path\":\"/amount\",\"expression\":\"5*4+33*8+33*9+18*5+33*4+18*11\"}],\"reason\":\"仅计入已批准订单，按别名映射后的生效单价计费并按编号升序列单。\",\"reference_answer\":\"{\\\"amount\\\":1025,\\\"orders\\\":[\\\"O1\\\",\\\"O2\\\",\\\"O4\\\",\\\"O5\\\",\\\"O7\\\",\\\"O8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8016,
+            "completion_tokens": 159,
+            "total_tokens": 8175
+          },
+          "duration_ms": 8689
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-cross_document_join-01",
+      "category": "cross_document_join",
+      "candidate": "{\"amount\":728,\"orders\":[\"O1\",\"O3\",\"O4\",\"O6\",\"O7\"]}",
+      "candidate_correct": false,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅结算已批准订单，别名必须先映射到商品编码，再按商品单价计费\",\"别名5,P1\",\"别名6,P2\",\"P1,26\\nP2,21\"],\"calculations\":[{\"path\":\"/amount\",\"expression\":\"7*26+8*26+6*21+9*21+4*26\"}],\"reason\":\"仅计入已批准订单，按别名映射后的生效单价计费并按编号升序列出。\",\"reference_answer\":\"{\\\"amount\\\":788,\\\"orders\\\":[\\\"O1\\\",\\\"O3\\\",\\\"O4\\\",\\\"O6\\\",\\\"O7\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [],
+        "reason": "验收输出无效或未完整返回，候选已保留，请复核",
+        "status": "invalid",
+        "method": "model_review",
+        "error_code": "invalid_json",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8016,
+            "completion_tokens": 146,
+            "total_tokens": 8162
+          },
+          "duration_ms": 8429
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-cross_document_join-02",
+      "category": "cross_document_join",
+      "candidate": "{\"amount\":488,\"orders\":[\"O2\",\"O3\",\"O5\",\"O6\",\"O8\"]}",
+      "candidate_correct": false,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "参考引文未在原资料中找到或格式不合规"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅结算已批准订单，别名必须先映射到商品编码，再按商品单价计费；orders 按订单编号升序。\",\"P1,12\\nP3,20\",\"O2,别名5,8,已批准\\nO3,别名3,5,已批准\\nO5,别名6,2,已批准\\nO6,别名3,2,已批准\\nO8,别名3,8,已批准\"],\"calculations\":[{\"path\":\"/amount\",\"expression\":\"8*12+5*20+2*33+2*20+8*20\"}],\"reason\":\"只计已批准订单，先按别名映射商品编码，再使用生效单价；订单按编号升序。\",\"reference_answer\":\"{\\\"amount\\\":388,\\\"orders\\\":[\\\"O2\\\",\\\"O3\\\",\\\"O5\\\",\\\"O6\\\",\\\"O8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8014,
+            "completion_tokens": 203,
+            "total_tokens": 8217
+          },
+          "duration_ms": 9868
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-cross_document_join-03",
+      "category": "cross_document_join",
+      "candidate": "{\"amount\":1030,\"orders\":[\"O1\",\"O2\",\"O4\",\"O5\",\"O7\",\"O8\"]}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计入已批准订单，按别名映射后的生效单价计费，并按订单编号升序列出。",
+        "reference_answer": "{\"amount\":1263,\"orders\":[\"O1\",\"O2\",\"O4\",\"O5\",\"O7\",\"O8\"]}",
+        "source_quotes": [
+          "仅结算已批准订单，别名必须先映射到商品编码，再按商品单价计费；orders 按订单编号升序。",
+          "O1,别名2,11,已批准",
+          "O2,别名4,5,已批准",
+          "P1,21"
+        ],
+        "calculations": [
+          {
+            "path": "/amount",
+            "expression": "11*30+5*6+4*21+10*30+9*21+11*30"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅结算已批准订单，别名必须先映射到商品编码，再按商品单价计费；orders 按订单编号升序。\",\"O1,别名2,11,已批准\",\"O2,别名4,5,已批准\",\"P1,21\"],\"calculations\":[{\"path\":\"/amount\",\"expression\":\"11*30+5*6+4*21+10*30+9*21+11*30\"}],\"reason\":\"仅计入已批准订单，按别名映射后的生效单价计费，并按订单编号升序列出。\",\"reference_answer\":\"{\\\"amount\\\":1263,\\\"orders\\\":[\\\"O1\\\",\\\"O2\\\",\\\"O4\\\",\\\"O5\\\",\\\"O7\\\",\\\"O8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计已批准订单；别名映射至生效单价后按数量计费，并按订单编号升序列出。",
+        "reference_answer": "{\"amount\":1263,\"orders\":[\"O1\",\"O2\",\"O4\",\"O5\",\"O7\",\"O8\"]}",
+        "source_quotes": [
+          "仅结算已批准订单，别名必须先映射到商品编码，再按商品单价计费；orders 按订单编号升序。草稿价格不生效。",
+          "O1,别名2,11,已批准",
+          "O2,别名4,5,已批准",
+          "O4,别名1,4,已批准"
+        ],
+        "calculations": [
+          {
+            "path": "/amount",
+            "expression": "11*30+5*6+4*21+10*30+9*21+11*30"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 1,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8010,
+            "completion_tokens": 276,
+            "total_tokens": 8286
+          },
+          "duration_ms": 9671
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-cross_document_join-04",
+      "category": "cross_document_join",
+      "candidate": "{\"amount\":506,\"orders\":[\"O1\",\"O3\",\"O4\",\"O6\",\"O7\"]}",
+      "candidate_correct": true,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "参考引文未在原资料中找到或格式不合规"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅结算已批准订单，别名必须先映射到商品编码，再按商品单价计费\",\"O1,别名1,11,已批准\",\"O3,别名2,2,已批准\",\"O4,别名4,5,已批准\",\"O6,别名2,7,已批准\",\"O7,别名5,3,已批准\",\"P1,14\\nP2,15\\nP3,23\\nP4,35\"],\"calculations\":[{\"path\":\"/amount\",\"expression\":\"11*14+2*15+5*35+7*15+3*14\"}],\"reason\":\"仅计入已批准订单，别名映射到生效商品单价，订单编号升序排列。\",\"reference_answer\":\"{\\\"amount\\\":446,\\\"orders\\\":[\\\"O1\\\",\\\"O3\\\",\\\"O4\\\",\\\"O6\\\",\\\"O7\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8014,
+            "completion_tokens": 201,
+            "total_tokens": 8215
+          },
+          "duration_ms": 8708
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-cross_document_join-05",
+      "category": "cross_document_join",
+      "candidate": "{\"amount\":1202,\"orders\":[\"O2\",\"O3\",\"O5\",\"O6\",\"O8\"]}",
+      "candidate_correct": false,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅结算已批准订单，别名必须先映射到商品编码，再按商品单价计费；orders 按订单编号升序。\",\"P2,35\",\"别名6,P2\",\"O2,别名3,6,已批准\"],\"calculations\":[{\"path\":\"/amount\",\"expression\":\"6*32+2*25+11*35+6*24+5*35\"}],\"reason\":\"仅计已批准订单，按别名映射后的生效单价计费并按编号升序列单。\",\"reference_answer\":\"{\\\"amount\\\":1019,\\\"orders\\\":[\\\"O2\\\",\\\"O3\\\",\\\"O5\\\",\\\"O6\\\",\\\"O8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8016,
+            "completion_tokens": 156,
+            "total_tokens": 8172
+          },
+          "duration_ms": 9344
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-cross_document_join-06",
+      "category": "cross_document_join",
+      "candidate": "{\"amount\":658,\"orders\":[\"O1\",\"O2\",\"O4\",\"O5\",\"O7\",\"O8\"]}",
+      "candidate_correct": false,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅结算已批准订单\",\"别名必须先映射到商品编码，再按商品单价计费\",\"orders 按订单编号升序\",\"O1,别名3,4,已批准\"],\"calculations\":[{\"path\":\"/amount\",\"expression\":\"19*4+33*4+33*4+33*3+27*7+33*2\"}],\"reason\":\"仅计入已批准订单，按别名映射后的生效单价计费并按编号升序列出。\",\"reference_answer\":\"{\\\"amount\\\":664,\\\"orders\\\":[\\\"O1\\\",\\\"O2\\\",\\\"O4\\\",\\\"O5\\\",\\\"O7\\\",\\\"O8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8010,
+            "completion_tokens": 151,
+            "total_tokens": 8161
+          },
+          "duration_ms": 8427
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-cross_document_join-07",
+      "category": "cross_document_join",
+      "candidate": "{\"amount\":423,\"orders\":[\"O1\",\"O3\",\"O4\",\"O6\",\"O7\"]}",
+      "candidate_correct": false,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "参考引文未在原资料中找到或格式不合规"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅结算已批准订单，别名必须先映射到商品编码，再按商品单价计费；orders 按订单编号升序。\",\"P1,7\\nP2,8\\nP3,19\\nP4,21\",\"O1,别名2,3,已批准\\nO3,别名4,5,已批准\\nO4,别名1,4,已批准\\nO6,别名6,10,已批准\\nO7,别名5,8,已批准\"],\"calculations\":[{\"path\":\"/amount\",\"expression\":\"3*8+5*21+4*7+10*8+8*7\"}],\"reason\":\"仅计入已批准订单，别名映射到编码后按生效单价计费。\",\"reference_answer\":\"{\\\"amount\\\":275,\\\"orders\\\":[\\\"O1\\\",\\\"O3\\\",\\\"O4\\\",\\\"O6\\\",\\\"O7\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8014,
+            "completion_tokens": 208,
+            "total_tokens": 8222
+          },
+          "duration_ms": 8824
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-cross_document_join-08",
+      "category": "cross_document_join",
+      "candidate": "{\"amount\":744,\"orders\":[\"O2\",\"O3\",\"O5\",\"O6\",\"O8\"]}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计入已批准订单，按别名映射后的生效单价计算并按订单编号升序列出。",
+        "reference_answer": "{\"amount\":573,\"orders\":[\"O2\",\"O3\",\"O5\",\"O6\",\"O8\"]}",
+        "source_quotes": [
+          "仅结算已批准订单，别名必须先映射到商品编码，再按商品单价计费",
+          "O2,别名3,5,已批准",
+          "O3,别名1,4,已批准",
+          "O5,别名1,9,已批准"
+        ],
+        "calculations": [
+          {
+            "path": "/amount",
+            "expression": "5*9+4*24+9*24+3*32+5*24"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 1,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅结算已批准订单，别名必须先映射到商品编码，再按商品单价计费\",\"O2,别名3,5,已批准\",\"O3,别名1,4,已批准\",\"O5,别名1,9,已批准\"],\"calculations\":[{\"path\":\"/amount\",\"expression\":\"5*9+4*24+9*24+3*32+5*24\"}],\"reason\":\"仅计入已批准订单，按别名映射后的生效单价计算并按订单编号升序列出。\",\"reference_answer\":\"{\\\"amount\\\":573,\\\"orders\\\":[\\\"O2\\\",\\\"O3\\\",\\\"O5\\\",\\\"O6\\\",\\\"O8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8016,
+            "completion_tokens": 265,
+            "total_tokens": 8281
+          },
+          "duration_ms": 9426
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-cross_document_join-09",
+      "category": "cross_document_join",
+      "candidate": "{\"amount\":994,\"orders\":[\"O1\",\"O2\",\"O4\",\"O5\",\"O7\",\"O8\"]}",
+      "candidate_correct": false,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "算式结果与对应参考字段不一致"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "calculation contradicts reference field",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"仅结算已批准订单\",\"别名必须先映射到商品编码，再按商品单价计费\",\"orders 按订单编号升序。草稿价格不生效。\",\"O1,别名1,2,已批准\"],\"calculations\":[{\"path\":\"/amount\",\"expression\":\"2*7+2*29+10*29+11*7+7*34+11*34\"}],\"reason\":\"只计已批准订单，按别名映射后的生效单价计费并按编号升序列出。\",\"reference_answer\":\"{\\\"amount\\\":1256,\\\"orders\\\":[\\\"O1\\\",\\\"O2\\\",\\\"O4\\\",\\\"O5\\\",\\\"O7\\\",\\\"O8\\\"]}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 8014,
+            "completion_tokens": 159,
+            "total_tokens": 8173
+          },
+          "duration_ms": 9154
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-threshold_policy-00",
+      "category": "threshold_policy",
+      "candidate": "789",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计已结算订单，逐单按门槛计算并将减免限制为每单最多14。",
+        "reference_answer": "674",
+        "source_quotes": [
+          "仅已结算订单计费。",
+          "原价达到63时减免原价的十分之一向下取整，但每单减免最多14；未达到门槛则无减免。",
+          "B1,14,15,已结算\nB2,6,15,已结算\nB3,12,9,已结算\nB4,13,17,未结算\nB5,10,10,已结算\nB6,11,6,已结算\nB7,8,15,已结算"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅已结算订单计费。\",\"原价达到63时减免原价的十分之一向下取整，但每单减免最多14；未达到门槛则无减免。\",\"B1,14,15,已结算\\nB2,6,15,已结算\\nB3,12,9,已结算\\nB4,13,17,未结算\\nB5,10,10,已结算\\nB6,11,6,已结算\\nB7,8,15,已结算\"],\"calculations\":[],\"reason\":\"仅计已结算订单，逐单按门槛计算并将减免限制为每单最多14。\",\"reference_answer\":\"674\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅统计已结算订单，按逐单门槛及减免上限计算后净收入合计为633。",
+        "reference_answer": "633",
+        "source_quotes": [
+          "仅已结算订单计费。",
+          "原价达到63时减免原价的十分之一向下取整，但每单减免最多14；未达到门槛则无减免。"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 0,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7908,
+            "completion_tokens": 167,
+            "total_tokens": 8075
+          },
+          "duration_ms": 8947
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-threshold_policy-01",
+      "category": "threshold_policy",
+      "candidate": "716",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计已结算订单，各单达到89元门槛后按规则减免并汇总净收入。",
+        "reference_answer": "962",
+        "source_quotes": [
+          "仅已结算订单计费。每单原价为数量乘单价，原价达到89时减免原价的十分之一向下取整，但每单减免最多9；未达到门槛则无减免。",
+          "B1,13,16,已结算\nB2,14,13,已结算\nB3,8,20,未结算\nB4,4,20,已结算\nB5,7,6,已结算\nB6,10,15,已结算\nB7,7,14,未结算\nB8,3,10,已结算"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅已结算订单计费。每单原价为数量乘单价，原价达到89时减免原价的十分之一向下取整，但每单减免最多9；未达到门槛则无减免。\",\"B1,13,16,已结算\\nB2,14,13,已结算\\nB3,8,20,未结算\\nB4,4,20,已结算\\nB5,7,6,已结算\\nB6,10,15,已结算\\nB7,7,14,未结算\\nB8,3,10,已结算\"],\"calculations\":[],\"reason\":\"仅计已结算订单，各单达到89元门槛后按规则减免并汇总净收入。\",\"reference_answer\":\"962\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计入已结算订单，并按每单门槛及减免上限计算。",
+        "reference_answer": "957",
+        "source_quotes": [
+          "仅已结算订单计费。",
+          "每单原价为数量乘单价，原价达到89时减免原价的十分之一向下取整，但每单减免最多9；未达到门槛则无减免。",
+          "B1,13,16,已结算\nB2,14,13,已结算\nB3,8,20,未结算\nB4,4,20,已结算\nB5,7,6,已结算\nB6,10,15,已结算\nB7,7,14,未结算\nB8,3,10,已结算"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 0,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7910,
+            "completion_tokens": 187,
+            "total_tokens": 8097
+          },
+          "duration_ms": 8522
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-threshold_policy-02",
+      "category": "threshold_policy",
+      "candidate": "736",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计已结算订单，并按逐单门槛及每单减免上限计算净收入总额。",
+        "reference_answer": "796",
+        "source_quotes": [
+          "仅已结算订单计费。",
+          "每单原价为数量乘单价，原价达到61时减免原价的十分之一向下取整，但每单减免最多8；未达到门槛则无减免。"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅已结算订单计费。\",\"每单原价为数量乘单价，原价达到61时减免原价的十分之一向下取整，但每单减免最多8；未达到门槛则无减免。\"],\"calculations\":[],\"reason\":\"仅计已结算订单，并按逐单门槛及每单减免上限计算净收入总额。\",\"reference_answer\":\"796\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [],
+        "reason": "验收输出无效或未完整返回，候选已保留，请复核",
+        "status": "invalid",
+        "method": "model_review",
+        "error_code": "invalid_json",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7910,
+            "completion_tokens": 227,
+            "total_tokens": 8137
+          },
+          "duration_ms": 9203
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-threshold_policy-03",
+      "category": "threshold_policy",
+      "candidate": "582",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计已结算订单，并按每单门槛及减免上限计算后求和。",
+        "reference_answer": "541",
+        "source_quotes": [
+          "原价达到86时减免原价的十分之一向下取整，但每单减免最多14",
+          "仅已结算订单计费。"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"原价达到86时减免原价的十分之一向下取整，但每单减免最多14\",\"仅已结算订单计费。\"],\"calculations\":[],\"reason\":\"仅计已结算订单，并按每单门槛及减免上限计算后求和。\",\"reference_answer\":\"541\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7908,
+            "completion_tokens": 77,
+            "total_tokens": 7985
+          },
+          "duration_ms": 8245
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-threshold_policy-04",
+      "category": "threshold_policy",
+      "candidate": "835",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计入已结算订单，并按逐单门槛与减免上限计算净收入。",
+        "reference_answer": "748",
+        "source_quotes": [
+          "仅已结算订单计费。",
+          "每单原价为数量乘单价，原价达到91时减免原价的十分之一向下取整，但每单减免最多6；未达到门槛则无减免。"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅已结算订单计费。\",\"每单原价为数量乘单价，原价达到91时减免原价的十分之一向下取整，但每单减免最多6；未达到门槛则无减免。\"],\"calculations\":[],\"reason\":\"仅计入已结算订单，并按逐单门槛与减免上限计算净收入。\",\"reference_answer\":\"748\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计入已结算订单，逐单按门槛计算减免并受每单最多6的上限约束。",
+        "reference_answer": "771",
+        "source_quotes": [
+          "仅已结算订单计费。",
+          "每单原价为数量乘单价，原价达到91时减免原价的十分之一向下取整，但每单减免最多6；未达到门槛则无减免。"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 0,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7910,
+            "completion_tokens": 221,
+            "total_tokens": 8131
+          },
+          "duration_ms": 10070
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-threshold_policy-05",
+      "category": "threshold_policy",
+      "candidate": "582",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计已结算订单，并按逐单门槛及每单减免上限计算。",
+        "reference_answer": "437",
+        "source_quotes": [
+          "每单原价为数量乘单价，原价达到78时减免原价的十分之一向下取整，但每单减免最多10；未达到门槛则无减免。",
+          "B1,4,7,已结算",
+          "B2,12,9,已结算",
+          "B4,4,7,已结算"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"每单原价为数量乘单价，原价达到78时减免原价的十分之一向下取整，但每单减免最多10；未达到门槛则无减免。\",\"B1,4,7,已结算\",\"B2,12,9,已结算\",\"B4,4,7,已结算\"],\"calculations\":[],\"reason\":\"仅计已结算订单，并按逐单门槛及每单减免上限计算。\",\"reference_answer\":\"437\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [],
+        "reason": "验收输出无效或未完整返回，候选已保留，请复核",
+        "status": "invalid",
+        "method": "model_review",
+        "error_code": "invalid_json",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7910,
+            "completion_tokens": 121,
+            "total_tokens": 8031
+          },
+          "duration_ms": 8453
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-threshold_policy-06",
+      "category": "threshold_policy",
+      "candidate": "363",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅累计已结算订单，并按单计算门槛减免及每单上限。",
+        "reference_answer": "445",
+        "source_quotes": [
+          "仅已结算订单计费。",
+          "每单原价为数量乘单价，原价达到118时减免原价的十分之一向下取整，但每单减免最多9；未达到门槛则无减免。"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅已结算订单计费。\",\"每单原价为数量乘单价，原价达到118时减免原价的十分之一向下取整，但每单减免最多9；未达到门槛则无减免。\"],\"calculations\":[],\"reason\":\"仅累计已结算订单，并按单计算门槛减免及每单上限。\",\"reference_answer\":\"445\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计已结算订单：68+77+77+117+21+60=420？逐单合计原价420，B5原价117无减免；达到118的订单减免按十分之一取整且封顶9。",
+        "reference_answer": "496",
+        "source_quotes": [
+          "仅已结算订单计费。",
+          "原价达到118时减免原价的十分之一向下取整，但每单减免最多9；未达到门槛则无减免。"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 0,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7908,
+            "completion_tokens": 96,
+            "total_tokens": 8004
+          },
+          "duration_ms": 8265
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-threshold_policy-07",
+      "category": "threshold_policy",
+      "candidate": "815",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "只计已结算订单，并按逐单门槛、向下取整及每单减免上限计算。",
+        "reference_answer": "1116",
+        "source_quotes": [
+          "仅已结算订单计费。",
+          "原价达到67时减免原价的十分之一向下取整，但每单减免最多11；未达到门槛则无减免。"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅已结算订单计费。\",\"原价达到67时减免原价的十分之一向下取整，但每单减免最多11；未达到门槛则无减免。\"],\"calculations\":[],\"reason\":\"只计已结算订单，并按逐单门槛、向下取整及每单减免上限计算。\",\"reference_answer\":\"1116\"}",
+      "previous_acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "仅计已结算订单，逐单应用门槛与每单减免上限后，净收入合计为815。",
+        "reference_answer": "815",
+        "source_quotes": [
+          "仅已结算订单计费。",
+          "原价达到67时减免原价的十分之一向下取整，但每单减免最多11；未达到门槛则无减免。",
+          "B2,15,18,已结算"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 0,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7904,
+            "completion_tokens": 93,
+            "total_tokens": 7997
+          },
+          "duration_ms": 8005
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-threshold_policy-08",
+      "category": "threshold_policy",
+      "candidate": "1253",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "仅计已结算订单，并按每单门槛及减免上限计算净收入。",
+        "reference_answer": "857",
+        "source_quotes": [
+          "仅已结算订单计费。每单原价为数量乘单价，原价达到80时减免原价的十分之一向下取整，但每单减免最多12；未达到门槛则无减免。"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 1,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅已结算订单计费。每单原价为数量乘单价，原价达到80时减免原价的十分之一向下取整，但每单减免最多12；未达到门槛则无减免。\"],\"calculations\":[],\"reason\":\"仅计已结算订单，并按每单门槛及减免上限计算净收入。\",\"reference_answer\":\"857\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "已结算订单按逐单门槛和每单最多减免12计算，净收入合计656。",
+        "reference_answer": "656",
+        "source_quotes": [
+          "每单原价为数量乘单价，原价达到80时减免原价的十分之一向下取整，但每单减免最多12",
+          "B1,14,14,已结算",
+          "B7,13,11,已结算"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 0,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7908,
+            "completion_tokens": 96,
+            "total_tokens": 8004
+          },
+          "duration_ms": 8517
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-threshold_policy-09",
+      "category": "threshold_policy",
+      "candidate": "709",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；该任务不适用精确四则验算",
+        "reference_reason": "仅计入已结算订单，并逐单应用门槛和减免上限。",
+        "reference_answer": "709",
+        "source_quotes": [
+          "仅已结算订单计费。",
+          "原价达到99时减免原价的十分之一向下取整，但每单减免最多5；未达到门槛则无减免。"
+        ],
+        "calculations": [],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "not_applicable",
+          "calculations_checked": 0,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"仅已结算订单计费。\",\"原价达到99时减免原价的十分之一向下取整，但每单减免最多5；未达到门槛则无减免。\"],\"calculations\":[],\"reason\":\"仅计入已结算订单，并逐单应用门槛和减免上限。\",\"reference_answer\":\"709\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [],
+        "reason": "验收输出无效或未完整返回，候选已保留，请复核",
+        "status": "invalid",
+        "method": "model_review",
+        "error_code": "invalid_json",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7910,
+            "completion_tokens": 174,
+            "total_tokens": 8084
+          },
+          "duration_ms": 8810
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-budget_selection-00",
+      "category": "budget_selection",
+      "candidate": "{\"selected\":[\"J4\",\"J6\"],\"cost\":19,\"benefit\":89}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "在数量与预算约束内，选择总收益最大的组合。",
+        "reference_answer": "{\"selected\":[\"J4\",\"J5\",\"J6\"],\"cost\":27,\"benefit\":129}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过27。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+          "J4,12,45\nJ5,8,40\nJ6,7,44"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "12+8+7"
+          },
+          {
+            "path": "/benefit",
+            "expression": "45+40+44"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 2,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"从项目中选至多3个，总成本不能超过27。\",\"优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。\",\"J4,12,45\\nJ5,8,40\\nJ6,7,44\"],\"calculations\":[{\"path\":\"/cost\",\"expression\":\"12+8+7\"},{\"path\":\"/benefit\",\"expression\":\"45+40+44\"}],\"reason\":\"在数量与预算约束内，选择总收益最大的组合。\",\"reference_answer\":\"{\\\"selected\\\":[\\\"J4\\\",\\\"J5\\\",\\\"J6\\\"],\\\"cost\\\":27,\\\"benefit\\\":129}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "J4、J5、J6总成本27、总收益129；在预算内至多选3项的组合中收益最高，符合平局规则。",
+        "reference_answer": "{\"selected\":[\"J4\",\"J5\",\"J6\"],\"cost\":27,\"benefit\":129}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过27。优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。编号数组须升序。",
+          "J4,12,45\nJ5,8,40\nJ6,7,44"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "12+8+7"
+          },
+          {
+            "path": "/benefit",
+            "expression": "45+40+44"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 2,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7883,
+            "completion_tokens": 304,
+            "total_tokens": 8187
+          },
+          "duration_ms": 10995
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-budget_selection-01",
+      "category": "budget_selection",
+      "candidate": "{\"selected\":[4,7,8],\"cost\":21,\"benefit\":91}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "在预算及最多选3个的约束下，按收益优先、成本次优及编号数组字典序规则选择。",
+        "reference_answer": "{\"selected\":[\"J3\",\"J8\"],\"cost\":20,\"benefit\":84}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过24。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+          "编号数组须升序。"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "10+10"
+          },
+          {
+            "path": "/benefit",
+            "expression": "45+39"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 2,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"从项目中选至多3个，总成本不能超过24。\",\"优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。\",\"编号数组须升序。\"],\"calculations\":[{\"path\":\"/cost\",\"expression\":\"10+10\"},{\"path\":\"/benefit\",\"expression\":\"45+39\"}],\"reason\":\"在预算及最多选3个的约束下，按收益优先、成本次优及编号数组字典序规则选择。\",\"reference_answer\":\"{\\\"selected\\\":[\\\"J3\\\",\\\"J8\\\"],\\\"cost\\\":20,\\\"benefit\\\":84}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "不存在符合预算的组合能达到该收益：J3、J4、J8成本为26，超过24。最优可行组合为J3、J5、J7，成本27也超预算；需重新核算。",
+        "reference_answer": "{\"selected\":[\"J3\",\"J4\",\"J8\"],\"cost\":26,\"benefit\":110}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过24。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "10+6+10"
+          },
+          {
+            "path": "/benefit",
+            "expression": "39+26+45"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 2,
+          "source_quotes_checked": 2,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7885,
+            "completion_tokens": 145,
+            "total_tokens": 8030
+          },
+          "duration_ms": 8452
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-budget_selection-02",
+      "category": "budget_selection",
+      "candidate": "{\"selected\":[1,2,6],\"cost\":24,\"benefit\":129}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "在最多选3个且预算不超31的组合中，依次按收益最大、成本最小和编号数组字典序最小筛选。",
+        "reference_answer": "{\"selected\":[\"J2\",\"J5\",\"J6\"],\"cost\":25,\"benefit\":120}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过31。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+          "编号数组须升序。"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "9+8+8"
+          },
+          {
+            "path": "/benefit",
+            "expression": "48+46+26"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 2,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"从项目中选至多3个，总成本不能超过31。\",\"优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。\",\"编号数组须升序。\"],\"calculations\":[{\"path\":\"/cost\",\"expression\":\"9+8+8\"},{\"path\":\"/benefit\",\"expression\":\"48+46+26\"}],\"reason\":\"在最多选3个且预算不超31的组合中，依次按收益最大、成本最小和编号数组字典序最小筛选。\",\"reference_answer\":\"{\\\"selected\\\":[\\\"J2\\\",\\\"J5\\\",\\\"J6\\\"],\\\"cost\\\":25,\\\"benefit\\\":120}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7883,
+            "completion_tokens": 157,
+            "total_tokens": 8040
+          },
+          "duration_ms": 8512
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-budget_selection-03",
+      "category": "budget_selection",
+      "candidate": "{\"selected\":[\"J2\",\"J6\",\"J7\"],\"cost\":29,\"benefit\":101}",
+      "candidate_correct": true,
+      "valid_reference": false,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "issues": [
+          "参考引文未在原资料中找到或格式不合规"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "reference_output": "{\"source_quotes\":[\"从项目中选至多3个，总成本不能超过32。\",\"优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。\",\"编号数组须升序。\",\"J2,9,31\\nJ6,8,37\\nJ7,12,33\"],\"calculations\":[{\"path\":\"/cost\",\"expression\":\"9+8+12\"},{\"path\":\"/benefit\",\"expression\":\"31+37+33\"}],\"reason\":\"枚举满足数量与预算约束的组合，按收益优先、成本次之及编号字典序规则选取。\",\"reference_answer\":\"{\\\"selected\\\":[\\\"J2\\\",\\\"J6\\\",\\\"J7\\\"],\\\"cost\\\":29,\\\"benefit\\\":101}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7885,
+            "completion_tokens": 172,
+            "total_tokens": 8057
+          },
+          "duration_ms": 8823
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-budget_selection-04",
+      "category": "budget_selection",
+      "candidate": "{\"selected\":[\"J1\",\"J7\"],\"cost\":26,\"benefit\":68}",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "枚举符合数量与预算限制的组合后，J1、J7总收益最高。",
+        "reference_answer": "{\"selected\":[\"J1\",\"J7\"],\"cost\":26,\"benefit\":68}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过27。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+          "J1,14,45",
+          "J7,12,23"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "14+12"
+          },
+          {
+            "path": "/benefit",
+            "expression": "45+23"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 2,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"从项目中选至多3个，总成本不能超过27。\",\"优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。\",\"J1,14,45\",\"J7,12,23\"],\"calculations\":[{\"path\":\"/cost\",\"expression\":\"14+12\"},{\"path\":\"/benefit\",\"expression\":\"45+23\"}],\"reason\":\"枚举符合数量与预算限制的组合后，J1、J7总收益最高。\",\"reference_answer\":\"{\\\"selected\\\":[\\\"J1\\\",\\\"J7\\\"],\\\"cost\\\":26,\\\"benefit\\\":68}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "最多选3个且预算不超过27；J1与J8收益合计67，为可行组合中最高，成本21。",
+        "reference_answer": "{\"selected\":[\"J1\",\"J8\"],\"cost\":21,\"benefit\":67}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过27。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+          "J1,14,45",
+          "J8,7,22"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "14+7"
+          },
+          {
+            "path": "/benefit",
+            "expression": "45+22"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 2,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7883,
+            "completion_tokens": 409,
+            "total_tokens": 8292
+          },
+          "duration_ms": 10937
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-budget_selection-05",
+      "category": "budget_selection",
+      "candidate": "{\"selected\":[6,8],\"cost\":18,\"benefit\":67}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "在不超过3项且成本不超过24的组合中，按收益优先、成本次之、编号数组字典序再次排序。",
+        "reference_answer": "{\"selected\":[\"J6\",\"J8\"],\"cost\":18,\"benefit\":67}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过24。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+          "编号数组须升序。"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "8+10"
+          },
+          {
+            "path": "/benefit",
+            "expression": "34+33"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 2,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"从项目中选至多3个，总成本不能超过24。\",\"优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。\",\"编号数组须升序。\"],\"calculations\":[{\"path\":\"/cost\",\"expression\":\"8+10\"},{\"path\":\"/benefit\",\"expression\":\"34+33\"}],\"reason\":\"在不超过3项且成本不超过24的组合中，按收益优先、成本次之、编号数组字典序再次排序。\",\"reference_answer\":\"{\\\"selected\\\":[\\\"J6\\\",\\\"J8\\\"],\\\"cost\\\":18,\\\"benefit\\\":67}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "至多选3项且预算不超过24；收益优先最大，其次成本最小，再按升序编号数组字典序最小。J6+J7收益60，为最优组合。",
+        "reference_answer": "{\"selected\":[\"J6\",\"J7\"],\"cost\":19,\"benefit\":60}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过24。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+          "J6,8,34\nJ7,11,26"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "8+11"
+          },
+          {
+            "path": "/benefit",
+            "expression": "34+26"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 2,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7885,
+            "completion_tokens": 147,
+            "total_tokens": 8032
+          },
+          "duration_ms": 8751
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-budget_selection-06",
+      "category": "budget_selection",
+      "candidate": "{\"selected\":[\"J1\",\"J2\",\"J5\"],\"cost\":27,\"benefit\":116}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "在项目数量与预算约束下，组合收益最高；无须启用平局规则。",
+        "reference_answer": "{\"selected\":[\"J2\",\"J3\",\"J5\"],\"cost\":21,\"benefit\":111}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过25。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。编号数组须升序。",
+          "J2,7,38",
+          "J3,9,33"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "7+9+5"
+          },
+          {
+            "path": "/benefit",
+            "expression": "38+33+40"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 2,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"从项目中选至多3个，总成本不能超过25。\",\"优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。编号数组须升序。\",\"J2,7,38\",\"J3,9,33\"],\"calculations\":[{\"path\":\"/cost\",\"expression\":\"7+9+5\"},{\"path\":\"/benefit\",\"expression\":\"38+33+40\"}],\"reason\":\"在项目数量与预算约束下，组合收益最高；无须启用平局规则。\",\"reference_answer\":\"{\\\"selected\\\":[\\\"J2\\\",\\\"J3\\\",\\\"J5\\\"],\\\"cost\\\":21,\\\"benefit\\\":111}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7885,
+            "completion_tokens": 347,
+            "total_tokens": 8232
+          },
+          "duration_ms": 10772
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-budget_selection-07",
+      "category": "budget_selection",
+      "candidate": "{\"selected\":[\"J1\",\"J4\",\"J8\"],\"cost\":27,\"benefit\":64}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "在预算与数量限制内，先最大化收益，再按成本及编号数组规则破平局。",
+        "reference_answer": "{\"selected\":[\"J7\",\"J8\"],\"cost\":28,\"benefit\":69}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过30。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+          "编号数组须升序。",
+          "J7,13,34"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "13+15"
+          },
+          {
+            "path": "/benefit",
+            "expression": "34+35"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 2,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"从项目中选至多3个，总成本不能超过30。\",\"优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。\",\"编号数组须升序。\",\"J7,13,34\"],\"calculations\":[{\"path\":\"/cost\",\"expression\":\"13+15\"},{\"path\":\"/benefit\",\"expression\":\"34+35\"}],\"reason\":\"在预算与数量限制内，先最大化收益，再按成本及编号数组规则破平局。\",\"reference_answer\":\"{\\\"selected\\\":[\\\"J7\\\",\\\"J8\\\"],\\\"cost\\\":28,\\\"benefit\\\":69}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "至多选3项且预算不超过30；最高收益为49。组合J1、J6成本20，优于同收益组合J4、J7的成本19？更正：J4+J7成本19收益46；J1+J6是收益49，满足最优。",
+        "reference_answer": "{\"selected\":[\"J1\",\"J6\"],\"cost\":20,\"benefit\":49}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过30。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+          "J1,6,17",
+          "J6,14,32"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "6+14"
+          },
+          {
+            "path": "/benefit",
+            "expression": "17+32"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "calculations_checked": 2,
+          "source_quotes_checked": 4,
+          "semantic_truth_proven": false
+        }
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7883,
+            "completion_tokens": 145,
+            "total_tokens": 8028
+          },
+          "duration_ms": 9048
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-budget_selection-08",
+      "category": "budget_selection",
+      "candidate": "{\"selected\":[\"J2\",\"J5\"],\"cost\":26,\"benefit\":84}",
+      "candidate_correct": false,
+      "valid_reference": true,
+      "gold_agreement": false,
+      "acceptance": {
+        "passed": false,
+        "status": "failed",
+        "method": "model_review",
+        "issues": [
+          "候选与独立参考不一致，保留原答案，请核对差异"
+        ],
+        "reason": "独立参考与候选不同，参考未自动采用",
+        "reference_reason": "在项目数和预算约束内，按总收益、总成本及编号数组字典序依次择优。",
+        "reference_answer": "{\"selected\":[\"J2\",\"J4\",\"J8\"],\"cost\":30,\"benefit\":84}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过31。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+          "编号数组须升序。"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "13+5+12"
+          },
+          {
+            "path": "/benefit",
+            "expression": "43+12+29"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 2,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"从项目中选至多3个，总成本不能超过31。\",\"优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。\",\"编号数组须升序。\"],\"calculations\":[{\"path\":\"/cost\",\"expression\":\"13+5+12\"},{\"path\":\"/benefit\",\"expression\":\"43+12+29\"}],\"reason\":\"在项目数和预算约束内，按总收益、总成本及编号数组字典序依次择优。\",\"reference_answer\":\"{\\\"selected\\\":[\\\"J2\\\",\\\"J4\\\",\\\"J8\\\"],\\\"cost\\\":30,\\\"benefit\\\":84}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7881,
+            "completion_tokens": 149,
+            "total_tokens": 8030
+          },
+          "duration_ms": 8691
+        }
+      ],
+      "native_isolation_complete": true
+    },
+    {
+      "name": "validation-v4-budget_selection-09",
+      "category": "budget_selection",
+      "candidate": "{\"selected\":[\"J4\",\"J8\"],\"cost\":21,\"benefit\":95}",
+      "candidate_correct": true,
+      "valid_reference": true,
+      "gold_agreement": true,
+      "acceptance": {
+        "passed": true,
+        "status": "passed",
+        "method": "model_review",
+        "issues": [],
+        "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+        "reference_reason": "在数量和预算约束内，J4与J8组合收益最高，编号升序排列。",
+        "reference_answer": "{\"selected\":[\"J4\",\"J8\"],\"cost\":21,\"benefit\":95}",
+        "source_quotes": [
+          "从项目中选至多3个，总成本不能超过24。",
+          "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+          "编号数组须升序。"
+        ],
+        "calculations": [
+          {
+            "path": "/cost",
+            "expression": "7+14"
+          },
+          {
+            "path": "/benefit",
+            "expression": "47+48"
+          }
+        ],
+        "repairable": false,
+        "verification": {
+          "kind": "independent_reference",
+          "arithmetic_mode": "exact",
+          "calculations_checked": 2,
+          "source_quotes_checked": 3,
+          "semantic_truth_proven": false
+        }
+      },
+      "reference_output": "{\"source_quotes\":[\"从项目中选至多3个，总成本不能超过24。\",\"优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。\",\"编号数组须升序。\"],\"calculations\":[{\"path\":\"/cost\",\"expression\":\"7+14\"},{\"path\":\"/benefit\",\"expression\":\"47+48\"}],\"reason\":\"在数量和预算约束内，J4与J8组合收益最高，编号升序排列。\",\"reference_answer\":\"{\\\"selected\\\":[\\\"J4\\\",\\\"J8\\\"],\\\"cost\\\":21,\\\"benefit\\\":95}\"}",
+      "previous_acceptance": {
+        "passed": false,
+        "issues": [
+          "参考字段、原文引文或绑定计算无效"
+        ],
+        "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+        "status": "invalid",
+        "reference_error": "reference quote not grounded",
+        "method": "model_review",
+        "error_code": "invalid_reference",
+        "repairable": false
+      },
+      "calls": [
+        {
+          "purpose": "reviewer",
+          "target": "native:codex",
+          "model": "gpt-6-luna",
+          "status": "completed",
+          "usage": {
+            "prompt_tokens": 7885,
+            "completion_tokens": 507,
+            "total_tokens": 8392
+          },
+          "duration_ms": 12578
+        }
+      ],
+      "native_isolation_complete": true
+    }
+  ]
+}

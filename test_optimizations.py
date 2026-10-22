@@ -186,9 +186,10 @@ def self_check():
                                  "evidence": [{"source_quote": "ANSWER = 42", "answer_quote": "wrong", "correction": "42"}]})
         with patch("runtime_config.ConnectionClient.chat", side_effect=[response("42"), response("wrong"), response(bad_review), response("42"), response(review)]):
             repaired = evaluate_pipeline([case], profile, "fixture", min_cases=1, min_saving=0)
-        assert repaired["summary"]["pipeline_calls"] == 4 and repaired["summary"]["repair_calls"] == 2
-        assert repaired["summary"]["reported_processed_total_tokens"] == 480
-        assert repaired["summary"]["repair_improved_cases"] == 1 and repaired["summary"]["repair_degraded_cases"] == 0
+        assert repaired["summary"]["pipeline_calls"] == 2 and repaired["summary"]["repair_calls"] == 0
+        assert repaired["summary"]["reported_pipeline_total_tokens"] == 240
+        assert repaired["summary"]["repair_improved_cases"] == 0 and repaired["summary"]["repair_degraded_cases"] == 0
+        assert repaired["summary"]["accepted_correct_cases"] == 0
         with patch("runtime_config.ConnectionClient.chat", side_effect=[response("42"), response("42"), response("invalid review JSON")]):
             failed = evaluate_pipeline([case], profile, "fixture", min_cases=1, min_saving=0)
         assert failed["summary"]["completed_pairs"] == 0 and failed["summary"]["accepted_correct_cases"] == 0

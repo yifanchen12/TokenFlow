@@ -1,0 +1,109 @@
+{
+  "provenance": {
+    "reason": "Continue after service recovered; never retry based on answer correctness.",
+    "started_at": "2026-10-23T01:18:37.627471",
+    "original_report": "tmp\\evidence-eval-20261022\\mixed-release-interrupted-20261022.json",
+    "original_report_sha256": "25d80ea1a9bdd99baa06c6bab894d97a1af67536ba56ba803934bd864af1c752",
+    "retained_cases": 37,
+    "pending_cases": 23,
+    "repeated_transport_slots": 3,
+    "retired_calls": [
+      {
+        "purpose": "executor",
+        "target": "native:codex",
+        "model": "gpt-6-luna",
+        "location": "native",
+        "status": "failed",
+        "usage": {},
+        "duration_ms": 5446,
+        "error_code": "transport_or_execution",
+        "estimated_input_tokens": 106,
+        "max_output_tokens": 2400,
+        "isolation": {
+          "policy": "isolated_text_v1",
+          "complete": false,
+          "tool_items": 0,
+          "warnings": [
+            "code_mode_disabled"
+          ],
+          "turns_started": 1,
+          "turns_completed": 0,
+          "instruction_policy": "text_roles_v1",
+          "instructions_sha256": "fd3a02f6aaae668dfc19da9ea6353a2126f4a7feec6785196acb086902c27269",
+          "model_catalog_sha256": "dcfcaa09a519c0b22b09ed23f1fbd901eb1c5e6e897b886edcc3af823a082a75"
+        },
+        "usage_source": null,
+        "cached_input_tokens": null
+      },
+      {
+        "purpose": "planner",
+        "target": "native:codex",
+        "model": "gpt-6-luna",
+        "location": "native",
+        "status": "failed",
+        "usage": {},
+        "duration_ms": 5308,
+        "error_code": "transport_or_execution",
+        "estimated_input_tokens": 355,
+        "max_output_tokens": 1536,
+        "isolation": {
+          "policy": "isolated_text_v1",
+          "complete": false,
+          "tool_items": 0,
+          "warnings": [
+            "code_mode_disabled"
+          ],
+          "turns_started": 1,
+          "turns_completed": 0,
+          "instruction_policy": "text_roles_v1",
+          "instructions_sha256": "fd3a02f6aaae668dfc19da9ea6353a2126f4a7feec6785196acb086902c27269",
+          "model_catalog_sha256": "dcfcaa09a519c0b22b09ed23f1fbd901eb1c5e6e897b886edcc3af823a082a75"
+        },
+        "usage_source": null,
+        "cached_input_tokens": null
+      },
+      {
+        "purpose": "executor",
+        "target": "native:codex",
+        "model": "gpt-6-luna",
+        "location": "native",
+        "status": "failed",
+        "usage": {},
+        "duration_ms": 6965,
+        "error_code": "transport_or_execution",
+        "estimated_input_tokens": 106,
+        "max_output_tokens": 2400,
+        "isolation": {
+          "policy": "isolated_text_v1",
+          "complete": false,
+          "tool_items": 0,
+          "warnings": [
+            "code_mode_disabled"
+          ],
+          "turns_started": 1,
+          "turns_completed": 0,
+          "instruction_policy": "text_roles_v1",
+          "instructions_sha256": "fd3a02f6aaae668dfc19da9ea6353a2126f4a7feec6785196acb086902c27269",
+          "model_catalog_sha256": "dcfcaa09a519c0b22b09ed23f1fbd901eb1c5e6e897b886edcc3af823a082a75"
+        },
+        "usage_source": null,
+        "cached_input_tokens": null
+      }
+    ],
+    "retired_call_usage": "unknown",
+    "all_attempt_total_tokens": null,
+    "source_manifest_sha256": "2bc1e186b71b4412b431e79642e817cf7d73f34fb10a703336f99bc31cc5920c",
+    "rotation": "Original global case index modulo three retained",
+    "conditions": "First 37 cases on October 22; remaining 23 on October 23. No causal latency comparison.",
+    "finished_at": "2026-10-23T01:48:06.248353"
+  },
+  "all_attempt_usage": {
+    "calls": 446,
+    "known_usage_calls": 443,
+    "unknown_usage_calls": 3,
+    "reported_total_tokens_subtotal": 3442694,
+    "total_tokens": null
+  },
+  "selected_report_sha256": "90d52aa3e56a906995559b07330f17430ab99666a7e4d531f7d95de2fced6c2e",
+  "note": "First 37 cases retained verbatim. Only three service-failed slots repeated; no answer-quality selection."
+}

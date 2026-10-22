@@ -1,0 +1,8 @@
+{
+  "cases": 60,
+  "seed": 202610231,
+  "independent_reference_checks": "passed",
+  "human_labels": false,
+  "template_version": 4,
+  "note": "Fresh values in existing six template families; not a novel-family blind benchmark."
+}

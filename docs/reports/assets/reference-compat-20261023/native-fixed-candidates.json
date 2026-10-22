@@ -1,0 +1,1320 @@
+{
+  "validation-v4-ledger_revisions-00": {
+    "answer": "165",
+    "correct": true,
+    "acceptance": {
+      "passed": true,
+      "status": "passed",
+      "method": "model_review",
+      "issues": [],
+      "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+      "reference_reason": "各流水号仅取最高已签署版本；撤销记录不计，未签署版本忽略。有效金额合计为165。",
+      "reference_answer": "165",
+      "source_quotes": [
+        "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+        "未签署记录一律忽略。"
+      ],
+      "calculations": [
+        {
+          "path": "",
+          "expression": "20-5-65+73+70+72"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-ledger_revisions-01": {
+    "answer": "76",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "calculation contradicts reference field",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-ledger_revisions-02": {
+    "answer": "78",
+    "correct": true,
+    "acceptance": {
+      "passed": true,
+      "status": "passed",
+      "method": "model_review",
+      "issues": [],
+      "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+      "reference_reason": "逐流水号选取最高已签署版本，撤销记录不计；有效金额合计为78。",
+      "reference_answer": "78",
+      "source_quotes": [
+        "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+        "未签署记录一律忽略。"
+      ],
+      "calculations": [
+        {
+          "path": "",
+          "expression": "34+98+85-72-67"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-ledger_revisions-03": {
+    "answer": "59",
+    "correct": true,
+    "acceptance": {
+      "passed": true,
+      "status": "passed",
+      "method": "model_review",
+      "issues": [],
+      "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+      "reference_reason": "各流水号仅取最高版本的已签署记录；撤销记录剔除后，净金额为59。",
+      "reference_answer": "59",
+      "source_quotes": [
+        "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+        "未签署记录一律忽略。"
+      ],
+      "calculations": [
+        {
+          "path": "",
+          "expression": "58+60-48-44+94-61"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-ledger_revisions-04": {
+    "answer": "6",
+    "correct": true,
+    "acceptance": {
+      "passed": true,
+      "status": "passed",
+      "method": "model_review",
+      "issues": [],
+      "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+      "reference_reason": "各流水号取最高版本的已签署记录；撤销记录不计，未签署记录忽略。计入T2、T3、T5、T6、T8。",
+      "reference_answer": "6",
+      "source_quotes": [
+        "T2,2,已签署,生效,37",
+        "T3,2,已签署,生效,61",
+        "T5,2,已签署,生效,-79",
+        "T6,2,已签署,生效,-35"
+      ],
+      "calculations": [
+        {
+          "path": "",
+          "expression": "37+61-79-35+22"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 4,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-ledger_revisions-05": {
+    "answer": "314",
+    "correct": true,
+    "acceptance": {
+      "passed": true,
+      "status": "passed",
+      "method": "model_review",
+      "issues": [],
+      "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+      "reference_reason": "各流水号仅取已签署的最高版本；撤销版本不计，未签署记录忽略。有效金额为 -14、82、56、85、105。",
+      "reference_answer": "314",
+      "source_quotes": [
+        "T1,2,已签署,生效,-14",
+        "T3,2,已签署,生效,82",
+        "T4,2,已签署,生效,56",
+        "T6,2,已签署,生效,85"
+      ],
+      "calculations": [
+        {
+          "path": "",
+          "expression": "-14+82+56+85+105"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 4,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-ledger_revisions-06": {
+    "answer": "60",
+    "correct": true,
+    "acceptance": {
+      "passed": true,
+      "status": "passed",
+      "method": "model_review",
+      "issues": [],
+      "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+      "reference_reason": "各流水号取已签署的最高版本；最高版本为撤销的流水号不计入。有效金额合计为60。",
+      "reference_answer": "60",
+      "source_quotes": [
+        "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+        "未签署记录一律忽略。"
+      ],
+      "calculations": [
+        {
+          "path": "",
+          "expression": "-67+103-79-20+17+106"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-ledger_revisions-07": {
+    "answer": "41",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "各流水号取已签署的最高版本；该版本为撤销的T1、T4、T7不计，其余有效金额合计225。",
+      "reference_answer": "225",
+      "source_quotes": [
+        "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+        "未签署记录一律忽略。"
+      ],
+      "calculations": [
+        {
+          "path": "",
+          "expression": "-48+101+65+7+100"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-ledger_revisions-08": {
+    "answer": "47",
+    "correct": true,
+    "acceptance": {
+      "passed": true,
+      "status": "passed",
+      "method": "model_review",
+      "issues": [],
+      "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+      "reference_reason": "按每个流水号最高的已签署版本筛选，撤销记录不计入，净金额为47。",
+      "reference_answer": "47",
+      "source_quotes": [
+        "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+        "未签署记录一律忽略。"
+      ],
+      "calculations": [
+        {
+          "path": "",
+          "expression": "-14-33+80+81-67"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-ledger_revisions-09": {
+    "answer": "141",
+    "correct": true,
+    "acceptance": {
+      "passed": true,
+      "status": "passed",
+      "method": "model_review",
+      "issues": [],
+      "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+      "reference_reason": "各流水号仅取最高版本的已签署记录；T6、T3最高签署版本为撤销，排除，其余金额求和。",
+      "reference_answer": "141",
+      "source_quotes": [
+        "每个流水号仅采用已签署记录中版本号最大的记录；该记录若为撤销则不计入。",
+        "未签署记录一律忽略。"
+      ],
+      "calculations": [
+        {
+          "path": "",
+          "expression": "89-6+82-43-56+75"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-unit_conversion-00": {
+    "answer": "{\"grams\":14950,\"included\":[\"W1\",\"W2\",\"W4\",\"W5\",\"W7\",\"W8\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "calculation contradicts reference field",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-unit_conversion-01": {
+    "answer": "{\"grams\":7340,\"included\":[\"W2\",\"W3\",\"W5\",\"W6\",\"W8\"]}",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid calculations",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-unit_conversion-02": {
+    "answer": "{\"grams\":11270,\"included\":[\"W1\",\"W3\",\"W4\",\"W6\",\"W7\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "仅计入已确认记录，并将千克换算为克后求和；编号按升序排列。",
+      "reference_answer": "{\"grams\":9270,\"included\":[\"W1\",\"W3\",\"W4\",\"W6\",\"W7\"]}",
+      "source_quotes": [
+        "仅纳入状态为已确认的记录；1千克=1000克。",
+        "W1,已确认,3.25,千克",
+        "W3,已确认,4.00,千克",
+        "W4,已确认,280,克"
+      ],
+      "calculations": [
+        {
+          "path": "/grams",
+          "expression": "3.25*1000+4.00*1000+280+240+1.50*1000"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 4,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-unit_conversion-03": {
+    "answer": "{\"grams\":13920,\"included\":[\"W1\",\"W2\",\"W4\",\"W5\",\"W7\",\"W8\"]}",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "calculation contradicts reference field",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-unit_conversion-04": {
+    "answer": "{\"grams\":9280,\"included\":[\"W2\",\"W3\",\"W5\",\"W6\",\"W8\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "calculation contradicts reference field",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-unit_conversion-05": {
+    "answer": "{\"grams\":13040,\"included\":[\"W1\",\"W3\",\"W4\",\"W6\",\"W7\"]}",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid calculations",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-unit_conversion-06": {
+    "answer": "{\"grams\":22930,\"included\":[\"W1\",\"W2\",\"W4\",\"W5\",\"W7\",\"W8\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "calculation contradicts reference field",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-unit_conversion-07": {
+    "answer": "{\"grams\":9570,\"included\":[\"W2\",\"W3\",\"W5\",\"W6\",\"W8\"]}",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "calculation contradicts reference field",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-unit_conversion-08": {
+    "answer": "{\"grams\":11980,\"included\":[\"W1\",\"W3\",\"W4\",\"W6\",\"W7\"]}",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "calculation contradicts reference field",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-unit_conversion-09": {
+    "answer": "{\"grams\":10360,\"included\":[\"W1\",\"W2\",\"W4\",\"W5\",\"W7\",\"W8\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid calculations",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-dependency_timing-00": {
+    "answer": "66",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid calculation fields",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-dependency_timing-01": {
+    "answer": "57",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-dependency_timing-02": {
+    "answer": "38",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid calculation fields",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-dependency_timing-03": {
+    "answer": "33",
+    "correct": true,
+    "acceptance": {
+      "passed": true,
+      "status": "passed",
+      "method": "model_review",
+      "issues": [],
+      "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+      "reference_reason": "F 需等待 B 和 E；最早于 19 分钟开始，耗时 9 分钟，完成于 28 分钟？全部任务中最晚为 G 7，故需校验：B 于24完成，E于12完成，F于33完成。",
+      "reference_answer": "33",
+      "source_quotes": [
+        "B,14,A",
+        "F,9,B+E"
+      ],
+      "calculations": [
+        {
+          "path": "",
+          "expression": "10+14+9"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-dependency_timing-04": {
+    "answer": "26",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "G在A完成后执行，最早于24分钟完成；其余任务均不晚于此时。",
+      "reference_answer": "24",
+      "source_quotes": [
+        "G,12,A",
+        "必须等待全部前置任务结束后开始"
+      ],
+      "calculations": [
+        {
+          "path": "",
+          "expression": "12+12"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-dependency_timing-05": {
+    "answer": "56",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid calculation fields",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-dependency_timing-06": {
+    "answer": "43",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "unsupported arithmetic",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-dependency_timing-07": {
+    "answer": "36",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid calculation fields",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-dependency_timing-08": {
+    "answer": "56",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid calculation fields",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-dependency_timing-09": {
+    "answer": "64",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid calculation fields",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-cross_document_join-00": {
+    "answer": "{\"amount\":1366,\"orders\":[\"O1\",\"O2\",\"O4\",\"O5\",\"O7\",\"O8\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-cross_document_join-01": {
+    "answer": "{\"amount\":728,\"orders\":[\"O1\",\"O3\",\"O4\",\"O6\",\"O7\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [],
+      "reason": "验收输出无效或未完整返回，候选已保留，请复核",
+      "status": "invalid",
+      "method": "model_review",
+      "error_code": "invalid_json",
+      "repairable": false
+    }
+  },
+  "validation-v4-cross_document_join-02": {
+    "answer": "{\"amount\":488,\"orders\":[\"O2\",\"O3\",\"O5\",\"O6\",\"O8\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-cross_document_join-03": {
+    "answer": "{\"amount\":1030,\"orders\":[\"O1\",\"O2\",\"O4\",\"O5\",\"O7\",\"O8\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "仅计已批准订单；别名映射至生效单价后按数量计费，并按订单编号升序列出。",
+      "reference_answer": "{\"amount\":1263,\"orders\":[\"O1\",\"O2\",\"O4\",\"O5\",\"O7\",\"O8\"]}",
+      "source_quotes": [
+        "仅结算已批准订单，别名必须先映射到商品编码，再按商品单价计费；orders 按订单编号升序。草稿价格不生效。",
+        "O1,别名2,11,已批准",
+        "O2,别名4,5,已批准",
+        "O4,别名1,4,已批准"
+      ],
+      "calculations": [
+        {
+          "path": "/amount",
+          "expression": "11*30+5*6+4*21+10*30+9*21+11*30"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 1,
+        "source_quotes_checked": 4,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-cross_document_join-04": {
+    "answer": "{\"amount\":506,\"orders\":[\"O1\",\"O3\",\"O4\",\"O6\",\"O7\"]}",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-cross_document_join-05": {
+    "answer": "{\"amount\":1202,\"orders\":[\"O2\",\"O3\",\"O5\",\"O6\",\"O8\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-cross_document_join-06": {
+    "answer": "{\"amount\":658,\"orders\":[\"O1\",\"O2\",\"O4\",\"O5\",\"O7\",\"O8\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-cross_document_join-07": {
+    "answer": "{\"amount\":423,\"orders\":[\"O1\",\"O3\",\"O4\",\"O6\",\"O7\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-cross_document_join-08": {
+    "answer": "{\"amount\":744,\"orders\":[\"O2\",\"O3\",\"O5\",\"O6\",\"O8\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-cross_document_join-09": {
+    "answer": "{\"amount\":994,\"orders\":[\"O1\",\"O2\",\"O4\",\"O5\",\"O7\",\"O8\"]}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-threshold_policy-00": {
+    "answer": "789",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "仅统计已结算订单，按逐单门槛及减免上限计算后净收入合计为633。",
+      "reference_answer": "633",
+      "source_quotes": [
+        "仅已结算订单计费。",
+        "原价达到63时减免原价的十分之一向下取整，但每单减免最多14；未达到门槛则无减免。"
+      ],
+      "calculations": [],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 0,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-threshold_policy-01": {
+    "answer": "716",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "仅计入已结算订单，并按每单门槛及减免上限计算。",
+      "reference_answer": "957",
+      "source_quotes": [
+        "仅已结算订单计费。",
+        "每单原价为数量乘单价，原价达到89时减免原价的十分之一向下取整，但每单减免最多9；未达到门槛则无减免。",
+        "B1,13,16,已结算\nB2,14,13,已结算\nB3,8,20,未结算\nB4,4,20,已结算\nB5,7,6,已结算\nB6,10,15,已结算\nB7,7,14,未结算\nB8,3,10,已结算"
+      ],
+      "calculations": [],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 0,
+        "source_quotes_checked": 3,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-threshold_policy-02": {
+    "answer": "736",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [],
+      "reason": "验收输出无效或未完整返回，候选已保留，请复核",
+      "status": "invalid",
+      "method": "model_review",
+      "error_code": "invalid_json",
+      "repairable": false
+    }
+  },
+  "validation-v4-threshold_policy-03": {
+    "answer": "582",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-threshold_policy-04": {
+    "answer": "835",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "仅计入已结算订单，逐单按门槛计算减免并受每单最多6的上限约束。",
+      "reference_answer": "771",
+      "source_quotes": [
+        "仅已结算订单计费。",
+        "每单原价为数量乘单价，原价达到91时减免原价的十分之一向下取整，但每单减免最多6；未达到门槛则无减免。"
+      ],
+      "calculations": [],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 0,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-threshold_policy-05": {
+    "answer": "582",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [],
+      "reason": "验收输出无效或未完整返回，候选已保留，请复核",
+      "status": "invalid",
+      "method": "model_review",
+      "error_code": "invalid_json",
+      "repairable": false
+    }
+  },
+  "validation-v4-threshold_policy-06": {
+    "answer": "363",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "仅计已结算订单：68+77+77+117+21+60=420？逐单合计原价420，B5原价117无减免；达到118的订单减免按十分之一取整且封顶9。",
+      "reference_answer": "496",
+      "source_quotes": [
+        "仅已结算订单计费。",
+        "原价达到118时减免原价的十分之一向下取整，但每单减免最多9；未达到门槛则无减免。"
+      ],
+      "calculations": [],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 0,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-threshold_policy-07": {
+    "answer": "815",
+    "correct": true,
+    "acceptance": {
+      "passed": true,
+      "status": "passed",
+      "method": "model_review",
+      "issues": [],
+      "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+      "reference_reason": "仅计已结算订单，逐单应用门槛与每单减免上限后，净收入合计为815。",
+      "reference_answer": "815",
+      "source_quotes": [
+        "仅已结算订单计费。",
+        "原价达到67时减免原价的十分之一向下取整，但每单减免最多11；未达到门槛则无减免。",
+        "B2,15,18,已结算"
+      ],
+      "calculations": [],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 0,
+        "source_quotes_checked": 3,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-threshold_policy-08": {
+    "answer": "1253",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "已结算订单按逐单门槛和每单最多减免12计算，净收入合计656。",
+      "reference_answer": "656",
+      "source_quotes": [
+        "每单原价为数量乘单价，原价达到80时减免原价的十分之一向下取整，但每单减免最多12",
+        "B1,14,14,已结算",
+        "B7,13,11,已结算"
+      ],
+      "calculations": [],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 0,
+        "source_quotes_checked": 3,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-threshold_policy-09": {
+    "answer": "709",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [],
+      "reason": "验收输出无效或未完整返回，候选已保留，请复核",
+      "status": "invalid",
+      "method": "model_review",
+      "error_code": "invalid_json",
+      "repairable": false
+    }
+  },
+  "validation-v4-budget_selection-00": {
+    "answer": "{\"selected\":[\"J4\",\"J6\"],\"cost\":19,\"benefit\":89}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "J4、J5、J6总成本27、总收益129；在预算内至多选3项的组合中收益最高，符合平局规则。",
+      "reference_answer": "{\"selected\":[\"J4\",\"J5\",\"J6\"],\"cost\":27,\"benefit\":129}",
+      "source_quotes": [
+        "从项目中选至多3个，总成本不能超过27。优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。编号数组须升序。",
+        "J4,12,45\nJ5,8,40\nJ6,7,44"
+      ],
+      "calculations": [
+        {
+          "path": "/cost",
+          "expression": "12+8+7"
+        },
+        {
+          "path": "/benefit",
+          "expression": "45+40+44"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 2,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-budget_selection-01": {
+    "answer": "{\"selected\":[4,7,8],\"cost\":21,\"benefit\":91}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "不存在符合预算的组合能达到该收益：J3、J4、J8成本为26，超过24。最优可行组合为J3、J5、J7，成本27也超预算；需重新核算。",
+      "reference_answer": "{\"selected\":[\"J3\",\"J4\",\"J8\"],\"cost\":26,\"benefit\":110}",
+      "source_quotes": [
+        "从项目中选至多3个，总成本不能超过24。",
+        "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。"
+      ],
+      "calculations": [
+        {
+          "path": "/cost",
+          "expression": "10+6+10"
+        },
+        {
+          "path": "/benefit",
+          "expression": "39+26+45"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 2,
+        "source_quotes_checked": 2,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-budget_selection-02": {
+    "answer": "{\"selected\":[1,2,6],\"cost\":24,\"benefit\":129}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-budget_selection-03": {
+    "answer": "{\"selected\":[\"J2\",\"J6\",\"J7\"],\"cost\":29,\"benefit\":101}",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-budget_selection-04": {
+    "answer": "{\"selected\":[\"J1\",\"J7\"],\"cost\":26,\"benefit\":68}",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "最多选3个且预算不超过27；J1与J8收益合计67，为可行组合中最高，成本21。",
+      "reference_answer": "{\"selected\":[\"J1\",\"J8\"],\"cost\":21,\"benefit\":67}",
+      "source_quotes": [
+        "从项目中选至多3个，总成本不能超过27。",
+        "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+        "J1,14,45",
+        "J8,7,22"
+      ],
+      "calculations": [
+        {
+          "path": "/cost",
+          "expression": "14+7"
+        },
+        {
+          "path": "/benefit",
+          "expression": "45+22"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 2,
+        "source_quotes_checked": 4,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-budget_selection-05": {
+    "answer": "{\"selected\":[6,8],\"cost\":18,\"benefit\":67}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "至多选3项且预算不超过24；收益优先最大，其次成本最小，再按升序编号数组字典序最小。J6+J7收益60，为最优组合。",
+      "reference_answer": "{\"selected\":[\"J6\",\"J7\"],\"cost\":19,\"benefit\":60}",
+      "source_quotes": [
+        "从项目中选至多3个，总成本不能超过24。",
+        "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+        "J6,8,34\nJ7,11,26"
+      ],
+      "calculations": [
+        {
+          "path": "/cost",
+          "expression": "8+11"
+        },
+        {
+          "path": "/benefit",
+          "expression": "34+26"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 2,
+        "source_quotes_checked": 3,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-budget_selection-06": {
+    "answer": "{\"selected\":[\"J1\",\"J2\",\"J5\"],\"cost\":27,\"benefit\":116}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-budget_selection-07": {
+    "answer": "{\"selected\":[\"J1\",\"J4\",\"J8\"],\"cost\":27,\"benefit\":64}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "status": "failed",
+      "method": "model_review",
+      "issues": [
+        "候选与独立参考不一致，保留原答案，请核对差异"
+      ],
+      "reason": "独立参考与候选不同，参考未自动采用",
+      "reference_reason": "至多选3项且预算不超过30；最高收益为49。组合J1、J6成本20，优于同收益组合J4、J7的成本19？更正：J4+J7成本19收益46；J1+J6是收益49，满足最优。",
+      "reference_answer": "{\"selected\":[\"J1\",\"J6\"],\"cost\":20,\"benefit\":49}",
+      "source_quotes": [
+        "从项目中选至多3个，总成本不能超过30。",
+        "优先总收益最大，其次总成本最小，仍相同则选编号数组字典序最小的组合。",
+        "J1,6,17",
+        "J6,14,32"
+      ],
+      "calculations": [
+        {
+          "path": "/cost",
+          "expression": "6+14"
+        },
+        {
+          "path": "/benefit",
+          "expression": "17+32"
+        }
+      ],
+      "repairable": false,
+      "verification": {
+        "kind": "independent_reference",
+        "calculations_checked": 2,
+        "source_quotes_checked": 4,
+        "semantic_truth_proven": false
+      }
+    }
+  },
+  "validation-v4-budget_selection-08": {
+    "answer": "{\"selected\":[\"J2\",\"J5\"],\"cost\":26,\"benefit\":84}",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "validation-v4-budget_selection-09": {
+    "answer": "{\"selected\":[\"J4\",\"J8\"],\"cost\":21,\"benefit\":95}",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "reference quote not grounded",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "seed": 202610222,
+  "cases": 60,
+  "status": "passed",
+  "method": "independent_reference_implementations",
+  "sha256": {
+    "scripts/generate_verification_cases.py": "464fab562fa4408e4c6bb0300e9249d5ca4503b98251cf341f2bd6c4168a1e76",
+    "test_verification_cases.py": "3be1f2b8a7f0ee586c6928d55c4186f5a5ce00a0890af74c1f6f94a5b457e1d2",
+    "docs/reports/assets/evidence-20261022/v4-isolated-validation.json": "21d118f559c7e5442e560faec81bdc4d84bbd019e686e81d67b5c84a75d9b3b8"
+  }
+}

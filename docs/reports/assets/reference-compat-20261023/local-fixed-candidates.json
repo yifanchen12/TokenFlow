@@ -1,0 +1,842 @@
+{
+  "holdout-handoff_arithmetic-00": {
+    "answer": "32",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-handoff_arithmetic-01": {
+    "answer": "19",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-handoff_arithmetic-02": {
+    "answer": "15",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-handoff_arithmetic-03": {
+    "answer": "19",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-handoff_arithmetic-04": {
+    "answer": "31",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-handoff_arithmetic-05": {
+    "answer": "15",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-handoff_arithmetic-06": {
+    "answer": "18",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-handoff_arithmetic-07": {
+    "answer": "40",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-handoff_arithmetic-08": {
+    "answer": "36",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-handoff_arithmetic-09": {
+    "answer": "22",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-conflict_resolution-00": {
+    "answer": "65",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-conflict_resolution-01": {
+    "answer": "60",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-conflict_resolution-02": {
+    "answer": "62",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-conflict_resolution-03": {
+    "answer": "69",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "not a bounded number",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-conflict_resolution-04": {
+    "answer": "81",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-conflict_resolution-05": {
+    "answer": "93",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-conflict_resolution-06": {
+    "answer": "82",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-conflict_resolution-07": {
+    "answer": "44",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-conflict_resolution-08": {
+    "answer": "95",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-conflict_resolution-09": {
+    "answer": "82",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-constraint_selection-00": {
+    "answer": "316",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "not a bounded number",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-constraint_selection-01": {
+    "answer": "201",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-constraint_selection-02": {
+    "answer": "301",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-constraint_selection-03": {
+    "answer": "325",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "not a bounded number",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-constraint_selection-04": {
+    "answer": "601",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "answer path not found",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-constraint_selection-05": {
+    "answer": "234",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-constraint_selection-06": {
+    "answer": "103",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "calculation contradicts reference field",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-constraint_selection-07": {
+    "answer": "426",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "answer path not found",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-constraint_selection-08": {
+    "answer": "541",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "answer path not found",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-constraint_selection-09": {
+    "answer": "165",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-instructions_in_source-00": {
+    "answer": "260",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-instructions_in_source-01": {
+    "answer": "376",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-instructions_in_source-02": {
+    "answer": "265",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "calculation contradicts reference field",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-instructions_in_source-03": {
+    "answer": "64",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-instructions_in_source-04": {
+    "answer": "68",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-instructions_in_source-05": {
+    "answer": "370",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-instructions_in_source-06": {
+    "answer": "400",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-instructions_in_source-07": {
+    "answer": "168",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-instructions_in_source-08": {
+    "answer": "50",
+    "correct": false,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-instructions_in_source-09": {
+    "answer": "168",
+    "correct": true,
+    "acceptance": {
+      "passed": false,
+      "issues": [
+        "参考字段、原文引文或绑定计算无效"
+      ],
+      "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+      "status": "invalid",
+      "reference_error": "invalid reference answer or reason",
+      "method": "model_review",
+      "error_code": "invalid_reference",
+      "repairable": false
+    }
+  },
+  "holdout-code_dependencies-00": {
+    "answer": "21",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "对原始 Python 的整数赋值、无参函数依赖和算术做有界静态求值；未执行源码"
+    }
+  },
+  "holdout-code_dependencies-01": {
+    "answer": "17",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "对原始 Python 的整数赋值、无参函数依赖和算术做有界静态求值；未执行源码"
+    }
+  },
+  "holdout-code_dependencies-02": {
+    "answer": "38",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "对原始 Python 的整数赋值、无参函数依赖和算术做有界静态求值；未执行源码"
+    }
+  },
+  "holdout-code_dependencies-03": {
+    "answer": "20",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "对原始 Python 的整数赋值、无参函数依赖和算术做有界静态求值；未执行源码"
+    }
+  },
+  "holdout-code_dependencies-04": {
+    "answer": "10",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "对原始 Python 的整数赋值、无参函数依赖和算术做有界静态求值；未执行源码"
+    }
+  },
+  "holdout-code_dependencies-05": {
+    "answer": "22",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "对原始 Python 的整数赋值、无参函数依赖和算术做有界静态求值；未执行源码"
+    }
+  },
+  "holdout-code_dependencies-06": {
+    "answer": "12",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "对原始 Python 的整数赋值、无参函数依赖和算术做有界静态求值；未执行源码"
+    }
+  },
+  "holdout-code_dependencies-07": {
+    "answer": "42",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "对原始 Python 的整数赋值、无参函数依赖和算术做有界静态求值；未执行源码"
+    }
+  },
+  "holdout-code_dependencies-08": {
+    "answer": "12",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "对原始 Python 的整数赋值、无参函数依赖和算术做有界静态求值；未执行源码"
+    }
+  },
+  "holdout-code_dependencies-09": {
+    "answer": "16",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "对原始 Python 的整数赋值、无参函数依赖和算术做有界静态求值；未执行源码"
+    }
+  },
+  "holdout-table-00": {
+    "answer": "51",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "原表唯一行键与列名直接查值"
+    }
+  },
+  "holdout-table-01": {
+    "answer": "63",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "原表唯一行键与列名直接查值"
+    }
+  },
+  "holdout-table-02": {
+    "answer": "90",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "原表唯一行键与列名直接查值"
+    }
+  },
+  "holdout-table-03": {
+    "answer": "84",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "原表唯一行键与列名直接查值"
+    }
+  },
+  "holdout-table-04": {
+    "answer": "70",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "原表唯一行键与列名直接查值"
+    }
+  },
+  "holdout-table-05": {
+    "answer": "74",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "原表唯一行键与列名直接查值"
+    }
+  },
+  "holdout-table-06": {
+    "answer": "67",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "原表唯一行键与列名直接查值"
+    }
+  },
+  "holdout-table-07": {
+    "answer": "66",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "原表唯一行键与列名直接查值"
+    }
+  },
+  "holdout-table-08": {
+    "answer": "81",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "原表唯一行键与列名直接查值"
+    }
+  },
+  "holdout-table-09": {
+    "answer": "86",
+    "correct": true,
+    "acceptance": {
+      "status": "passed",
+      "method": "deterministic",
+      "issues": [],
+      "reason": "原表唯一行键与列名直接查值"
+    }
+  }
+}
