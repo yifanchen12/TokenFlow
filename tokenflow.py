@@ -1291,7 +1291,9 @@ def self_check() -> None:
     from test_acceptance import self_check as acceptance_self_check
     acceptance_self_check()
     from test_reference_checks import self_check as reference_self_check
+    from test_api_dispatch import self_check as api_dispatch_self_check
     reference_self_check()
+    api_dispatch_self_check()
     from test_savings import self_check as savings_self_check
     savings_self_check()
     from test_collaboration import self_check as collaboration_self_check

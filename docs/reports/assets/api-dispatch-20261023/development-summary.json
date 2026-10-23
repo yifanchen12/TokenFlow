@@ -1,0 +1,48 @@
+[
+  {
+    "implementation": 1,
+    "scope": "interrupted_development_default_thinking_budget_exhaustion",
+    "completed_cases": 3,
+    "calls": 6,
+    "native_calls": 2,
+    "reported_total_tokens": 23039,
+    "unknown_usage_calls": 1,
+    "complete_native_audits": 2,
+    "states": {
+      "failed": 1,
+      "completed": 4,
+      "interrupted_unknown": 1
+    },
+    "source_sha256": {
+      "runtime_config.py": "5a8a5b8b0904124111ef7738b514b56f66561aec74b8371da8d01dc11e39c067",
+      "task_orchestrator.py": "b3c8b7ec646e1fb6ec0eb2871150e34590ba9e7a6a0814fcb2bebe2329bcaffd",
+      "answer_checks.py": "de55498630b985d481a481d1bf19c9009b36192d8cf10272b8372d228b54ecc0",
+      "native_text.py": "ca970a9f852085355239ec48ea19f3d2c8298f1ecc1fc93fcb84e34447b14b06",
+      "eval_scenarios.py": "c18273933a7c80f402ee2cf542e3d5873cf85d1104d6ece74a06d2581a231eaf",
+      "scripts/check_api_dispatch.py": "16b9ab37aebb5ab96ef0b83c3ef8b752f725420f6ba384562422474ad072cacd"
+    }
+  },
+  {
+    "implementation": 2,
+    "scope": "interrupted_development_overspecified_dispatch_plan",
+    "completed_cases": 7,
+    "calls": 13,
+    "native_calls": 5,
+    "reported_total_tokens": 53951,
+    "unknown_usage_calls": 1,
+    "complete_native_audits": 5,
+    "states": {
+      "completed": 11,
+      "failed": 1,
+      "interrupted_unknown": 1
+    },
+    "source_sha256": {
+      "runtime_config.py": "617ee6f345e25438736f75d89925abcd0fcc43b0d5bbc47e494bb33b491d520a",
+      "task_orchestrator.py": "b1023e8986c39723130081c48eddf7bfe72233461fc571c173e303f889e9e9b9",
+      "answer_checks.py": "de55498630b985d481a481d1bf19c9009b36192d8cf10272b8372d228b54ecc0",
+      "native_text.py": "ca970a9f852085355239ec48ea19f3d2c8298f1ecc1fc93fcb84e34447b14b06",
+      "eval_scenarios.py": "c18273933a7c80f402ee2cf542e3d5873cf85d1104d6ece74a06d2581a231eaf",
+      "scripts/check_api_dispatch.py": "16b9ab37aebb5ab96ef0b83c3ef8b752f725420f6ba384562422474ad072cacd"
+    }
+  }
+]

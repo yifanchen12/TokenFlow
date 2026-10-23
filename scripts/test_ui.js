@@ -193,6 +193,14 @@ context.post = async (url, body) => {
   run("renderOutcome({status:'completed',acceptance:{status:'passed',method:'model_review',verification:{kind:'independent_reference'}}})");
   run("renderCandidates({result:'32',candidates:[{answer:'32'}],acceptance:{passed:true,reference_answer:'32',verification:{kind:'independent_reference',arithmetic_mode:'not_applicable',calculations_checked:0,source_quotes_checked:1}}})");
   assert.match(nodes.get('candidateList').children[1].textContent,/不适用精确四则验算/);
+  run("renderDispatchDecision({api_dispatch:{planner:'bupt',planner_model:'deepseek-v4-flash',complexity:'complex',reason:'跨表推理',target:'native:codex',model:'gpt-6-astra',reviewer:'native:codex',reviewer_model:'gpt-6-astra'}})");
+  assert.match(nodes.get('apiDispatchDecision').textContent,/跨表推理/);
+  assert.match(nodes.get('apiDispatchDecision').textContent,/独立复核：native:codex \/ gpt-6-astra/);
+  run("renderDispatchDecision({})");
+  assert.equal(nodes.get('apiDispatchDecision').classList.contains('hidden'),true);
+  run("$('collaborationMode').value='hybrid';$('apiDispatch').checked=true;updatePolicyHint()");
+  assert.match(nodes.get('policyHint').textContent,/规划 API 选择执行器/);
+  run("$('apiDispatch').checked=false");
   assert.equal(nodes.get('acceptanceBadge').textContent,'模型独立核对一致');
   run("activeRun='';clearResult()");assert.equal(nodes.get('copyResult').disabled,true);assert.equal(run('resultView'),'result');
   run("$('collaborationMode').value='local_only';updatePolicyHint()");assert.match(nodes.get('policyHint').textContent,/不会调用/);

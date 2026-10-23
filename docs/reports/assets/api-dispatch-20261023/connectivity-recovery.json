@@ -1,0 +1,150 @@
+{
+  "scope": "separate_connectivity_only_not_quality; no failed benchmark case rerun",
+  "calls": [
+    {
+      "purpose": "native_connectivity_recovery",
+      "target": "native:codex",
+      "model": "gpt-6-astra",
+      "status": "completed",
+      "usage": {
+        "prompt_tokens": 7316,
+        "completion_tokens": 5,
+        "total_tokens": 7321,
+        "prompt_tokens_details": {
+          "cached_tokens": 6016
+        }
+      },
+      "isolation": {
+        "policy": "isolated_text_v1",
+        "complete": true,
+        "tool_items": 0,
+        "warnings": [
+          "code_mode_disabled"
+        ],
+        "turns_started": 1,
+        "turns_completed": 1,
+        "instruction_policy": "text_roles_v1",
+        "instructions_sha256": "fd3a02f6aaae668dfc19da9ea6353a2126f4a7feec6785196acb086902c27269",
+        "model_catalog_sha256": "3f1bf66972d4ef541ec3ce45794f2363bcff120c70daf38de649b5d4e70c0784"
+      },
+      "diagnostic": {
+        "event_counts": {
+          "thread.started": 1,
+          "item.completed": 2,
+          "turn.started": 1,
+          "turn.completed": 1
+        },
+        "failure_categories": []
+      }
+    },
+    {
+      "purpose": "api_connectivity_recovery",
+      "target": "imported-dsh",
+      "model": "deepseek-v4-flash",
+      "status": "completed",
+      "usage": {
+        "prompt_tokens": 117,
+        "completion_tokens": 22,
+        "total_tokens": 139
+      },
+      "response_characters": 15,
+      "finish_reason": "stop"
+    }
+  ],
+  "healthy": true,
+  "second_recovery": {
+    "scope": "separate_connectivity_only_not_quality; no failed benchmark case rerun",
+    "calls": [
+      {
+        "purpose": "native_connectivity_recovery",
+        "target": "native:codex",
+        "model": "gpt-6-astra",
+        "status": "completed",
+        "usage": {
+          "prompt_tokens": 7314,
+          "completion_tokens": 5,
+          "total_tokens": 7319,
+          "prompt_tokens_details": {
+            "cached_tokens": 6016
+          }
+        },
+        "isolation": {
+          "policy": "isolated_text_v1",
+          "complete": true,
+          "tool_items": 0,
+          "warnings": [
+            "code_mode_disabled"
+          ],
+          "turns_started": 1,
+          "turns_completed": 1,
+          "instruction_policy": "text_roles_v1",
+          "instructions_sha256": "fd3a02f6aaae668dfc19da9ea6353a2126f4a7feec6785196acb086902c27269",
+          "model_catalog_sha256": "3f1bf66972d4ef541ec3ce45794f2363bcff120c70daf38de649b5d4e70c0784"
+        },
+        "diagnostic": {
+          "event_counts": {
+            "thread.started": 1,
+            "item.completed": 2,
+            "turn.started": 1,
+            "turn.completed": 1
+          },
+          "failure_categories": []
+        }
+      },
+      {
+        "purpose": "api_connectivity_recovery",
+        "target": "imported-dsh",
+        "model": "deepseek-v4-flash",
+        "status": "completed",
+        "usage": {
+          "prompt_tokens": 117,
+          "completion_tokens": 19,
+          "total_tokens": 136
+        },
+        "response_characters": 15,
+        "finish_reason": "stop"
+      }
+    ],
+    "healthy": true
+  },
+  "response_shape_diagnostic": {
+    "scope": "one fixed API response shape diagnostic only; score unchanged",
+    "case": "validation-v4-dependency_timing-05",
+    "calls": [
+      {
+        "purpose": "api_response_shape",
+        "target": "imported-dsh",
+        "model": "deepseek-v4-flash",
+        "status": "completed",
+        "usage": {
+          "prompt_tokens": 392,
+          "completion_tokens": 90,
+          "total_tokens": 482
+        }
+      }
+    ],
+    "shape": {
+      "message_type": "dict",
+      "finish_reason": "stop",
+      "fields": {
+        "content": {
+          "type": "str",
+          "length": 123
+        },
+        "reasoning_content": {
+          "type": "str",
+          "length": 100
+        },
+        "tool_calls": {
+          "type": "NoneType",
+          "length": null
+        },
+        "function_call": {
+          "type": "NoneType",
+          "length": null
+        }
+      },
+      "content_blocks": null
+    }
+  }
+}

@@ -194,7 +194,7 @@ def _runtime_settings(saved=None) -> dict:
     defaults = {"bindings": {h: {"connection": "native", "model": "auto"} for h in ("codex", "claude", "dsh")},
                 "roles": {"local": "auto", "planner": "native:codex", "executor": "native:codex", "reviewer": "native:codex"},
                 "role_models": {r: "auto" for r in ROLES}, "max_calls": 6, "collaboration_mode": "hybrid",
-                "max_task_tokens": 64000, "context_window_tokens": 32768,
+                "max_task_tokens": 64000, "context_window_tokens": 32768, "api_dispatch": False,
                 "output_limits": {"local": 1024, "planner": 1536, "executor": 2400, "reviewer": 1024},
                 "history_max_runs": 0, "history_retention_days": 0, "cache_max_mb": 0, "cache_retention_days": 0}
     if saved is not None:
@@ -345,6 +345,10 @@ class RuntimeConfig:
         if not isinstance(mode, str) or mode not in {"hybrid", "local_only", "configured"}:
             raise ValueError("协同策略无效")
         result["collaboration_mode"] = mode
+        dispatch = data.get('api_dispatch', result['api_dispatch'])
+        if type(dispatch) is not bool:
+            raise ValueError('API 调度开关须为布尔值')
+        result['api_dispatch'] = dispatch
         if any(not isinstance(data.get(k, {}), dict) for k in ("bindings", "roles", "role_models")):
             raise ValueError("绑定、角色和角色模型须为对象")
         for harness, binding in data.get("bindings", {}).items():
@@ -701,6 +705,11 @@ class ConnectionClient(OpenAICompatibleProvider):
         if kwargs.get("response_schema") is not None:
             raise ProviderError("当前连接未启用原生结构化输出")
         if protocol == "openai":
+            if kwargs.get('route_json') and model.startswith('deepseek-v4-'):
+                # DeepSeek's documented dispatch path: no thinking, bounded JSON output.
+                return self._request('/chat/completions', {
+                    'model': model, 'messages': messages, 'max_tokens': max_tokens, 'stream': False,
+                    'thinking': {'type': 'disabled'}, 'response_format': {'type': 'json_object'}})
             return super().chat(model, messages, max_tokens)
         if protocol == "responses":
             value = self._request("/responses", {"model": model, "input": messages, "max_output_tokens": max_tokens})

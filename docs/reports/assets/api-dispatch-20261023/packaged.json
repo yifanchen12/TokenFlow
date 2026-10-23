@@ -1,0 +1,181 @@
+{
+  "scope": "packaged_behavior_and_one_real_smoke_not_general_quality",
+  "blocked_routes": [
+    {
+      "case": 0,
+      "status": "failed",
+      "error": "API 选择了未就绪或不支持文本隔离的 Harness",
+      "calls": 1
+    },
+    {
+      "case": 1,
+      "status": "failed",
+      "error": "复杂或不确定任务必须交给 Harness 执行和复核，不能分配本地模型",
+      "calls": 1
+    }
+  ],
+  "real_smoke_passed": true,
+  "answer": "39",
+  "dispatch": {
+    "complexity": "complex",
+    "selected_harness": "codex",
+    "reason": "计算净金额涉及条件筛选与数值运算，需复杂任务处理。",
+    "target": "native:codex",
+    "model": "gpt-6-astra",
+    "planner": "imported-dsh",
+    "planner_model": "deepseek-v4-flash",
+    "reviewer": "native:codex",
+    "reviewer_model": "gpt-6-astra"
+  },
+  "calls": [
+    {
+      "purpose": "planner",
+      "target": "imported-dsh",
+      "model": "deepseek-v4-flash",
+      "status": "completed",
+      "started_at": 1792736061.2346299,
+      "duration_ms": 28744,
+      "usage": {
+        "prompt_tokens": 368,
+        "completion_tokens": 533,
+        "total_tokens": 901
+      },
+      "request_mode": "deepseek_nonthinking_json_dispatch"
+    },
+    {
+      "purpose": "executor",
+      "target": "native:codex",
+      "model": "gpt-6-astra",
+      "status": "completed",
+      "started_at": 1792736093.405955,
+      "duration_ms": 10671,
+      "usage": {
+        "prompt_tokens": 7483,
+        "completion_tokens": 23,
+        "total_tokens": 7506
+      },
+      "isolation": {
+        "policy": "isolated_text_v1",
+        "complete": true,
+        "tool_items": 0
+      }
+    },
+    {
+      "purpose": "reviewer",
+      "target": "native:codex",
+      "model": "gpt-6-astra",
+      "status": "completed",
+      "started_at": 1792736104.0843596,
+      "duration_ms": 12070,
+      "usage": {
+        "prompt_tokens": 7787,
+        "completion_tokens": 86,
+        "total_tokens": 7873
+      },
+      "isolation": {
+        "policy": "isolated_text_v1",
+        "complete": true,
+        "tool_items": 0
+      }
+    }
+  ],
+  "retained_candidate_behavior": {
+    "passed": true,
+    "scope": "fake_api_packaged_behavior_only",
+    "cases": [
+      {
+        "case": 0,
+        "status": "needs_review",
+        "answer": "{\"grams\":8310}",
+        "selection": {
+          "candidate_index": 0,
+          "reason": "保留执行器原答案"
+        },
+        "acceptance": {
+          "passed": false,
+          "status": "failed",
+          "method": "model_review",
+          "issues": [
+            "候选与独立参考不一致，保留原答案，请核对差异"
+          ],
+          "reason": "独立参考与候选不同，参考未自动采用",
+          "reference_reason": "独立合计",
+          "reference_answer": "{\"grams\":8360}",
+          "source_quotes": [
+            "重量分别为70、6250、1750、10、280克。"
+          ],
+          "calculations": [
+            {
+              "path": "/grams",
+              "expression": "70+6250+1750+10+280"
+            }
+          ],
+          "repairable": false,
+          "verification": {
+            "kind": "independent_reference",
+            "arithmetic_mode": "exact",
+            "calculations_checked": 1,
+            "source_quotes_checked": 1,
+            "semantic_truth_proven": false
+          }
+        }
+      },
+      {
+        "case": 1,
+        "status": "needs_review",
+        "answer": "{\"grams\":8310}",
+        "selection": {
+          "candidate_index": 0,
+          "reason": "保留执行器原答案"
+        },
+        "acceptance": {
+          "passed": false,
+          "issues": [
+            "算式结果与对应参考字段不一致"
+          ],
+          "reason": "独立参考未通过本地一致性检查，保留候选，请复核",
+          "status": "invalid",
+          "reference_error": "calculation contradicts reference field",
+          "method": "model_review",
+          "error_code": "invalid_reference",
+          "repairable": false
+        }
+      },
+      {
+        "case": 2,
+        "status": "completed",
+        "answer": "{\"grams\":8360}",
+        "selection": {
+          "candidate_index": 1,
+          "reason": "采用保值格式整理"
+        },
+        "acceptance": {
+          "passed": true,
+          "status": "passed",
+          "method": "model_review",
+          "issues": [],
+          "reason": "独立参考与候选一致；已校验所列计算与字段对应关系",
+          "reference_reason": "独立合计",
+          "reference_answer": "{\"grams\":8360}",
+          "source_quotes": [
+            "重量分别为70、6250、1750、10、280克。"
+          ],
+          "calculations": [
+            {
+              "path": "/grams",
+              "expression": "70+6250+1750+10+280"
+            }
+          ],
+          "repairable": false,
+          "verification": {
+            "kind": "independent_reference",
+            "arithmetic_mode": "exact",
+            "calculations_checked": 1,
+            "source_quotes_checked": 1,
+            "semantic_truth_proven": false
+          }
+        }
+      }
+    ]
+  }
+}

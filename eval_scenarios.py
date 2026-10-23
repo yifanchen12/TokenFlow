@@ -52,6 +52,7 @@ def _arm_result(run: dict, case: dict, selected: str) -> dict:
             'reference_disagreement': run['acceptance']['status'] == 'failed' if run['acceptance'].get('verification', {}).get('kind') == 'independent_reference' else None,
             'format_normalized': any(c.get('purpose') == 'format' for c in candidates),
             'selection': run.get('selection'),
+            'api_dispatch': run.get('api_dispatch'),
             'semantic_suggestion': bool(run['acceptance'].get('suggestion_grounded') or run['acceptance'].get('verification') and not run['acceptance'].get('passed')),
             'error_code': run.get('error_code') or run['acceptance'].get('error_code'),
             'error': run.get('error'), 'stages': run['stages'],
@@ -190,9 +191,16 @@ def evaluate_scenarios(cases: list[dict], store: RuntimeConfig, edge_connection:
         profiles = {p['id']: frozen.profile(p['id'], True) for p in frozen.profiles()}
         for profile in profiles.values(): isolated.save_profile(profile)
         settings = frozen.settings()
+        dispatch_planner = {k: settings[k]['planner'] for k in ('roles', 'role_models')}
         settings.update(roles={'local': edge_connection, 'planner': target, 'executor': target, 'reviewer': target},
                         role_models={'local': edge_model, 'planner': complex_model, 'executor': complex_model, 'reviewer': complex_model},
                         max_calls=max_calls, collaboration_mode='hybrid', context_window_tokens=ollama_context)
+        if settings.get('api_dispatch'):
+            for key, value in dispatch_planner.items():
+                settings[key]['planner'] = value
+            report['configuration']['dispatch_planner'] = dispatch_planner
+            report['configuration']['api_dispatch'] = True
+            report['note'] = '单次原文、原文加验收、API调度与Harness完整流程；各分支使用固定配置并保留实际调用。'
         isolated.save_settings(settings)
         report['configuration'].update({k: settings[k] for k in ('output_limits', 'max_task_tokens', 'context_window_tokens')})
         fixed = FrozenConfig(isolated.path, profiles, isolated.settings(), frozen.public()['native'])
