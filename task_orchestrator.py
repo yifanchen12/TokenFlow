@@ -124,7 +124,7 @@ def local_connection(store: RuntimeConfig, settings: dict, mode: str) -> str | N
     return next((p["id"] for p in store.profiles() if p["local"] and p["models"]), None)
 
 
-def task_preflight(data: dict, store: RuntimeConfig | None = None) -> dict:
+def task_preflight(data: dict, store: RuntimeConfig | None = None, *, source_stats: dict | None = None) -> dict:
     store = store or RuntimeConfig()
     settings = store.settings()
     mode = data.get("collaboration_mode", settings["collaboration_mode"])
@@ -136,7 +136,10 @@ def task_preflight(data: dict, store: RuntimeConfig | None = None) -> dict:
         local = local_connection(store, settings, mode)
     except ValueError:
         local = None
-    deterministic = not data.get("path") and (deterministic_task(task, local_statistics(content)) or lookup_table(task, content) is not None or not data.get("source_warnings") and static_python_answer(task, content) is not None)
+    deterministic = not data.get("path") and (
+        deterministic_task(task, source_stats if source_stats is not None else local_statistics(content))
+        or lookup_table(task, content) is not None
+        or not data.get("source_warnings") and static_python_answer(task, content) is not None)
     api_dispatch = mode == 'hybrid' and settings.get('api_dispatch', False)
     harnesses = {}
     if api_dispatch and not deterministic:
@@ -203,7 +206,14 @@ def simple_request(task: str, content: str) -> bool:
     # retains planning even when its final deliverable is one number.
     if re.search(r"先|然后|接着|再|\bthen\b", task, re.I):
         return False
-    return bool(re.search(r"是多少|是什么|叫什么|几天|几个|几点|哪[个些]|返回什么|总结|摘要|概括|分类|翻译|\b(?:what|when|which|summarize|translate)\b", task, re.I))
+    if re.search(r"是多少|是什么|叫什么|几天|几个|几点|哪[个些]|返回什么|总结|摘要|概括|分类|翻译|\b(?:what|when|which|summarize|translate)\b", task, re.I):
+        return True
+    # A short quantity question can ask for a total without using “是多少”.
+    # Keep derived or conditional totals on the planned path.
+    if re.fullmatch(r"[^，,。；;！？?\n]{0,24}(?:合计|总计|一共|共计)[\u3400-\u9fff]{0,6}多少[\u3400-\u9fff]{0,3}[？?。]?"
+                    r"(?:[，,\s]*只(?:回答|返回)(?:最终)?数字[。.]?)?", task.strip()):
+        return not re.search(r"筛选|符合|满足|条件|换算|折扣|扣除|排除|剔除|去重|如果|除外|仅算|仅计|至少|至多|超过|不足|剩余|比例|百分", task + content)
+    return False
 
 
 def table_rows(content: str) -> list[list[str]] | None:
@@ -922,7 +932,7 @@ class TaskRun:
                     self.run["status"] = "needs_review" if issues else "completed"
                     return self.run
             dispatch = task_preflight({"task": self.task, "content": self.content, "collaboration_mode": self.mode,
-                                       'source_warnings': self.run['source_warnings']}, self.store)
+                                       'source_warnings': self.run['source_warnings']}, self.store, source_stats=stats)
             self.run["dispatch"] = dispatch
             if dispatch["issues"]:
                 raise ValueError("；".join(dispatch["issues"]))

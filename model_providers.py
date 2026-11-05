@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from threading import Lock
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 from urllib.parse import urlsplit
 
 
@@ -144,8 +144,12 @@ def configure_omniroute(url: str, key: str | None = None, allowed_models: list[s
     allowed = _model_allowlist(allowed_models) if allowed_models is not None else None
     global _omniroute_session, _omniroute_allowed
     with _omniroute_lock:
-        previous_key = _omniroute_session[1] if _omniroute_session is not None else os.environ.get("TOKENFLOW_OMNIROUTE_API_KEY", "").strip()
-        selected_key = key.strip() if key and key.strip() else previous_key
+        if _omniroute_session is None:
+            previous_url = _base_url(PROVIDERS["omniroute"])
+            previous_key = os.environ.get("TOKENFLOW_OMNIROUTE_API_KEY", "").strip()
+        else:
+            previous_url, previous_key = _omniroute_session
+        selected_key = (key or "").strip() or (previous_key if url == previous_url else "")
         try:
             _validate_omniroute(url, selected_key)
         except ProviderError as exc:
@@ -164,6 +168,11 @@ def chat_messages(task: str, content: str) -> list[dict[str, str]]:
         {"role": "system", "content": "你是 TokenFlow 的模型路由后端，请简洁、准确地完成任务。"},
         {"role": "user", "content": f"任务：{task}\n\n内容：\n{content}"},
     ]
+
+
+class NoProviderRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 def _read_json(response: Any) -> dict[str, Any]:
@@ -203,7 +212,7 @@ class OpenAICompatibleProvider:
                 headers["Authorization"] = f"Bearer {key}"
         request = Request((base_url or self.base_url) + path, data=body, headers=headers, method=method)
         try:
-            with urlopen(request, timeout=self.timeout) as response:
+            with build_opener(NoProviderRedirect()).open(request, timeout=self.timeout) as response:
                 return _read_json(response)
         except HTTPError as exc:
             raise ProviderError(f"{self.spec.name} HTTP {exc.code}") from exc
@@ -373,8 +382,17 @@ def self_check() -> None:
         configure_omniroute("http://127.0.0.1:20128/v1", "session-secret")
         client = OpenAICompatibleProvider("omniroute")
         assert client.base_url == "http://127.0.0.1:20128/v1" and client._omniroute_key == "session-secret"
-        configure_omniroute("https://gateway.example/v1", "")
-        assert omniroute_config() == ("https://gateway.example/v1", "session-secret")
+        configure_omniroute(client.base_url, "")
+        assert omniroute_config() == (client.base_url, "session-secret")
+        try:
+            configure_omniroute("https://gateway.example/v1", "")
+        except ValueError:
+            assert omniroute_config() == (client.base_url, "session-secret")
+        else:
+            raise AssertionError("changing gateways must not forward the old key")
+        configure_omniroute("https://gateway.example/v1", "replacement")
+        configure_omniroute("http://localhost:1919/v1", "")
+        assert not omniroute_config()[1]
         assert client.base_url == "http://127.0.0.1:20128/v1"  # a request keeps one URL/Key snapshot
         try:
             configure_omniroute("http://gateway.example/v1", "another-secret")

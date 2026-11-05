@@ -248,15 +248,22 @@ class RuntimeConfig:
             return [json.loads(r["data"]) | {"key_configured": bool(r["secret"])}
                     for r in db.execute("SELECT data, secret FROM connections ORDER BY rowid")]
 
-    def profile(self, identity: str, secret: bool = False) -> dict:
+    def _profile_row(self, identity: str) -> sqlite3.Row:
         with self.connect() as db:
             row = db.execute("SELECT data, secret FROM connections WHERE id=?", (identity,)).fetchone()
         if not row:
             raise ValueError("未找到保存的提供商连接")
+        return row
+
+    @staticmethod
+    def _decode_profile(row: sqlite3.Row, secret: bool) -> dict:
         data = json.loads(row["data"]) | {"key_configured": bool(row["secret"])}
         if secret:
             data["api_key"] = _protect(base64.b64decode(row["secret"]), True).decode() if row["secret"] else ""
         return data
+
+    def profile(self, identity: str, secret: bool = False) -> dict:
+        return self._decode_profile(self._profile_row(identity), secret)
 
     def save_profile(self, data: dict) -> dict:
         identity = str(data.get("id") or uuid.uuid4().hex)
@@ -298,7 +305,8 @@ class RuntimeConfig:
         return record | {"key_configured": bool(encrypted)}
 
     def discover(self, identity: str) -> dict:
-        profile = self.profile(identity, True)
+        row = self._profile_row(identity)
+        profile = self._decode_profile(row, True)
         try:
             models = clean_models(ConnectionClient(profile, timeout=8).models())
             if not models:
@@ -312,7 +320,9 @@ class RuntimeConfig:
         profile.pop("api_key", None)
         profile.pop("key_configured", None)
         with self.connect() as db:
-            db.execute("UPDATE connections SET data=? WHERE id=?", (json.dumps(profile, ensure_ascii=False), identity))
+            # A slow probe must not undo a concurrent edit or a newer catalog.
+            db.execute("UPDATE connections SET data=? WHERE id=? AND data=? AND secret=?",
+                       (json.dumps(profile, ensure_ascii=False), identity, row["data"], row["secret"]))
         return self.profile(identity)
 
     def settings(self) -> dict:
@@ -668,8 +678,8 @@ class ConnectionClient(OpenAICompatibleProvider):
     def _request(self, path: str, payload: dict | None = None, *, base_url: str | None = None) -> dict:
         # Separate per-instance credentials: never mutate the server's environment.
         from urllib.error import HTTPError, URLError
-        from urllib.request import Request, build_opener, HTTPRedirectHandler
-        from model_providers import _read_json
+        from urllib.request import Request, build_opener
+        from model_providers import NoProviderRedirect, _read_json
         key = self.profile.get("api_key", "")
         headers = {"Accept": "application/json"}
         if key:
@@ -682,11 +692,8 @@ class ConnectionClient(OpenAICompatibleProvider):
         if body is not None:
             headers["Content-Type"] = "application/json"
         request = Request((base_url or self.base_url) + path, data=body, headers=headers)
-        class NoRedirect(HTTPRedirectHandler):
-            def redirect_request(self, req, fp, code, msg, headers, newurl):
-                return None
         try:
-            with build_opener(NoRedirect()).open(request, timeout=self.timeout) as response:
+            with build_opener(NoProviderRedirect()).open(request, timeout=self.timeout) as response:
                 return _read_json(response)
         except HTTPError as exc:
             raise ProviderError(f"连接 HTTP {exc.code}；请检查协议、地址与 Key") from exc

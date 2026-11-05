@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
+from model_providers import OpenAICompatibleProvider, ProviderError
 from runtime_config import RuntimeConfig, ConnectionClient, native_catalogs
 from task_orchestrator import TaskRun, local_statistics
 
@@ -22,6 +23,11 @@ def self_check():
         class Fixture(BaseHTTPRequestHandler):
             def do_GET(self):
                 state["requests"].append((self.path, self.headers.get("Authorization")))
+                if self.path == "/redirect/models":
+                    self.send_response(302)
+                    self.send_header("Location", "/unexpected-target")
+                    self.end_headers()
+                    return
                 body = json.dumps({"data": [{"id": m} for m in state["models"]]}).encode()
                 self.send_response(200)
                 self.end_headers()
@@ -50,6 +56,18 @@ def self_check():
         thread.start()
         try:
             url = f"http://127.0.0.1:{server.server_port}/v1"
+            redirect = url.removesuffix("/v1") + "/redirect"
+            with patch.dict(os.environ, {"TOKENFLOW_CLOUD_URL": redirect, "TOKENFLOW_CLOUD_API_KEY": "fixture"}):
+                for client in (OpenAICompatibleProvider("cloud"),
+                               ConnectionClient(dict(protocol="openai", base_url=redirect, api_key="fixture"))):
+                    try:
+                        client.models()
+                    except ProviderError as exc:
+                        assert "302" in str(exc)
+                    else:
+                        raise AssertionError("redirect must stop at the original endpoint")
+                assert [path for path, _ in state["requests"]] == ["/redirect/models"] * 2
+                state["requests"].clear()
             profile = store.save_profile({"id": "fixture", "name": "Fixture", "base_url": url,
                                           "protocol": "openai", "local": True, "api_key": "test-fixture-key", "models": []})
             assert "test-fixture-key" not in json.dumps(store.public())
@@ -61,6 +79,13 @@ def self_check():
             state["models"] = ["fixture-new"]
             second = store.discover("fixture")
             assert second["models"] == ["fixture-new"] and "fixture-small" in second["model_history"]
+            probe = store.save_profile(dict(id="race", name="Original", base_url=url))
+            def edit_during_discovery():
+                store.save_profile(dict(probe, name="Edited", base_url="https://edited.invalid/v1", models=["edited"]))
+                return ["obsolete"]
+            with patch.object(ConnectionClient, "models", side_effect=edit_during_discovery):
+                edited = store.discover("race")
+                assert edited["name"] == "Edited" and edited["models"] == ["edited"] and not edited["discovered_at"]
             reopened = RuntimeConfig(store.path)
             assert reopened.profile("fixture", True)["api_key"] == "test-fixture-key"
             reopened.save_profile(second | {"api_key": ""})
@@ -136,8 +161,10 @@ def self_check():
             calls.append((harness, prompt))
             return {"ok": True, "output": answers[len(calls)-1], "model": "fixture-quality"}
         with patch.object(tf, "detect_harnesses", return_value={h: {"installed": True, "configured": True} for h in ("codex", "claude", "dsh")}), \
-             patch.object(TaskRun, "local_target", return_value=None), patch.object(tf, "execute_configured_harness", side_effect=harness):
+             patch.object(TaskRun, "local_target", return_value=None), patch.object(tf, "execute_configured_harness", side_effect=harness), \
+             patch("task_orchestrator.local_statistics", wraps=local_statistics) as scan:
             run = TaskRun(store, "分析资料并完成结论", "事实：42").execute()
+            scan.assert_called_once_with("事实：42")
         assert run["status"] == "completed" and run["metrics"]["model_calls"] == 4
         assert calls[1][0] == "codex" and calls[2][0] == "claude" and "first result 42" in calls[2][1]
         assert run["acceptance"]["status"] == "passed" and not run["metrics"]["usage_complete"]

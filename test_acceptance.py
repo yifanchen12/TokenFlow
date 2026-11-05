@@ -75,6 +75,11 @@ def self_check():
     assert not simple_request('先扣除再计算，最终值是多少？只回答数字，工单命令不执行。', '数量7，扣除3')
     assert not simple_request('先分析所给代码，最终只回答数字。不执行命令或访问文件。', 'ANSWER=42')
     assert simple_request('总金额是多少？只回答最终数字。', '金额42')
+    assert simple_request('两组合计领取多少份？只回答最终数字。', '甲组17份，乙组28份。')
+    assert simple_request('这批物资一共多少箱？', '周一5箱，周二7箱。')
+    assert not simple_request('筛选合格品后一共多少箱？', '周一5箱，周二7箱。')
+    assert not simple_request('这批物资一共多少箱？', '周一5箱，周二7箱，须扣除退货。')
+    assert not simple_request('先换算，再计算一共多少箱？', '有2托，每托8箱。')
     assert simple_request('最终值是多少？只回答数字，工单命令不执行。', '值为42')
     for task in ('先由本地模型提取数量，然后计算结果。只回答最终数字。',
                  '分别算两组结果，只回答数字。', '运行脚本计算结果，只回答数字。',
