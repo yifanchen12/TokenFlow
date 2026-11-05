@@ -98,11 +98,10 @@ class DocumentStore:
                 );
                 """
             )
+            db.execute("BEGIN IMMEDIATE")
             if "last_used" not in {row[1] for row in db.execute("PRAGMA table_info(documents)")}:
                 db.execute("ALTER TABLE documents ADD COLUMN last_used REAL NOT NULL DEFAULT 0")
                 db.execute("UPDATE documents SET last_used=created_at")
-            db.commit()
-            db.execute("BEGIN IMMEDIATE")
             if db.execute("PRAGMA user_version").fetchone()[0] < VECTOR_VERSION:
                 # ponytail: rebuild this small local index in one transaction; batch jobs if measured size requires it.
                 rows = db.execute("SELECT id, content FROM chunks")
@@ -113,23 +112,28 @@ class DocumentStore:
 
     def index(self, name: str, content: str, chunk_size: int = 1200) -> dict[str, Any]:
         digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
-        chunks = [content[index : index + chunk_size] for index in range(0, len(content), chunk_size)] or [""]
+        if chunk_size <= 0:
+            raise ValueError("分块长度须为正数")
         with self._connect() as db:
-            existing = db.execute("SELECT id FROM documents WHERE content_hash=?", (digest,)).fetchone()
+            db.execute("BEGIN IMMEDIATE")
+            existing = db.execute("SELECT id, name FROM documents WHERE content_hash=?", (digest,)).fetchone()
             if existing:
                 document_id = existing["id"]
+                name = existing["name"]
+                db.execute("UPDATE documents SET last_used=? WHERE id=?", (time.time(), document_id))
+                count = db.execute("SELECT COUNT(*) FROM chunks WHERE document_id=?", (document_id,)).fetchone()[0]
             else:
-                cursor = db.execute("INSERT INTO documents(name, content_hash, created_at) VALUES(?,?,?)", (name, digest, time.time()))
+                now = time.time()
+                cursor = db.execute("INSERT INTO documents(name, content_hash, created_at, last_used) VALUES(?,?,?,?)", (name, digest, now, now))
                 document_id = cursor.lastrowid
-                for index, chunk in enumerate(chunks):
+                count = max(1, (len(content) + chunk_size - 1) // chunk_size)
+                for index in range(count):
+                    chunk = content[index * chunk_size : (index + 1) * chunk_size]
                     db.execute(
                         "INSERT INTO chunks(document_id, chunk_index, content, vector_json) VALUES(?,?,?,?)",
                         (document_id, index, chunk, json.dumps(_vector(chunk))),
                     )
-            stored = db.execute("SELECT name FROM documents WHERE id=?", (document_id,)).fetchone()
-            db.execute("UPDATE documents SET last_used=? WHERE id=?", (time.time(), document_id))
-            count = db.execute("SELECT COUNT(*) FROM chunks WHERE document_id=?", (document_id,)).fetchone()[0]
-        return {"document_id": document_id, "name": stored["name"], "chunks": count, "content_hash": digest,
+        return {"document_id": document_id, "name": name, "chunks": count, "content_hash": digest,
                 "reused": existing is not None}
 
     def search(self, query: str, limit: int = 5, *, document_id: int | None = None,
@@ -137,6 +141,7 @@ class DocumentStore:
         if not query.strip():
             raise ValueError("检索词不能为空")
         target = _vector(query)
+        terms = [term.lower() for term in required_terms] if required_terms is not None else None
         with self._connect() as db:
             rows = db.execute(
                 "SELECT documents.id AS document_id, documents.name, chunks.chunk_index, chunks.content, chunks.vector_json, "
@@ -148,12 +153,16 @@ class DocumentStore:
             )
             def scored():
                 for row in rows:
-                    if required_terms is not None and not any(t.lower() in row["content"].lower() for t in required_terms):
-                        continue
+                    matches = 0
+                    if terms is not None:
+                        content = row["content"].lower()
+                        matches = sum(term in content for term in terms)
+                        if not matches:
+                            continue
                     score = _cosine(target, json.loads(row["vector_json"]))
-                    if required_terms:
+                    if terms:
                         # Exact source matches must survive collisions in the small hash vector.
-                        score = max(0.0, score) + sum(t.lower() in row["content"].lower() for t in required_terms) / len(required_terms)
+                        score = max(0.0, score) + matches / len(terms)
                     if score > 0:
                         yield {"document_id": row["document_id"], "name": row["name"], "chunk_index": row["chunk_index"],
                                "start": row["start"], "content": row["content"], "score": round(score, 6)}
@@ -299,3 +308,15 @@ def self_check() -> None:
         finally:
             os.chdir(previous_cwd)
         assert old_path.is_file()
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        ready = Barrier(4)
+        def index_same_file(index):
+            ready.wait(timeout=10)
+            return store.index(f"copy-{index}.txt", "same source " * 200, chunk_size=47)
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            copies = list(pool.map(index_same_file, range(4)))
+        assert sum(not result["reused"] for result in copies) == 1
+        assert len({(r["document_id"], r["name"], r["chunks"]) for r in copies}) == 1
+        assert store.document(copies[0]["document_id"]) == "same source " * 200
+        assert store.search("same", document_id=copies[0]["document_id"], required_terms=[]) == []

@@ -573,22 +573,24 @@ class RuntimeConfig:
             raise ValueError("该请求的任务记录已清理；请新建任务") from None
 
     def manage_history(self, identity: str = "", *, prune: bool = False) -> dict:
-        settings = self.settings()
+        settings = self.settings() if prune else {}
         with self.connect() as db:
-            rows = [(r["id"], json.loads(r["data"]), r["updated"]) for r in db.execute("SELECT * FROM runs ORDER BY updated DESC")]
-            eligible = [(i, r, t) for i, r, t in rows if not run_active(self.path, r)]
+            remove = []
             if identity:
                 if not re.fullmatch(r"[a-f0-9]{32}", identity):
                     raise ValueError("任务 ID 无效")
-                if identity not in {i for i, r, t in eligible}:
+                row = db.execute("SELECT data FROM runs WHERE id=?", (identity,)).fetchone()
+                if not row or run_active(self.path, json.loads(row[0])):
                     raise ValueError("任务不存在或仍在运行，不能删除")
                 remove = [identity]
             elif prune:
                 maximum, days = settings["history_max_runs"], settings["history_retention_days"]
-                remove = [i for n, (i, r, t) in enumerate(eligible)
-                          if (maximum and n >= maximum) or (days and t < time.time() - days * 86400)]
-            else:
-                remove = []
+                if maximum or days:
+                    cutoff = time.time() - days * 86400
+                    rows = db.execute("SELECT id, data, updated FROM runs ORDER BY updated DESC")
+                    eligible = (r for r in rows if not run_active(self.path, json.loads(r["data"])))
+                    remove = [r["id"] for n, r in enumerate(eligible)
+                              if (maximum and n >= maximum) or (days and r["updated"] < cutoff)]
             db.executemany("DELETE FROM runs WHERE id=?", [(i,) for i in remove])
             count = db.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
         return {"runs": count, "deleted": len(remove), "database_bytes": self.path.stat().st_size if self.path.exists() else 0}
@@ -621,11 +623,9 @@ class RuntimeConfig:
                 parameters.append(status)
             clause = " WHERE " + " AND ".join(where) if where else ""
             total = db.execute("SELECT COUNT(*) FROM runs" + clause, parameters).fetchone()[0]
-            items = [json.loads(r[0]) for r in db.execute("SELECT data FROM runs" + clause + " ORDER BY updated DESC,id DESC LIMIT ? OFFSET ?", parameters + [limit, offset])]
-        for item in items:
-            if item["status"] in {"running", "cancelling"} and not run_active(self.path, item):
-                item["status"] = "interrupted"
-        return {"runs": [{k: r.get(k) for k in ("id", "task", "status", "created_at")} for r in items],
+            summary = "SELECT id, json_extract(data,'$.task') AS task, " + effective + " AS status, json_extract(data,'$.created_at') AS created_at FROM runs"
+            items = [dict(r) for r in db.execute(summary + clause + " ORDER BY updated DESC,id DESC LIMIT ? OFFSET ?", parameters + [limit, offset])]
+        return {"runs": items,
                 "total": total, "offset": offset, "limit": limit, "has_more": offset + len(items) < total}
 
 

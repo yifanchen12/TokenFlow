@@ -1,4 +1,4 @@
-param([string]$Executable = (Join-Path $PSScriptRoot '../dist/TokenFlow.exe'))
+param([string]$Executable = (Join-Path $PSScriptRoot '../dist/TokenFlow.exe'), [switch]$SkipOcrInference)
 $ErrorActionPreference = 'Stop'
 $tfPath = (Resolve-Path -LiteralPath $Executable).Path
 $tfTemporary = Join-Path ([IO.Path]::GetTempPath()) ('tokenflow-smoke-' + [Guid]::NewGuid().ToString('N'))
@@ -92,20 +92,25 @@ try {
     if (-not $tfDependency.compression_applied -or -not $tfDependency.result.Contains('REFUND_DAYS = 14') -or -not $tfDependency.result.Contains('return REFUND_DAYS')) { throw 'Packaged Python extraction lost its global dependency' }
     $ocr = Invoke-RestMethod "$tfBase/api/ocr" -TimeoutSec 5
     if (-not $ocr.available -or -not $ocr.offline -or $ocr.device -ne 'CPU') { throw 'Packaged OCR unavailable' }
-    Add-Type -AssemblyName System.Drawing
-    $tfImagePath = Join-Path $tfTemporary 'ocr.png'
-    $tfBitmap = [Drawing.Bitmap]::new(800,180)
-    $tfGraphics = [Drawing.Graphics]::FromImage($tfBitmap)
-    $tfFont = [Drawing.Font]::new('Arial',42)
-    try {
-        $tfGraphics.Clear([Drawing.Color]::White)
-        $tfGraphics.DrawString('LOCAL OCR 42',$tfFont,[Drawing.Brushes]::Black,20,40)
-        $tfBitmap.Save($tfImagePath,[Drawing.Imaging.ImageFormat]::Png)
-    } finally { $tfFont.Dispose(); $tfGraphics.Dispose(); $tfBitmap.Dispose() }
-    $tfRecognized = Invoke-RestMethod "$tfBase/api/parse" -Method Post -Headers $tfHeaders -Form @{file=(Get-Item -LiteralPath $tfImagePath)} -TimeoutSec 40
-    if ($tfRecognized.method -ne 'local_ocr' -or -not $tfRecognized.text.Contains('42')) { throw 'Packaged OCR recognition failed' }
-    $tfReused = Invoke-RestMethod "$tfBase/api/parse" -Method Post -Headers $tfHeaders -Form @{file=(Get-Item -LiteralPath $tfImagePath)} -TimeoutSec 10
-    if (-not $tfReused.cache_reused -or $tfReused.text -ne $tfRecognized.text) { throw 'Packaged OCR cache failed' }
+    if ($SkipOcrInference) {
+        $tfInputPath = Join-Path $tfTemporary 'plain.txt'
+        [IO.File]::WriteAllText($tfInputPath, 'TEXT 42')
+    } else {
+        Add-Type -AssemblyName System.Drawing
+        $tfInputPath = Join-Path $tfTemporary 'ocr.png'
+        $tfBitmap = [Drawing.Bitmap]::new(800,180)
+        $tfGraphics = [Drawing.Graphics]::FromImage($tfBitmap)
+        $tfFont = [Drawing.Font]::new('Arial',42)
+        try {
+            $tfGraphics.Clear([Drawing.Color]::White)
+            $tfGraphics.DrawString('LOCAL OCR 42',$tfFont,[Drawing.Brushes]::Black,20,40)
+            $tfBitmap.Save($tfInputPath,[Drawing.Imaging.ImageFormat]::Png)
+        } finally { $tfFont.Dispose(); $tfGraphics.Dispose(); $tfBitmap.Dispose() }
+    }
+    $tfParsed = Invoke-RestMethod "$tfBase/api/parse" -Method Post -Headers $tfHeaders -Form @{file=(Get-Item -LiteralPath $tfInputPath)} -TimeoutSec 40
+    if (-not $tfParsed.text.Contains('42') -or (-not $SkipOcrInference -and $tfParsed.method -ne 'local_ocr')) { throw 'Packaged file parsing failed' }
+    $tfReused = Invoke-RestMethod "$tfBase/api/parse" -Method Post -Headers $tfHeaders -Form @{file=(Get-Item -LiteralPath $tfInputPath)} -TimeoutSec 10
+    if (-not $tfReused.cache_reused -or $tfReused.text -ne $tfParsed.text) { throw 'Packaged parser cache failed' }
     $savedConnection = @{id='smoke-profile'; name='Smoke fixture'; base_url='http://127.0.0.1:9/v1'; protocol='responses'; api_key='smoke-connection-key'; models=@('smoke-model')} | ConvertTo-Json
     $saved = Invoke-RestMethod "$tfBase/api/config/connection" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body $savedConnection -TimeoutSec 5
     if (($saved | ConvertTo-Json).Contains('smoke-connection-key') -or -not $saved.key_configured) { throw 'Saved connection exposed or lost its key' }
@@ -193,7 +198,7 @@ try {
     Invoke-RestMethod "$tfBase/api/config/storage/clear" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     Invoke-RestMethod "$tfBase/api/shutdown" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
     if (-not $tfProcess.WaitForExit(10000)) { throw 'Restarted EXE did not exit' }
-    Write-Output 'EXE smoke: PASS (singleton across ports, bounded Python verification, independent recovery and receipt, fixed progress and pure answer UI, protected keys, OCR, statistics, lookup, durable savings, budgets, history, restart and shutdown)'
+    Write-Output "EXE smoke: PASS (singleton, bounded Python verification, recovery, receipts, UI, protected keys, parser cache, statistics, lookup, savings, budgets, history, restart and shutdown; OCR inference skipped: $SkipOcrInference)"
 } finally {
     Stop-SmokeProcess $tfSecondProcess
     if ($tfProcess -and -not $tfProcess.HasExited) {
