@@ -61,15 +61,37 @@ def self_check():
         "TOKENFLOW_DB_PATH": str(Path(temporary) / "documents.db"),
     }):
         store = RuntimeConfig()
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        for iteration in range(4):
+            updates = [{"max_calls": 3 + iteration}, {"history_max_runs": 10 + iteration},
+                       {"cache_retention_days": 20 + iteration},
+                       {"output_limits": {"reviewer": 500 + iteration}}]
+            ready = Barrier(len(updates))
+            def save_update(update):
+                ready.wait(timeout=10)
+                RuntimeConfig(store.path).save_settings(update)
+            with ThreadPoolExecutor(max_workers=len(updates)) as pool:
+                list(pool.map(save_update, updates))
+            saved = store.settings()
+            for update in updates:
+                key, value = next(iter(update.items()))
+                assert (saved[key]["reviewer"] if key == "output_limits" else saved[key]) == (
+                    value["reviewer"] if key == "output_limits" else value)
+        # Reset retention limits before exercising the existing task/cache cases.
+        store.save_settings({"max_calls": 6, "history_max_runs": 0, "cache_retention_days": 0,
+                             "output_limits": {"reviewer": 1024}})
         store.save_profile({"id": "fixture", "name": "Fixture", "protocol": "openai", "base_url": "http://127.0.0.1:1/v1", "models": ["fixture"], "local": True})
         store.save_settings({"roles": {role: "fixture" for role in ("local", "planner", "executor", "reviewer")}})
         for invalid in ({"max_task_tokens": True}, {"context_window_tokens": -1}, {"output_limits": {"reviewer": 1}}, {"cache_retention_days": -1}):
+            before = store.settings()
             try:
                 store.save_settings(invalid)
             except ValueError:
                 pass
             else:
                 raise AssertionError("invalid limits must fail")
+            assert store.settings() == before
         store.save_settings({"max_task_tokens": 256})
         with patch("task_orchestrator.ConnectionClient.chat") as called:
             blocked = TaskRun(store, "ANSWER是多少？", "ANSWER = 42").execute()

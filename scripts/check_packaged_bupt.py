@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from urllib.request import build_opener, ProxyHandler, Request
 
 
-def check(executable):
+def check(executable, encoding="utf-8"):
     remote = urlsplit(os.environ.get("BUPT_API_BASE_URL", ""))
     if remote.scheme != "https" or not (remote.hostname or "").endswith(".bupt.edu.cn") or not os.environ.get("BUPT_API_KEY"):
         raise RuntimeError("A configured BUPT HTTPS endpoint and key are required")
@@ -28,7 +28,7 @@ def check(executable):
                    TOKENFLOW_HOST="127.0.0.1", TOKENFLOW_PORT=str(port), TOKENFLOW_OPEN_BROWSER="0",
                    TOKENFLOW_CONFIG_DB=str(folder / "connections.db"), TOKENFLOW_DB_PATH=str(folder / "documents.db"))
         source = folder / "inventory.txt"
-        source.write_text("上午领取17份，下午领取28份，之后退回3份。", encoding="utf-8")
+        source.write_text("上午领取17份，下午领取28份，之后退回3份。", encoding=encoding)
         opener = build_opener(ProxyHandler({}))
         headers = {"Content-Type": "application/json"}
 
@@ -80,6 +80,8 @@ def check(executable):
                     or not all(c["target"] == profile["id"] and c["model"] == model and c["local"] is False
                                and c["status"] == "completed" for c in calls)):
                 raise RuntimeError(f"EXE task verification failed (status={run['status']}, calls={len(calls)})")
+            if run.get("parsing", {}).get("encoding") != ("utf-8-sig" if encoding == "utf-8" else encoding):
+                raise RuntimeError("EXE did not record the expected source encoding")
             history = api("/api/tasks?status=completed")
             receipt = api("/api/tasks/start", task)
             if [item["id"] for item in history["runs"]] != [identity] or receipt["id"] != identity or not receipt["reused"]:
@@ -89,7 +91,7 @@ def check(executable):
                 for chunk in iter(lambda: binary.read(1024 * 1024), b""):
                     digest.update(chunk)
             print(json.dumps({"sha256": digest.hexdigest(),
-                              "model": model, "answer": 42, "review": "passed", "history": "passed",
+                              "model": model, "source_encoding": encoding, "answer": 42, "review": "passed", "history": "passed",
                               "receipt_reused": True, "roles": [c["purpose"] for c in calls],
                               "local_calls": run["metrics"]["local_calls"], "tokens": run["metrics"]["reported_total_tokens"]}))
         finally:
@@ -107,4 +109,6 @@ def check(executable):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("executable", type=Path)
-    check(parser.parse_args().executable.resolve(strict=True))
+    parser.add_argument("--encoding", choices=("utf-8", "utf-16", "utf-32"), default="utf-8")
+    args = parser.parse_args()
+    check(args.executable.resolve(strict=True), args.encoding)

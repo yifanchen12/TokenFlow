@@ -871,7 +871,7 @@ class TaskRun:
                 self.content = parsed["text"]
                 self.selected_context = self.content
                 self.run["parse_cache_reused"] = parsed["cache_reused"]
-                self.run["parsing"] = {k: parsed[k] for k in ("method", "warnings", "missing_formula_count", "ocr_pages", "ocr_details") if k in parsed}
+                self.run["parsing"] = {k: parsed[k] for k in ("method", "encoding", "warnings", "missing_formula_count", "ocr_pages", "ocr_details") if k in parsed}
                 self.run["source_warnings"] = list(dict.fromkeys(self.run["source_warnings"] + parsed.get("warnings", [])))
                 self.run["stages"][-1].update(status="completed", detail="文件解析完成" + ("，复用已有解析结果" if parsed["cache_reused"] else ""))
                 self.check_cancel()

@@ -94,7 +94,7 @@ try {
     if (-not $ocr.available -or -not $ocr.offline -or $ocr.device -ne 'CPU') { throw 'Packaged OCR unavailable' }
     if ($SkipOcrInference) {
         $tfInputPath = Join-Path $tfTemporary 'plain.txt'
-        [IO.File]::WriteAllText($tfInputPath, 'TEXT 42')
+        [IO.File]::WriteAllText($tfInputPath, 'TEXT 42', [Text.Encoding]::Unicode)
     } else {
         Add-Type -AssemblyName System.Drawing
         $tfInputPath = Join-Path $tfTemporary 'ocr.png'
@@ -109,8 +109,18 @@ try {
     }
     $tfParsed = Invoke-RestMethod "$tfBase/api/parse" -Method Post -Headers $tfHeaders -Form @{file=(Get-Item -LiteralPath $tfInputPath)} -TimeoutSec 40
     if (-not $tfParsed.text.Contains('42') -or (-not $SkipOcrInference -and $tfParsed.method -ne 'local_ocr')) { throw 'Packaged file parsing failed' }
+    if ($SkipOcrInference -and $tfParsed.encoding -ne 'utf-16') { throw 'Packaged UTF-16 decoding failed' }
     $tfReused = Invoke-RestMethod "$tfBase/api/parse" -Method Post -Headers $tfHeaders -Form @{file=(Get-Item -LiteralPath $tfInputPath)} -TimeoutSec 10
     if (-not $tfReused.cache_reused -or $tfReused.text -ne $tfParsed.text) { throw 'Packaged parser cache failed' }
+    $tfBrokenPath = Join-Path $tfTemporary 'broken.txt'
+    [IO.File]::WriteAllBytes($tfBrokenPath, [byte[]](65,255))
+    $tfRejected = $false
+    try {
+        Invoke-RestMethod "$tfBase/api/parse" -Method Post -Headers $tfHeaders -Form @{file=(Get-Item -LiteralPath $tfBrokenPath)} -TimeoutSec 10 | Out-Null
+    } catch {
+        if ([int]$_.Exception.Response.StatusCode -eq 400) { $tfRejected = $true } else { throw }
+    }
+    if (-not $tfRejected) { throw 'Invalid text silently accepted' }
     $savedConnection = @{id='smoke-profile'; name='Smoke fixture'; base_url='http://127.0.0.1:9/v1'; protocol='responses'; api_key='smoke-connection-key'; models=@('smoke-model')} | ConvertTo-Json
     $saved = Invoke-RestMethod "$tfBase/api/config/connection" -Method Post -Headers $tfHeaders -ContentType 'application/json' -Body $savedConnection -TimeoutSec 5
     if (($saved | ConvertTo-Json).Contains('smoke-connection-key') -or -not $saved.key_configured) { throw 'Saved connection exposed or lost its key' }

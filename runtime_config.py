@@ -285,6 +285,8 @@ class RuntimeConfig:
         if not isinstance(key, str) or len(key) > 4096 or any(c.isspace() or ord(c) < 32 for c in key):
             raise ValueError("API Key 不能包含空白或控制字符")
         with self.connect() as db:
+            if not db.in_transaction:
+                db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT data, secret FROM connections WHERE id=?", (identity,)).fetchone()
             old = json.loads(row["data"]) if row else {}
             encrypted = row["secret"] if row else ""
@@ -350,63 +352,66 @@ class RuntimeConfig:
         return FrozenConfig(self.path, profiles, settings, native)
 
     def save_settings(self, data: dict) -> dict:
-        result = self.settings()
-        mode = data.get("collaboration_mode", result["collaboration_mode"])
-        if not isinstance(mode, str) or mode not in {"hybrid", "local_only", "configured"}:
-            raise ValueError("协同策略无效")
-        result["collaboration_mode"] = mode
-        dispatch = data.get('api_dispatch', result['api_dispatch'])
-        if type(dispatch) is not bool:
-            raise ValueError('API 调度开关须为布尔值')
-        result['api_dispatch'] = dispatch
-        if any(not isinstance(data.get(k, {}), dict) for k in ("bindings", "roles", "role_models")):
-            raise ValueError("绑定、角色和角色模型须为对象")
-        for harness, binding in data.get("bindings", {}).items():
-            if harness not in result["bindings"] or not isinstance(binding, dict):
-                raise ValueError("Harness 绑定无效")
-            connection, model = binding.get("connection", "native"), binding.get("model", "auto")
-            if not isinstance(connection, str):
-                raise ValueError("连接 ID 无效")
-            if model != "auto" and (not isinstance(model, str) or not MODEL_RE.fullmatch(model)):
-                raise ValueError("绑定模型 ID 无效")
-            if connection != "native":
-                profile = self.profile(connection)
-                if harness not in HARNESS_PROTOCOLS or profile["protocol"] != HARNESS_PROTOCOLS[harness]:
-                    raise ValueError("Codex 需要 Responses；Claude 需要 Anthropic Messages；DSH 需要 Chat Completions")
-                if model != "auto" and model not in profile["models"]:
-                    raise ValueError("模型不在连接的当前模型记录中")
-            result["bindings"][harness] = {"connection": connection, "model": model}
-        for role, target in data.get("roles", {}).items():
-            if role not in ROLES or not isinstance(target, str):
-                raise ValueError("角色配置无效")
-            if target not in {"auto", "native:codex", "native:claude", "native:dsh"}:
-                profile = self.profile(target)
-            if role == "local" and target.startswith("native:"):
-                raise ValueError("本地小模型角色需要本地 API 连接")
-            if role != "local" and target == "auto":
-                raise ValueError("规划、执行、验收角色需要选择已配置的连接或 Harness")
-            result["roles"][role] = target
-        for role, model in data.get("role_models", {}).items():
-            if role not in ROLES or (model != "auto" and (not isinstance(model, str) or not MODEL_RE.fullmatch(model))):
-                raise ValueError("角色模型 ID 无效")
-            result["role_models"][role] = model
-        budget = data.get("max_calls", result["max_calls"])
-        if not isinstance(budget, int) or isinstance(budget, bool) or not 3 <= budget <= 8:
-            raise ValueError("模型调用预算须为 3 至 8 次")
-        result["max_calls"] = budget
-        bounds = {"max_task_tokens": (256, 2_000_000), "context_window_tokens": (256, 1_000_000),
-                  "history_max_runs": (0, 100000), "history_retention_days": (0, 3650),
-                  "cache_max_mb": (0, 100000), "cache_retention_days": (0, 3650)}
-        for key, (minimum, maximum) in bounds.items():
-            value = data.get(key, result[key])
-            if type(value) is not int or not minimum <= value <= maximum:
-                raise ValueError(f"{key} 须为 {minimum} 至 {maximum} 的整数")
-            result[key] = value
-        limits = data.get("output_limits", {})
-        if not isinstance(limits, dict) or any(r not in ROLES or type(v) is not int or not 64 <= v <= 32768 for r, v in limits.items()):
-            raise ValueError("阶段输出上限须为 64 至 32768 Token")
-        result["output_limits"].update(limits)
         with self.connect() as db:
+            if not db.in_transaction:
+                db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT data FROM settings WHERE id='runtime'").fetchone()
+            result = _runtime_settings(json.loads(row[0]) if row else None)
+            mode = data.get("collaboration_mode", result["collaboration_mode"])
+            if not isinstance(mode, str) or mode not in {"hybrid", "local_only", "configured"}:
+                raise ValueError("协同策略无效")
+            result["collaboration_mode"] = mode
+            dispatch = data.get('api_dispatch', result['api_dispatch'])
+            if type(dispatch) is not bool:
+                raise ValueError('API 调度开关须为布尔值')
+            result['api_dispatch'] = dispatch
+            if any(not isinstance(data.get(k, {}), dict) for k in ("bindings", "roles", "role_models")):
+                raise ValueError("绑定、角色和角色模型须为对象")
+            for harness, binding in data.get("bindings", {}).items():
+                if harness not in result["bindings"] or not isinstance(binding, dict):
+                    raise ValueError("Harness 绑定无效")
+                connection, model = binding.get("connection", "native"), binding.get("model", "auto")
+                if not isinstance(connection, str):
+                    raise ValueError("连接 ID 无效")
+                if model != "auto" and (not isinstance(model, str) or not MODEL_RE.fullmatch(model)):
+                    raise ValueError("绑定模型 ID 无效")
+                if connection != "native":
+                    profile = self.profile(connection)
+                    if harness not in HARNESS_PROTOCOLS or profile["protocol"] != HARNESS_PROTOCOLS[harness]:
+                        raise ValueError("Codex 需要 Responses；Claude 需要 Anthropic Messages；DSH 需要 Chat Completions")
+                    if model != "auto" and model not in profile["models"]:
+                        raise ValueError("模型不在连接的当前模型记录中")
+                result["bindings"][harness] = {"connection": connection, "model": model}
+            for role, target in data.get("roles", {}).items():
+                if role not in ROLES or not isinstance(target, str):
+                    raise ValueError("角色配置无效")
+                if target not in {"auto", "native:codex", "native:claude", "native:dsh"}:
+                    profile = self.profile(target)
+                if role == "local" and target.startswith("native:"):
+                    raise ValueError("本地小模型角色需要本地 API 连接")
+                if role != "local" and target == "auto":
+                    raise ValueError("规划、执行、验收角色需要选择已配置的连接或 Harness")
+                result["roles"][role] = target
+            for role, model in data.get("role_models", {}).items():
+                if role not in ROLES or (model != "auto" and (not isinstance(model, str) or not MODEL_RE.fullmatch(model))):
+                    raise ValueError("角色模型 ID 无效")
+                result["role_models"][role] = model
+            budget = data.get("max_calls", result["max_calls"])
+            if not isinstance(budget, int) or isinstance(budget, bool) or not 3 <= budget <= 8:
+                raise ValueError("模型调用预算须为 3 至 8 次")
+            result["max_calls"] = budget
+            bounds = {"max_task_tokens": (256, 2_000_000), "context_window_tokens": (256, 1_000_000),
+                      "history_max_runs": (0, 100000), "history_retention_days": (0, 3650),
+                      "cache_max_mb": (0, 100000), "cache_retention_days": (0, 3650)}
+            for key, (minimum, maximum) in bounds.items():
+                value = data.get(key, result[key])
+                if type(value) is not int or not minimum <= value <= maximum:
+                    raise ValueError(f"{key} 须为 {minimum} 至 {maximum} 的整数")
+                result[key] = value
+            limits = data.get("output_limits", {})
+            if not isinstance(limits, dict) or any(r not in ROLES or type(v) is not int or not 64 <= v <= 32768 for r, v in limits.items()):
+                raise ValueError("阶段输出上限须为 64 至 32768 Token")
+            result["output_limits"].update(limits)
             db.execute("INSERT OR REPLACE INTO settings VALUES('runtime',?)", (json.dumps(result),))
         return result
 

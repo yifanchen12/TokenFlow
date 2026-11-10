@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import codecs
 import csv
 import hashlib
 import importlib.metadata
@@ -21,6 +22,7 @@ SUPPORTED_EXTENSIONS = {".txt", ".md", ".py", ".json", ".csv", ".tsv", ".docx", 
 MAX_ZIP_ENTRIES = 1024
 MAX_XML_BYTES = 32 * 1024 * 1024
 MAX_TOTAL_XML_BYTES = 64 * 1024 * 1024
+MAX_FILE_BYTES = 20 * 1024 * 1024
 
 
 class DocumentParseError(ValueError):
@@ -220,13 +222,17 @@ def _pdf(data: bytes) -> dict:
         raise DocumentParseError("PDF 文本提取失败") from exc
 
 
-PARSER_CACHE_VERSION = 2
+PARSER_CACHE_VERSION = 3
 
 
 def parse_document_bytes(name: str, data: bytes, *, use_cache: bool = False) -> dict[str, Any]:
     started = time.monotonic()
     cache, key = None, ""
     suffix = Path(name).suffix.lower()
+    if suffix not in SUPPORTED_EXTENSIONS:
+        raise DocumentParseError(f"不支持的文件类型：{suffix or '无扩展名'}")
+    if len(data) > MAX_FILE_BYTES:
+        raise DocumentParseError("文件超过 20 MB 限制")
     if use_cache:
         from tokenflow_store import DocumentStore
         versions = []
@@ -236,7 +242,9 @@ def parse_document_bytes(name: str, data: bytes, *, use_cache: bool = False) -> 
                 versions.append(importlib.metadata.version(dependency))
             except importlib.metadata.PackageNotFoundError:
                 versions.append("unavailable")
-        key = hashlib.sha256(str((PARSER_CACHE_VERSION, suffix, versions)).encode() + b"\0" + data).hexdigest()
+        digest = hashlib.sha256(str((PARSER_CACHE_VERSION, suffix, versions)).encode() + b"\0")
+        digest.update(data)
+        key = digest.hexdigest()
         try:
             cache = DocumentStore()
             from runtime_config import RuntimeConfig
@@ -283,7 +291,19 @@ def _extract_document_bytes(name: str, data: bytes) -> dict[str, Any]:
         metadata = _pdf(data)
         text = metadata.pop("text")
     else:
-        text = data.decode("utf-8-sig", errors="replace")
+        # Test UTF-32 first because its little-endian BOM starts with UTF-16's.
+        encoding = "utf-8-sig"
+        if data.startswith((codecs.BOM_UTF32_LE, codecs.BOM_UTF32_BE)):
+            encoding = "utf-32"
+        elif data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+            encoding = "utf-16"
+        try:
+            text = data.decode(encoding)
+        except UnicodeDecodeError:
+            raise DocumentParseError("文本编码无效或文件已损坏，请重新保存为 UTF-8 后导入") from None
+        if "\x00" in text:
+            raise DocumentParseError("文本包含空字符，请重新保存为 UTF-8 或带编码标记的 UTF-16/UTF-32")
+        metadata["encoding"] = encoding
     if not text.strip():
         raise DocumentParseError("文件未提取出文本")
     return {"name": Path(name).name, "extension": suffix, "text": text, "characters": len(text), **metadata}
@@ -293,14 +313,36 @@ def parse_document_file(path_value: str, *, use_cache: bool = False) -> dict[str
     path = Path(path_value).expanduser()
     if not path.is_file():
         raise DocumentParseError("文件不存在")
-    if path.stat().st_size > 20 * 1024 * 1024:
+    if path.stat().st_size > MAX_FILE_BYTES:
         raise DocumentParseError("文件超过 20 MB 限制")
-    return parse_document_bytes(path.name, path.read_bytes(), use_cache=use_cache)
+    with path.open("rb") as source:
+        data = source.read(MAX_FILE_BYTES + 1)
+    return parse_document_bytes(path.name, data, use_cache=use_cache)
 
 
 def self_check() -> None:
     from unittest.mock import patch
     from local_ocr import OCRError
+    sample = "上午领取17份，下午领取28份，之后退回3份。"
+    for encoding in ("utf-8", "utf-8-sig", "utf-16", "utf-32"):
+        assert parse_document_bytes("中文.txt", sample.encode(encoding))["text"] == sample
+    for marker, encoding in ((codecs.BOM_UTF16_BE, "utf-16-be"), (codecs.BOM_UTF32_BE, "utf-32-be")):
+        assert parse_document_bytes("中文.csv", marker + sample.encode(encoding))["text"] == sample
+    for data in (b"number=42\xff", b"a\x00b", codecs.BOM_UTF16_LE + b"x"):
+        try:
+            parse_document_bytes("broken.txt", data)
+        except DocumentParseError:
+            pass
+        else:
+            raise AssertionError("damaged text must not reach a model")
+    with patch(__name__ + ".MAX_FILE_BYTES", 8):
+        assert parse_document_bytes("small.txt", b"12345678")["text"] == "12345678"
+        try:
+            parse_document_bytes("large.txt", b"123456789", use_cache=True)
+        except DocumentParseError:
+            pass
+        else:
+            raise AssertionError("byte input must enforce the file limit before caching")
     assert ".docx" in SUPPORTED_EXTENSIONS
     with patch("local_ocr.recognize", return_value={"text": "OCR 42", "method": "local_ocr", "device": "CPU"}):
         extracted = parse_document_bytes("a.png", b"fixture")
