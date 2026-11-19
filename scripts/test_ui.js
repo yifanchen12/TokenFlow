@@ -22,6 +22,7 @@ const context = vm.createContext({document, console, location: {host: '127.0.0.1
   setTimeout: fn => {timers.set(++timerId,fn); return timerId;}, clearTimeout: id => timers.delete(id)});
 const html = fs.readFileSync(path.join(__dirname, '..', 'ui_page.py'), 'utf8');
 const script = html.split('<script>')[1].split('</script>')[0];
+new vm.Script(script, {filename:'workspace-ui.js'});
 vm.runInContext(script.split("document.querySelectorAll('.nav-item')")[0], context);
 const run = code => vm.runInContext(code, context);
 let liveStatus = 'running', failNetwork = false;

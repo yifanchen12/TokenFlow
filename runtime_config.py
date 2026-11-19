@@ -230,14 +230,17 @@ class RuntimeConfig:
             """)
             if os.name != "nt":
                 self.path.chmod(0o600)
+            if not db.execute("SELECT 1 FROM settings WHERE id='savings:initialized'").fetchone():
+                with db:
+                    claimed = db.execute("INSERT INTO settings VALUES('savings:initialized',?) ON CONFLICT(id) DO NOTHING",
+                                         (str(time.time()),)).rowcount
+                    if claimed:
+                        for row in db.execute("SELECT data FROM runs"):
+                            run = json.loads(row[0])
+                            if run.get("status") in {"running", "cancelling"} and not run_active(self.path, run):
+                                run = {**run, "status": "interrupted"}
+                            _run_savings(db, run)
             with db:
-                if not db.execute("SELECT 1 FROM settings WHERE id='savings:initialized'").fetchone():
-                    for row in db.execute("SELECT data FROM runs"):
-                        run = json.loads(row[0])
-                        if run.get("status") in {"running", "cancelling"} and not run_active(self.path, run):
-                            run = {**run, "status": "interrupted"}
-                        _run_savings(db, run)
-                    db.execute("INSERT INTO settings VALUES('savings:initialized',?)", (str(time.time()),))
                 yield db
         finally:
             db.close()
