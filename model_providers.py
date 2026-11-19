@@ -269,9 +269,11 @@ def reported_usage(response: dict[str, Any]) -> dict[str, int]:
     return result
 
 
-def provider_status() -> dict[str, dict[str, Any]]:
+def provider_status(provider: str | None = None) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     for name, spec in PROVIDERS.items():
+        if provider is not None and name != provider:
+            continue
         url = _base_url(spec)
         if name == "omniroute":
             try:

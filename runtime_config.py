@@ -23,6 +23,7 @@ MODEL_RE = re.compile(r"[A-Za-z0-9._:/+-]{1,160}")
 PROTOCOLS = {"openai", "responses", "anthropic", "ollama"}
 HARNESS_PROTOCOLS = {"codex": "responses", "claude": "anthropic", "dsh": "openai"}
 ROLES = ("local", "planner", "executor", "reviewer")
+COLLABORATION_MODES = ("hybrid", "local_only", "remote_only", "configured")
 
 SAVINGS_PRICE = {"model": "gpt-6.1-sol", "currency": "USD", "tier": "Standard",
                  "input_per_million": "2", "cached_input_per_million": "0.10", "output_per_million": "10",
@@ -358,7 +359,7 @@ class RuntimeConfig:
             row = db.execute("SELECT data FROM settings WHERE id='runtime'").fetchone()
             result = _runtime_settings(json.loads(row[0]) if row else None)
             mode = data.get("collaboration_mode", result["collaboration_mode"])
-            if not isinstance(mode, str) or mode not in {"hybrid", "local_only", "configured"}:
+            if mode not in COLLABORATION_MODES:
                 raise ValueError("协同策略无效")
             result["collaboration_mode"] = mode
             dispatch = data.get('api_dispatch', result['api_dispatch'])

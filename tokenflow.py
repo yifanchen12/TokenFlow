@@ -861,6 +861,10 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
         if self.path == "/api/providers":
             self._send_json(provider_status())
             return
+        if self.path.startswith("/api/providers/"):
+            result = provider_status(self.path.removeprefix("/api/providers/"))
+            self._send_json(result or {"error": "未知提供商"}, 200 if result else 404)
+            return
         if self.path == "/api/store":
             self._send_json(DocumentStore(initialize=False).status())
             return
@@ -1059,21 +1063,23 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                         str(data.get("provider", "auto")),
                         str(data.get("model", "auto")),
                     )
-            elif self.path == "/api/parse":
+            elif self.path in ("/api/parse", "/api/index"):
+                ocr_header = self.headers.get("X-TokenFlow-OCR")
+                if ocr_header not in (None, "on", "off"):
+                    raise ValueError("无效的 OCR 设置")
+                allow_ocr = (RuntimeConfig().settings()["collaboration_mode"] != "remote_only"
+                             if ocr_header is None else ocr_header == "on")
                 if data.get("file_bytes") is not None:
-                    result = parse_document_bytes(str(data.get("filename", "upload")), data["file_bytes"], use_cache=True)
+                    result = parse_document_bytes(str(data.get("filename", "upload")), data["file_bytes"], use_cache=True, allow_ocr=allow_ocr)
+                elif self.path == "/api/parse":
+                    result = parse_document_file(str(data.get("path", "")), use_cache=True, allow_ocr=allow_ocr)
                 else:
-                    result = parse_document_file(str(data.get("path", "")), use_cache=True)
-            elif self.path == "/api/index":
-                if data.get("file_bytes") is not None:
-                    parsed = parse_document_bytes(str(data.get("filename", "upload")), data["file_bytes"], use_cache=True)
-                    name, content = parsed["name"], parsed["text"]
-                else:
-                    name, content = str(data.get("name", "document")), str(data.get("content", ""))
-                result = _document_store().index(name, content)
-                settings = RuntimeConfig().settings()
-                if settings["cache_max_mb"] or settings["cache_retention_days"]:
-                    _document_store().manage(max_mb=settings["cache_max_mb"], days=settings["cache_retention_days"])
+                    result = {"name": str(data.get("name", "document")), "text": str(data.get("content", ""))}
+                if self.path == "/api/index":
+                    result = _document_store().index(result["name"], result["text"])
+                    settings = RuntimeConfig().settings()
+                    if settings["cache_max_mb"] or settings["cache_retention_days"]:
+                        _document_store().manage(max_mb=settings["cache_max_mb"], days=settings["cache_retention_days"])
             elif self.path == "/api/store/migrate":
                 result = _document_store().import_legacy()
             elif self.path == "/api/search":

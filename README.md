@@ -6,6 +6,10 @@ TokenFlow reduces unnecessary context before a task reaches a local model or an 
 
 Chinese documentation: [README.zh-CN.md](README.zh-CN.md).
 
+Download `TokenFlow.exe` and `SHA256SUMS.txt` from the [latest Windows release](https://github.com/yifanchen12/TokenFlow/releases/latest). Compare the checksum with `Get-FileHash .\TokenFlow.exe` in PowerShell before opening the executable.
+
+To reserve the GPU for other applications, choose **仅远程 API** (remote API only). Save a remote HTTPS connection in Settings, select it as the complex-task connection and apply it to planning, execution and review. Text and spreadsheet processing runs on the CPU. Model calls use the remote API, and inputs requiring OCR prompt you to supply text.
+
 ## Highlights
 
 - Classifies tasks as code, table, document, or general.

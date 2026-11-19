@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import copy
 import hashlib
+import ipaddress
 import io
 import json
 import math
@@ -14,11 +15,12 @@ import sqlite3
 import threading
 import time
 import uuid
+from urllib.parse import urlsplit
 from decimal import Decimal, InvalidOperation, Inexact, localcontext
 from typing import Any
 
 from model_providers import ProviderError, choose_model, reported_usage, response_text
-from runtime_config import ConnectionClient, RuntimeConfig
+from runtime_config import COLLABORATION_MODES, ConnectionClient, RuntimeConfig
 from runtime_ownership import FileLease, lease_path
 from static_python import static_python_answer
 from answer_checks import (numeric_only, numeric_output_issue, arithmetic_contradictions, numeric_restatement,
@@ -116,6 +118,8 @@ def target_info(target: str, store: RuntimeConfig, settings: dict) -> dict:
 
 
 def local_connection(store: RuntimeConfig, settings: dict, mode: str) -> str | None:
+    if mode == "remote_only":
+        return None
     configured = settings["roles"]["local"]
     if configured != "auto":
         profile = store.profile(configured)
@@ -124,11 +128,29 @@ def local_connection(store: RuntimeConfig, settings: dict, mode: str) -> str | N
     return next((p["id"] for p in store.profiles() if p["local"] and p["models"]), None)
 
 
+def remote_api_target(target: str, store: RuntimeConfig) -> bool:
+    if target.startswith("native:"):
+        return False
+    profile = store.profile(target)
+    url = urlsplit(profile["base_url"])
+    host = (url.hostname or "").rstrip(".").lower()
+    if profile["local"] or url.scheme != "https" or not host:
+        return False
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        # Reject local names and legacy numeric forms such as 127.1.
+        return "." in host and host != "localhost" and not host.endswith(".localhost") and not re.fullmatch(
+            r"(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*", host)
+    address = getattr(address, "ipv4_mapped", None) or address
+    return not (address.is_loopback or address.is_unspecified)
+
+
 def task_preflight(data: dict, store: RuntimeConfig | None = None, *, source_stats: dict | None = None) -> dict:
     store = store or RuntimeConfig()
     settings = store.settings()
     mode = data.get("collaboration_mode", settings["collaboration_mode"])
-    if not isinstance(mode, str) or mode not in {"hybrid", "local_only", "configured"}:
+    if mode not in COLLABORATION_MODES:
         raise ValueError("协同策略无效")
     content, task = str(data.get("content", "")), str(data.get("task", "")).strip()
     issues, routes = [], [{"role": "tools", "location": "local", "name": "本地程序", "detail": "解析、检索、统计和查表"}]
@@ -174,6 +196,9 @@ def task_preflight(data: dict, store: RuntimeConfig | None = None, *, source_sta
                 continue
             try:
                 info = target_info(target, store, settings)
+                if mode == "remote_only" and not remote_api_target(target, store):
+                    issues.append(f"角色 {role} 需要已保存的远程 HTTPS API 连接")
+                    continue
                 routes.append({"role": role, **info})
                 if not target.startswith("native:") and not store.profile(target)["models"]:
                     issues.append("角色 " + role + " 的连接尚未登记模型")
@@ -407,13 +432,13 @@ class TaskRun:
                 if default != "auto":
                     self.settings["role_models"][role] = default
         self.mode = collaboration_mode if collaboration_mode is not None else self.settings["collaboration_mode"]
-        if not isinstance(self.mode, str) or self.mode not in {"hybrid", "local_only", "configured"}:
+        if self.mode not in COLLABORATION_MODES:
             raise ValueError("协同策略无效")
         self.api_dispatch = self.mode == 'hybrid' and self.settings.get('api_dispatch', False) and not evaluation_mode
         self.dispatch_options = {}
         self.preparation_model = self.settings["role_models"]["local"]
         configured_local = self.settings["roles"]["local"]
-        if self.mode != "configured" and configured_local != "auto" and not store.profile(configured_local)["local"]:
+        if self.mode in ("hybrid", "local_only") and configured_local != "auto" and not store.profile(configured_local)["local"]:
             self.preparation_model = "auto"
         if self.mode == "local_only":
             local = local_connection(store, self.settings, self.mode)
@@ -422,7 +447,7 @@ class TaskRun:
                 self.settings["role_models"] = {r: self.preparation_model for r in self.settings["roles"]}
         self.document_store, self.source_name = document_store, source_name
         self.selected_context = content
-        self.allow_harnesses = allow_harnesses
+        self.allow_harnesses = allow_harnesses and self.mode not in ("remote_only", "local_only")
         self.source_path = source_path
         self.reserve_review = False
         self.ollama_context = ollama_context
@@ -494,6 +519,8 @@ class TaskRun:
     def call(self, target: str, task: str, content: str, purpose: str, model: str = "auto", *, response_schema: dict | None = None) -> str:
         import tokenflow as tf
         self.check_cancel()
+        if self.mode == "remote_only" and not remote_api_target(target, self.store):
+            raise ValueError("仅远程 API 策略需要已保存的远程 HTTPS 连接")
         if target.startswith('native:') and model == 'auto':
             harness = target.split(':', 1)[1]
             binding = self.settings['bindings'][harness]
@@ -637,7 +664,7 @@ class TaskRun:
             decision = {'complexity': complexity, 'selected_harness': harness, 'reason': reason,
                         'target': choice.get('target', self.local_target()), 'model': choice.get('model', self.preparation_model),
                         'planner': self.settings['roles']['planner'], 'planner_model': self.settings['role_models']['planner']}
-        available = tf.detect_harnesses() if self.allow_harnesses and self.mode != "local_only" else {}
+        available = None
         # Planner and reviewer reserve two calls; no unbounded task fan-out.
         remaining = self.settings["max_calls"] - len(self.run["calls"]) - 1
         calls = 0
@@ -673,7 +700,9 @@ class TaskRun:
                 raise ValueError("规划要求分类摘要模型，但未配置可用连接")
             if step["kind"] == "harness":
                 harness = step.get("harness")
-                if harness not in available or not available[harness]["installed"] or not available[harness]["configured"]:
+                if available is None:
+                    available = tf.detect_harnesses() if self.allow_harnesses else {}
+                if not isinstance(harness, str) or harness not in available or not available[harness]["installed"] or not available[harness]["configured"]:
                     raise ValueError("规划指定的 Harness 未安装或未配置")
                 item["harness"] = harness
             reused = {r["id"] for r in self.resume_state.get("completed", [])}
@@ -867,7 +896,7 @@ class TaskRun:
             if self.source_path:
                 from document_parser import parse_document_file
                 self.stage("read_file", "正在读取并解析任务资料", "running")
-                parsed = parse_document_file(self.source_path, use_cache=True)
+                parsed = parse_document_file(self.source_path, use_cache=True, allow_ocr=self.mode != "remote_only")
                 self.content = parsed["text"]
                 self.selected_context = self.content
                 self.run["parse_cache_reused"] = parsed["cache_reused"]
@@ -988,7 +1017,12 @@ class TaskRun:
                 self.stage("execute", "单步任务执行完成，省去规划与额外摘要调用")
             else:
                 self.run["routing"] = "planned"
-                installed = [h for h, s in tf.detect_harnesses().items() if s["installed"] and s["configured"]] if self.allow_harnesses and self.mode != "local_only" else []
+                installed = [h for h, s in tf.detect_harnesses().items() if s["installed"] and s["configured"]] if self.allow_harnesses else []
+                allowed_steps = ["model", "statistics"]
+                if local_target:
+                    allowed_steps.append("local_model")
+                if installed:
+                    allowed_steps.append("harness")
                 plan_task = (
                     "作为任务规划器，以完成任务且减少调用为目标拆分为 1 至 4 个顺序步骤。确定性统计使用 statistics；"
                     "简单摘要分类使用 local_model；完成最终任务使用 model（配置的执行角色）；需要文件工具时使用 harness。"
@@ -1003,10 +1037,10 @@ class TaskRun:
                     f"默认执行器：{self.settings['roles']['executor']}。执行步骤优先使用 model；"
                     "需要文件工具时优先使用默认执行器对应的 Harness。"
                     "可以分配不同 Harness；只返回 JSON，不写代码围栏："
-                    '{"steps":[{"id":"s1","kind":"model|harness|local_model|statistics","instruction":"具体子任务",'
+                    '{"steps":[{"id":"s1","kind":"model","instruction":"具体子任务",'
                     '"depends_on":[],"input_scope":"source","expected_output":"可交接的具体产出","harness":"仅harness步骤填"}],'
                     '"acceptance_criteria":["可检查的完成标准"]}。'
-                    f"\n可用 Harness：{installed}；分类摘要模型可用：{bool(local_target)}；"
+                    f"\n本次 kind 只允许 {'、'.join(allowed_steps)}。可用 Harness：{installed}；分类摘要模型可用：{bool(local_target)}；"
                     f"执行+验收剩余预算：{self.settings['max_calls'] - len(self.run['calls']) - 1} 次（验收至少1次）。"
                     "\n用户任务：" + self.task)
                 planning_source = local_hint or (context if len(context) <= 6000 else
@@ -1206,7 +1240,7 @@ def _start_task(data: dict, store: RuntimeConfig | None = None, *, resume: dict 
         raise ValueError("任务不能为空")
     request_id = data.get("request_id", "")
     mode = data.get("collaboration_mode", store.settings()["collaboration_mode"])
-    if not isinstance(mode, str) or mode not in {"hybrid", "local_only", "configured"}:
+    if mode not in COLLABORATION_MODES:
         raise ValueError("协同策略无效")
     warnings = data.get("source_warnings", [])
     if not isinstance(warnings, list) or len(warnings) > 64 or any(not isinstance(w, str) or len(w) > 500 for w in warnings):

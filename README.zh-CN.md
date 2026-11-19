@@ -6,6 +6,10 @@ TokenFlow 在任务交给本地模型或 AI 编程 Harness 之前，先减少不
 
 English documentation: [README.md](README.md)。
 
+从 [最新 Windows 正式版](https://github.com/yifanchen12/TokenFlow/releases/latest) 下载 `TokenFlow.exe` 和 `SHA256SUMS.txt`，用 PowerShell 的 `Get-FileHash .\TokenFlow.exe` 核对后启动。
+
+希望将显卡留给其他程序时，在工作台选择 **仅远程 API**，在设置中保存北邮或其他远程 HTTPS 连接，选为「复杂任务连接」并点击「应用到规划、执行与验收」。此模式用本机程序读取文本和表格，所有模型步骤都走远程连接。含扫描内容的 PDF 和图片会提示改用文本资料。本机模型目录可在设置中按需检测。
+
 ## 核心能力
 
 - 将任务分类为代码、表格、文档或通用任务；
@@ -402,7 +406,7 @@ python eval_workflow.py --cases tmp/acceptance-validation/validation.json --offl
 
 端侧模型步骤实际调用失败后，只有协同策略允许且剩余调用/Token 预算足以预留验收时，才升级一次到已配置的复杂执行器；失败与升级均计入用量。云端失败或预算不足保留已完成步骤，明确显示部分结果，不把中间结果标成最终完成。结果区展示实际分工、依赖、耗时、升级原因和各步产出。
 
-`POST /api/tasks/preview` 与任务接口使用相同的本机/会话保护；启动请求可携带 `collaboration_mode`（`hybrid` / `local_only` / `configured`），参与请求去重。评测保留步骤与实际位置；同模型对照继续使用原角色模式，不混称端云验证。运行 `python test_collaboration.py` 检查分工、交接、禁止外发、预算、部分结果和预检保护。实际模型效果与离线夹具分开报告，不承诺任意复杂任务都正确或必然节省费用。
+`POST /api/tasks/preview` 与任务接口使用相同的本机/会话保护；启动请求可携带 `collaboration_mode`（`hybrid` / `local_only` / `remote_only` / `configured`），参与请求去重。评测保留步骤与实际位置；同模型对照继续使用原角色模式，不混称端云验证。运行 `python test_collaboration.py` 检查分工、交接、禁止外发、预算、部分结果和预检保护。实际模型效果与离线夹具分开报告，不承诺任意复杂任务都正确或必然节省费用。
 
 ## 固定配置、验证与失败恢复
 

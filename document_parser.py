@@ -156,7 +156,7 @@ def _xlsx(data: bytes) -> dict:
         raise DocumentParseError("XLSX 结构无效") from exc
 
 
-def _pdf(data: bytes) -> dict:
+def _pdf(data: bytes, *, allow_ocr: bool) -> dict:
     try:
         from pypdf import PdfReader
 
@@ -168,6 +168,8 @@ def _pdf(data: bytes) -> dict:
             import fitz
         except ImportError as exc:
             if scanned:
+                if not allow_ocr:
+                    raise DocumentParseError("PDF 含无文字层的页面，请提供文本版；当前策略已关闭本地 OCR") from exc
                 raise DocumentParseError("扫描 PDF 需要本地 OCR 及可选依赖 PyMuPDF") from exc
             metadata["warnings"].append("未安装 PyMuPDF，未检查混合 PDF 中的图片正文")
         else:
@@ -186,6 +188,8 @@ def _pdf(data: bytes) -> dict:
                         if existing < 20:
                             scanned.append(index)
                             break
+                if scanned and not allow_ocr:
+                    raise DocumentParseError("PDF 含需要识别的页面，请提供文本版；当前策略已关闭本地 OCR")
                 if len(scanned) > 30:
                     raise DocumentParseError("需 OCR 的 PDF 最多 30 页，请拆分后处理")
                 for index in scanned:
@@ -225,7 +229,7 @@ def _pdf(data: bytes) -> dict:
 PARSER_CACHE_VERSION = 3
 
 
-def parse_document_bytes(name: str, data: bytes, *, use_cache: bool = False) -> dict[str, Any]:
+def parse_document_bytes(name: str, data: bytes, *, use_cache: bool = False, allow_ocr: bool = True) -> dict[str, Any]:
     started = time.monotonic()
     cache, key = None, ""
     suffix = Path(name).suffix.lower()
@@ -233,6 +237,8 @@ def parse_document_bytes(name: str, data: bytes, *, use_cache: bool = False) -> 
         raise DocumentParseError(f"不支持的文件类型：{suffix or '无扩展名'}")
     if len(data) > MAX_FILE_BYTES:
         raise DocumentParseError("文件超过 20 MB 限制")
+    if suffix in IMAGE_EXTENSIONS and not allow_ocr:
+        raise DocumentParseError("当前策略已关闭本地 OCR，请粘贴图片中的文字或导入文本文件")
     if use_cache:
         from tokenflow_store import DocumentStore
         versions = []
@@ -243,6 +249,8 @@ def parse_document_bytes(name: str, data: bytes, *, use_cache: bool = False) -> 
             except importlib.metadata.PackageNotFoundError:
                 versions.append("unavailable")
         digest = hashlib.sha256(str((PARSER_CACHE_VERSION, suffix, versions)).encode() + b"\0")
+        if suffix == ".pdf" and not allow_ocr:
+            digest.update(b"text-only\0")
         digest.update(data)
         key = digest.hexdigest()
         try:
@@ -257,7 +265,7 @@ def parse_document_bytes(name: str, data: bytes, *, use_cache: bool = False) -> 
                         "parse_duration_ms": round((time.monotonic() - started) * 1000)}
         except (OSError, sqlite3.Error, ValueError):
             cache = None
-    extracted = _extract_document_bytes(name, data)
+    extracted = _extract_document_bytes(name, data, allow_ocr=allow_ocr)
     if cache is not None:
         try:
             cache.parsed(key, extracted)
@@ -268,7 +276,7 @@ def parse_document_bytes(name: str, data: bytes, *, use_cache: bool = False) -> 
     return {**extracted, "cache_reused": False, "parse_duration_ms": round((time.monotonic() - started) * 1000)}
 
 
-def _extract_document_bytes(name: str, data: bytes) -> dict[str, Any]:
+def _extract_document_bytes(name: str, data: bytes, *, allow_ocr: bool = True) -> dict[str, Any]:
     suffix = Path(name).suffix.lower()
     if suffix not in SUPPORTED_EXTENSIONS:
         raise DocumentParseError(f"不支持的文件类型：{suffix or '无扩展名'}")
@@ -288,7 +296,7 @@ def _extract_document_bytes(name: str, data: bytes) -> dict[str, Any]:
         text = extracted.pop("text")
         metadata.update(extracted)
     elif suffix == ".pdf":
-        metadata = _pdf(data)
+        metadata = _pdf(data, allow_ocr=allow_ocr)
         text = metadata.pop("text")
     else:
         # Test UTF-32 first because its little-endian BOM starts with UTF-16's.
@@ -309,7 +317,7 @@ def _extract_document_bytes(name: str, data: bytes) -> dict[str, Any]:
     return {"name": Path(name).name, "extension": suffix, "text": text, "characters": len(text), **metadata}
 
 
-def parse_document_file(path_value: str, *, use_cache: bool = False) -> dict[str, Any]:
+def parse_document_file(path_value: str, *, use_cache: bool = False, allow_ocr: bool = True) -> dict[str, Any]:
     path = Path(path_value).expanduser()
     if not path.is_file():
         raise DocumentParseError("文件不存在")
@@ -317,7 +325,7 @@ def parse_document_file(path_value: str, *, use_cache: bool = False) -> dict[str
         raise DocumentParseError("文件超过 20 MB 限制")
     with path.open("rb") as source:
         data = source.read(MAX_FILE_BYTES + 1)
-    return parse_document_bytes(path.name, data, use_cache=use_cache)
+    return parse_document_bytes(path.name, data, use_cache=use_cache, allow_ocr=allow_ocr)
 
 
 def self_check() -> None:

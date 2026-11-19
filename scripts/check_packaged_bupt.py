@@ -58,7 +58,7 @@ def check(executable, encoding="utf-8"):
             if profile["local"] or model not in profile["models"]:
                 raise RuntimeError("BUPT model discovery failed")
             roles = dict.fromkeys(("planner", "executor", "reviewer"), profile["id"])
-            api("/api/config/settings", {"collaboration_mode": "configured", "roles": roles,
+            api("/api/config/settings", {"collaboration_mode": "remote_only", "roles": roles,
                                          "role_models": dict.fromkeys(roles, model), "max_calls": 6})
             task = {"path": str(source), "task": "先合计两次领取的份数，再减去退回的份数。只回答最终数字。",
                     "request_id": "packaged-inventory-check"}
@@ -74,7 +74,8 @@ def check(executable, encoding="utf-8"):
                     raise TimeoutError("EXE task timed out")
                 time.sleep(1)
             calls = run["calls"]
-            if (run["status"] != "completed" or run["result"].strip() != "42"
+            if (run["collaboration_mode"] != "remote_only" or run["metrics"]["local_calls"] != 0
+                    or run["status"] != "completed" or run["result"].strip() != "42"
                     or run["acceptance"]["status"] != "passed" or not run.get("document_cache")
                     or not {"planner", "executor", "reviewer"} <= {c["purpose"] for c in calls}
                     or not all(c["target"] == profile["id"] and c["model"] == model and c["local"] is False
