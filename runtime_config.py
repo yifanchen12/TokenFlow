@@ -221,6 +221,8 @@ class RuntimeConfig:
                 CREATE TABLE IF NOT EXISTS connections(id TEXT PRIMARY KEY, data TEXT NOT NULL, secret TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS settings(id TEXT PRIMARY KEY, data TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, data TEXT NOT NULL, updated REAL NOT NULL);
+                CREATE INDEX IF NOT EXISTS runs_live_updated ON runs(updated DESC,id DESC)
+                    WHERE json_extract(data,'$.status') IN ('queued','running','cancelling');
                 CREATE TABLE IF NOT EXISTS task_requests(id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, run_id TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS savings(
                     id TEXT PRIMARY KEY, source TEXT NOT NULL, created REAL NOT NULL, status TEXT NOT NULL,
@@ -585,6 +587,8 @@ class RuntimeConfig:
         settings = self.settings() if prune else {}
         with self.connect() as db:
             remove = []
+            if identity or prune:
+                db.execute("BEGIN IMMEDIATE")
             if identity:
                 if not re.fullmatch(r"[a-f0-9]{32}", identity):
                     raise ValueError("任务 ID 无效")
@@ -619,6 +623,12 @@ class RuntimeConfig:
                     raise ValueError("任务记录不存在")
                 result = json.loads(row[0])
                 if result["status"] in LIVE_STATES and not run_active(self.path, result):
+                    # Promotion/finish commits the new row before releasing the old slot.
+                    latest = db.execute("SELECT data FROM runs WHERE id=?", (identity,)).fetchone()
+                    if not latest:
+                        raise ValueError("任务记录不存在")
+                    if latest[0] != row[0]:
+                        return json.loads(latest[0])
                     result.update(status="interrupted", error="服务重启中断了任务；可重新布置")
                 return result
             db.create_function("runtime_active", 1, lambda data: int(run_active(self.path, json.loads(data))))

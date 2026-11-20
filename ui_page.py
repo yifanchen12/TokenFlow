@@ -249,15 +249,16 @@ async function retryViewedRun(){
 }
 async function orchestrateTask(){
 if(startingRun)return;
+const body=taskBody(),signature=JSON.stringify(body);
+if(sessionStorage.getItem('tokenflowPendingRequest')&&pendingSubmission?.signature!==signature){
+  await recoverPending();toast('请先确认上次提交结果');return
+}
 startingRun=true;syncRunControls();
 renderProgress({status:'running',created_at:Date.now()/1000,stages:[{status:'running',detail:'核对本次分工与预算'}]});
-const body=taskBody(),signature=JSON.stringify(body);
 try{
   const preview=await post('/api/tasks/preview',body,15000);renderDispatch(preview);
   if(!preview.ready)throw {status:400,error:preview.issues.join('；')||'请填写任务'};
-  if(sessionStorage.getItem('tokenflowPendingRequest')&&pendingSubmission?.signature!==signature){await recoverPending();toast('请先确认上次提交结果');return}
   if(!pendingSubmission){pendingSubmission={signature,request_id:sessionStorage.getItem('tokenflowPendingRequest')||crypto.randomUUID()}}
-  else if(pendingSubmission.signature!==signature){pendingSubmission={signature,request_id:crypto.randomUUID()};sessionStorage.removeItem('tokenflowPendingSince')}
   sessionStorage.setItem('tokenflowPendingRequest',pendingSubmission.request_id);
   if(!sessionStorage.getItem('tokenflowPendingSince'))sessionStorage.setItem('tokenflowPendingSince',String(Date.now()));
   const d=await post('/api/tasks/start',{...body,request_id:pendingSubmission.request_id},15000);
@@ -295,7 +296,8 @@ async function selectActiveTask(id){
   if(!id)return;
   activeRun=id;viewedRun=id;cancelPending=false;pollSequence++;
   sessionStorage.setItem('tokenflowActiveRun',id);
-  $('runHistory').value=id;switchResultView('result');syncRunControls();await pollRun();
+  $('runHistory').value=id;switchResultView('result');
+  show('正在读取所选任务…','加载中');syncRunControls();await pollRun();
 }
 async function viewHistory(){
   const id=$('runHistory').value;if(!id)return;
