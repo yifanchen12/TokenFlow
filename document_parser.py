@@ -8,6 +8,7 @@ import csv
 import hashlib
 import importlib.metadata
 import sqlite3
+import threading
 import time
 import posixpath
 import re
@@ -23,6 +24,7 @@ MAX_ZIP_ENTRIES = 1024
 MAX_XML_BYTES = 32 * 1024 * 1024
 MAX_TOTAL_XML_BYTES = 64 * 1024 * 1024
 MAX_FILE_BYTES = 20 * 1024 * 1024
+_pdf_lock = threading.Lock()
 
 
 class DocumentParseError(ValueError):
@@ -296,7 +298,9 @@ def _extract_document_bytes(name: str, data: bytes, *, allow_ocr: bool = True) -
         text = extracted.pop("text")
         metadata.update(extracted)
     elif suffix == ".pdf":
-        metadata = _pdf(data, allow_ocr=allow_ocr)
+        # Keep the shared native PDF runtime out of concurrent parser calls.
+        with _pdf_lock:
+            metadata = _pdf(data, allow_ocr=allow_ocr)
         text = metadata.pop("text")
     else:
         # Test UTF-32 first because its little-endian BOM starts with UTF-16's.

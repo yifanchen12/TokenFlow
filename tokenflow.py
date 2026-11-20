@@ -47,7 +47,7 @@ from pc_agent import PCAgentError, execute_actions, plan_actions, self_check as 
 from tokenflow_store import DocumentStore, self_check as store_self_check
 from runtime_config import RuntimeConfig, native_catalogs, ConnectionClient
 from runtime_ownership import FileLease, lease_path, lease_state
-from task_orchestrator import start_task, cancel_task, retry_task, TaskCancelled
+from task_orchestrator import start_task, cancel_task, retry_task, TaskCancelled, TaskQueueFull
 
 
 MAX_COMPRESSED_CHARS = 2400
@@ -993,7 +993,7 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
                 result = RuntimeConfig().manage_history(str(data.get("id", "")))
             elif self.path == "/api/tasks/eval-draft":
                 run = RuntimeConfig().runs(str(data.get("id", "")))
-                if run["status"] in {"running", "cancelling"}:
+                if run["status"] in {"queued", "running", "cancelling"}:
                     raise ValueError("请等待任务结束再导出样本")
                 source = _document_store().document(run.get("document_cache", {}).get("document_id", -1))
                 result = {"name": "task-" + run["id"][:8], "source_kind": "real_task", "label_status": "draft",
@@ -1097,6 +1097,9 @@ class TokenFlowHandler(BaseHTTPRequestHandler):
             if savings_record is not None:
                 savings_record["comparable"] = False
             self._send_json({"error": str(exc)}, 400)
+            return
+        except TaskQueueFull as exc:
+            self._send_json({"error": str(exc)}, 429)
             return
         except RuntimeError as exc:
             if savings_record is not None:

@@ -21,7 +21,7 @@ from typing import Any
 
 from model_providers import ProviderError, choose_model, reported_usage, response_text
 from runtime_config import COLLABORATION_MODES, ConnectionClient, RuntimeConfig
-from runtime_ownership import FileLease, lease_path
+from runtime_ownership import FileLease, LIVE_STATES, MAX_RUNNING, MAX_WAITING, task_slot
 from static_python import static_python_answer
 from answer_checks import (numeric_only, numeric_output_issue, arithmetic_contradictions, numeric_restatement,
                            exact_arithmetic_context, structured_kind, normalize_format, strict_json, reference_check, REFERENCE_ERRORS)
@@ -29,8 +29,18 @@ from token_counter import count_tokens
 from tokenflow_store import DocumentStore
 
 _active_lock = threading.Lock()
+_task_changed = threading.Condition(_active_lock)
 _active: dict[str, "TaskRun"] = {}
 _submission_lock = threading.Lock()
+
+
+class TaskQueueFull(RuntimeError):
+    pass
+
+
+def waiting_tasks(path):
+    # Callers hold _task_changed. Dict iteration follows admission order.
+    return (r for r in _active.values() if r.store.path == path and r.run["status"] == "queued")
 
 REVIEW_SCHEMA = {"type": "object", "properties": {
     "passed": {"type": "boolean"}, "reason": {"type": "string", "maxLength": 160},
@@ -471,9 +481,9 @@ class TaskRun:
 
     def flush(self):
         with self._state_lock:
-            if self.cancel_event.is_set() and self.run["status"] == "running":
+            if self.cancel_event.is_set() and self.run["status"] in ("queued", "running"):
                 self.run["status"] = "cancelling"
-            if self.run['status'] not in {'running', 'cancelling'} and 'metrics' not in self.run:
+            if self.run['status'] not in LIVE_STATES and 'metrics' not in self.run:
                 return  # Publish terminal status only together with final accounting.
             self.store.save_run(self.run)
 
@@ -873,6 +883,32 @@ class TaskRun:
                 "status": "passed" if review["passed"] else "failed", "method": "model_review",
                 "repairable": False, "suggestion_grounded": bool(not review["passed"] and repairable)}
 
+    def reserve_slot(self, slots) -> bool:
+        for number in slots:
+            lease = FileLease.acquire(task_slot(self.store.path, number), {"run_id": self.run["id"], "pid": os.getpid()})
+            if lease is not None:
+                self.lease = lease
+                self.run.update(managed_owner=True, owner_slot=number,
+                                status="running" if number < MAX_RUNNING else "queued")
+                return True
+        return False
+
+    def await_turn(self):
+        with _task_changed:
+            while self.run["status"] == "queued":
+                self.check_cancel()
+                if next(waiting_tasks(self.store.path), None) is self:
+                    previous = self.lease
+                    if self.reserve_slot(range(MAX_RUNNING)):
+                        try:
+                            self.flush()
+                        finally:
+                            previous.close()
+                        _task_changed.notify_all()
+                        return
+                # Also observe slots released by a separate CLI process.
+                _task_changed.wait(0.5)
+
     def execute(self) -> dict:
         try:
             return self._execute()
@@ -884,12 +920,9 @@ class TaskRun:
     def _execute(self) -> dict:
         import tokenflow as tf
         try:
-            if self.lease is None:
-                self.lease = FileLease.acquire(lease_path(self.store.path, "task"),
-                                              {"run_id": self.run["id"], "pid": os.getpid()})
-                if self.lease is None:
-                    raise RuntimeError("此配置数据库已有任务运行中，请等待完成")
-            self.run["managed_owner"] = True
+            if self.lease is None and not self.reserve_slot(range(MAX_RUNNING)):
+                raise TaskQueueFull("运行任务已达上限")
+            self.await_turn()
             self.check_cancel()
             if not self.task:
                 raise ValueError("任务不能为空")
@@ -1288,41 +1321,49 @@ def _start_task(data: dict, store: RuntimeConfig | None = None, *, resume: dict 
             runner.run["recovery"] = {"previous_run": resume["id"], "reused_steps": [r["id"] for r in completed],
                                       "candidate_reused": bool(runner.resume_state.get("candidate")),
                                       "note": "使用当前固定配置重试，复用只读产出；原任务与用量独立保留"}
-        runner.lease = FileLease.acquire(lease_path(store.path, "task"), {"run_id": runner.run["id"], "pid": os.getpid()})
-        if runner.lease is None:
-            raise RuntimeError("此配置数据库已有任务运行中，请等待完成")
-        runner.run["managed_owner"] = True
-        store.save_run(runner.run, request_id=request_id, fingerprint=fingerprint)
-        with _active_lock:
+        with _task_changed:
+            slots = range(MAX_RUNNING, MAX_RUNNING + MAX_WAITING) if next(waiting_tasks(store.path), None) else range(MAX_RUNNING + MAX_WAITING)
+            if not runner.reserve_slot(slots):
+                raise TaskQueueFull(f"并发任务已满（{MAX_RUNNING} 个运行、{MAX_WAITING} 个等待），请稍后再提交")
+            initial_status = runner.run["status"]
+            store.save_run(runner.run, request_id=request_id, fingerprint=fingerprint)
             _active[runner.run["id"]] = runner
         def work():
             try:
                 runner.execute()
             finally:
-                with _active_lock:
+                with _task_changed:
                     _active.pop(runner.run["id"], None)
+                    _task_changed.notify_all()
         threading.Thread(target=work, daemon=True).start()
-        return {"id": runner.run["id"], "status": "running"}
-    except Exception:
+        return {"id": runner.run["id"], "status": initial_status}
+    except Exception as exc:
         if "runner" in locals():
             if runner.lease:
                 runner.lease.close()
-            with _active_lock:
+            with _task_changed:
                 _active.pop(runner.run["id"], None)
+                _task_changed.notify_all()
+        if isinstance(exc, sqlite3.IntegrityError) and request_id:
+            previous = store.request_run(request_id, fingerprint)
+            if previous:
+                return {"id": previous["id"], "status": previous["status"], "reused": True}
         raise
 
 
 def cancel_task(identity: str, store: RuntimeConfig | None = None) -> dict:
     if not isinstance(identity, str) or not re.fullmatch(r"[a-f0-9]{32}", identity):
         raise ValueError("任务 ID 无效")
-    with _active_lock:
+    store = store or RuntimeConfig()
+    with _task_changed:
         runner = _active.get(identity)
-        if runner:
-            if runner.run["status"] in {"running", "cancelling"}:
+        if runner and runner.store.path.resolve() == store.path.resolve():
+            if runner.run["status"] in LIVE_STATES:
                 runner.cancel_event.set()
                 runner.flush()
+                _task_changed.notify_all()
             return {"id": identity, "status": runner.run["status"]}
-    record = (store or RuntimeConfig()).runs(identity)
+    record = store.runs(identity)
     return {"id": identity, "status": record["status"]}
 
 

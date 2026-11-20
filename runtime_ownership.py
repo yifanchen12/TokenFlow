@@ -8,6 +8,13 @@ from pathlib import Path
 
 _mutex = threading.RLock()
 _held: dict[str, "FileLease"] = {}
+MAX_RUNNING = 4
+MAX_WAITING = 8
+LIVE_STATES = ("queued", "running", "cancelling")
+
+
+def task_slot(database, number):
+    return lease_path(database, "task" if number == 0 else f"task-{number}")
 
 
 def lease_path(database: str | Path, kind: str) -> Path:
@@ -128,9 +135,9 @@ def process_alive(pid: int) -> bool:
 
 
 def run_active(database: str | Path, run: dict) -> bool:
-    if run.get("status") not in {"running", "cancelling"}:
+    if run.get("status") not in LIVE_STATES:
         return False
     if run.get("managed_owner"):
-        locked, owner = lease_state(lease_path(database, "task"))
+        locked, owner = lease_state(task_slot(database, run.get("owner_slot", 0)))
         return locked and (not owner.get("run_id") or owner["run_id"] == run.get("id"))
     return process_alive(run.get("process_id"))  # Compatibility with older records.

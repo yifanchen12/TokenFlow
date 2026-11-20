@@ -17,7 +17,7 @@ from typing import Any
 
 from model_providers import OpenAICompatibleProvider, ProviderError, ProviderSpec, is_loopback_url
 from tokenflow_store import _db_path
-from runtime_ownership import run_active
+from runtime_ownership import LIVE_STATES, run_active
 
 MODEL_RE = re.compile(r"[A-Za-z0-9._:/+-]{1,160}")
 PROTOCOLS = {"openai", "responses", "anthropic", "ollama"}
@@ -64,7 +64,7 @@ def _write_savings(db, identity: str, *, source: str, created_at: float, status:
 
 
 def _run_savings(db, run: dict):
-    if run.get("status") in {"running", "cancelling"}:
+    if run.get("status") in LIVE_STATES:
         return
     metrics, calls = run.get("metrics", {}), run.get("calls", [])
     inputs = [c.get("estimated_input_tokens") for c in calls]
@@ -237,7 +237,7 @@ class RuntimeConfig:
                     if claimed:
                         for row in db.execute("SELECT data FROM runs"):
                             run = json.loads(row[0])
-                            if run.get("status") in {"running", "cancelling"} and not run_active(self.path, run):
+                            if run.get("status") in LIVE_STATES and not run_active(self.path, run):
                                 run = {**run, "status": "interrupted"}
                             _run_savings(db, run)
             with db:
@@ -605,7 +605,7 @@ class RuntimeConfig:
         return {"runs": count, "deleted": len(remove), "database_bytes": self.path.stat().st_size if self.path.exists() else 0}
 
     def runs(self, identity: str = "", *, limit: int = 20, offset: int = 0, query: str = "", status: str = "") -> dict:
-        states = {"running", "cancelling", "completed", "failed", "cancelled", "needs_review", "interrupted"}
+        states = {*LIVE_STATES, "active", "completed", "failed", "cancelled", "needs_review", "interrupted"}
         if type(limit) is not int or not 1 <= limit <= 100 or type(offset) is not int or not 0 <= offset <= 1_000_000:
             raise ValueError("分页参数无效：每页 1–100 条，偏移不超过 1000000")
         if not isinstance(query, str) or len(query) > 200 or not isinstance(status, str) or status and status not in states:
@@ -618,16 +618,18 @@ class RuntimeConfig:
                 if not row:
                     raise ValueError("任务记录不存在")
                 result = json.loads(row[0])
-                if result["status"] in {"running", "cancelling"} and not run_active(self.path, result):
+                if result["status"] in LIVE_STATES and not run_active(self.path, result):
                     result.update(status="interrupted", error="服务重启中断了任务；可重新布置")
                 return result
             db.create_function("runtime_active", 1, lambda data: int(run_active(self.path, json.loads(data))))
-            effective = "CASE WHEN json_extract(data,'$.status') IN ('running','cancelling') AND runtime_active(data)=0 THEN 'interrupted' ELSE json_extract(data,'$.status') END"
+            effective = "CASE WHEN json_extract(data,'$.status') IN ('queued','running','cancelling') AND runtime_active(data)=0 THEN 'interrupted' ELSE json_extract(data,'$.status') END"
             where, parameters = [], []
             if query.strip():
                 where.append("instr(lower(json_extract(data,'$.task')),lower(?)) > 0")
                 parameters.append(query.strip())
-            if status:
+            if status == "active":
+                where.append("json_extract(data,'$.status') IN ('queued','running','cancelling') AND runtime_active(data)=1")
+            elif status:
                 where.append(effective + "=?")
                 parameters.append(status)
             clause = " WHERE " + " AND ".join(where) if where else ""

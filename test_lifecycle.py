@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from runtime_config import RuntimeConfig, ConnectionClient
 from runtime_ownership import FileLease, lease_path, run_active
-from task_orchestrator import TaskRun, start_task
+from task_orchestrator import TaskQueueFull, TaskRun, start_task, cancel_task
 from tokenflow_store import DocumentStore
 
 
@@ -75,6 +75,9 @@ from runtime_ownership import FileLease,lease_path
 s=RuntimeConfig(sys.argv[1]);i="b"*32
 l=FileLease.acquire(lease_path(s.path,"task"),{"run_id":i})
 s.save_run({"id":i,"task":"Fixture","status":"running","process_id":os.getpid(),"managed_owner":True,"calls":[]})
+q="c"*32
+w=FileLease.acquire(lease_path(s.path,"task-4"),{"run_id":q})
+s.save_run({"id":q,"task":"Queued fixture","status":"queued","owner_slot":4,"managed_owner":True,"calls":[]})
 print("ready",flush=True);input()
 '''
         process = subprocess.Popen([sys.executable, "-c", dying, str(store.path)], stdin=subprocess.PIPE,
@@ -82,8 +85,10 @@ print("ready",flush=True);input()
         try:
             assert process.stdout.readline().strip() == "ready"
             assert store.runs("b" * 32)["status"] == "running"
+            assert store.runs("c" * 32)["status"] == "queued"
             process.communicate("\n", timeout=10)
             assert store.runs("b" * 32)["status"] == "interrupted"
+            assert store.runs("c" * 32)["status"] == "interrupted"
         finally:
             if process.poll() is None:
                 process.kill(); process.communicate()
@@ -128,7 +133,9 @@ print("ready",flush=True);input()
         with patch('tokenflow.execute_configured_harness', return_value={'ok': True, 'output': 'answer'}) as execute:
             harness_step.call('native:codex', '分析', 'source', 'harness_step')
         assert execute.call_args.args[1] == 'frozen-native'
-        # The task mutex belongs to a DB, not the entire Python process.
+        # Concurrency limits and queues belong to each database.
+        store = RuntimeConfig(Path(directory) / 'parallel.db')
+        store.save_profile(profile)
         independent = RuntimeConfig(Path(directory) / 'independent.db')
         independent.save_profile(profile)
         roles = {r: 'fixture' for r in ('local', 'planner', 'executor', 'reviewer')}
@@ -144,26 +151,47 @@ print("ready",flush=True);input()
             else:
                 with counter_lock:
                     counter[0] += 1
-                    if counter[0] == 2: entered.set()
+                    if counter[0] == 5: entered.set()
                 assert release.wait(10)
                 answer = '42'
             return {'choices': [{'message': {'content': answer}}], 'usage': {'prompt_tokens': 3, 'completion_tokens': 1}}
         with patch.object(ConnectionClient, 'chat', blocked):
             try:
                 running = []
-                for index, config in enumerate((store, independent)):
+                for index, config in enumerate((store, store, store, store, independent)):
                     documents = DocumentStore(str(Path(directory) / f'parallel-{index}.db'))
                     running.append((config, start_task({'task': '事实是多少？只回答数字。', 'content': '事实42'}, config, document_store=documents)['id']))
                 assert entered.wait(5)
                 assert all(config.runs(identity)['status'] == 'running' for config, identity in running)
-                try: start_task({'task': 'another', 'content': ''}, store)
-                except RuntimeError: pass
-                else: raise AssertionError('same-DB task started twice')
+                payload = {'task':'统计CSV的行数和平均值','content':'name,value\na,2\nb,4'}
+                queued = []
+                for n in range(8):
+                    request = payload | {'request_id': f'parallel-fixture-{n:02}'}
+                    receipt = start_task(request, store, document_store=documents)
+                    assert receipt['status'] == 'queued' and start_task(request, store)['id'] == receipt['id']
+                    queued.append(receipt['id'])
+                assert store.runs(status='active')['total'] == 12 and store.runs(status='queued')['total'] == 8, [(r['id'],r['status']) for r in store.runs()['runs']]
+                try: start_task(payload, store)
+                except TaskQueueFull: pass
+                else: raise AssertionError('full queue admitted a task')
+                try: store.manage_history(queued[0])
+                except ValueError: pass
+                else: raise AssertionError('queued task deleted')
+                cancel_task(queued[0], store)
+                deadline = time.monotonic()+5
+                while store.runs(queued[0])['status'] != 'cancelled' and time.monotonic()<deadline:
+                    time.sleep(.02)
+                assert store.runs(queued[0])['status']=='cancelled' and not store.runs(queued[0])['calls']
+                assert all(config.runs(identity)['status']=='running' for config,identity in running)
             finally:
                 release.set()
             deadline = time.monotonic() + 10
             while any(config.runs(identity)['status'] == 'running' for config, identity in running) and time.monotonic() < deadline:
                 time.sleep(.02)
+            deadline = time.monotonic()+10
+            while store.runs(status='active')['total'] and time.monotonic()<deadline:
+                time.sleep(.03)
+            assert all(store.runs(i)['status']=='completed' for i in queued[1:])
             records = [config.runs(identity) for config, identity in running]
             assert all(record['status'] == 'completed' for record in records), [(r['status'], r.get('acceptance')) for r in records]
     print("Lifecycle self-check: PASS")

@@ -20,6 +20,7 @@ const context = vm.createContext({document, console, location: {host: '127.0.0.1
   navigator: {clipboard:{writeText:async value=>{copiedText=value;}}},
   localStorage: {setItem: (k,v) => storage.set(k,v), getItem: k => storage.get(k) || null, removeItem: k => storage.delete(k)},
   setTimeout: fn => {timers.set(++timerId,fn); return timerId;}, clearTimeout: id => timers.delete(id)});
+context.sessionStorage=context.localStorage;
 const html = fs.readFileSync(path.join(__dirname, '..', 'ui_page.py'), 'utf8');
 const script = html.split('<script>')[1].split('</script>')[0];
 new vm.Script(script, {filename:'workspace-ui.js'});
@@ -43,19 +44,21 @@ context.post = async (url, body) => {
   assert.equal(run('activeRun'), 'live');
   assert.equal(storage.get('tokenflowActiveRun'), 'live');
   assert.equal(nodes.get('result').textContent, 'HISTORY');
-  assert.equal(nodes.get('autoRun').disabled, true);
+  assert.equal(nodes.get('autoRun').disabled, false);
   assert.equal(nodes.get('returnRun').classList.contains('hidden'), false);
   await run('pollRun()');
   assert.equal(nodes.get('result').textContent, 'HISTORY');
   failNetwork = true;
   await run('pollRun()');
   assert.equal(run('activeRun'), 'live');
-  assert.equal(nodes.get('autoRun').disabled, true);
+  assert.equal(nodes.get('autoRun').disabled, false);
   assert.equal(storage.get('tokenflowActiveRun'), 'live');
   failNetwork = false;
+  assert.equal(nodes.get('cancelRun').disabled,true);
+  await run('returnToRunningTask()');
   await run('cancelRunningTask()');
   assert.equal(nodes.get('cancelRun').disabled, true);
-  assert.equal(nodes.get('result').textContent, 'HISTORY');
+  assert.equal(nodes.get('result').textContent, 'LIVE');
   await run('returnToRunningTask()');
   assert.equal(run('viewedRun'), 'live');
   assert.equal(nodes.get('result').textContent, 'LIVE');
@@ -240,5 +243,23 @@ context.post = async (url, body) => {
   run("$('provider').value='cloud'");
   await run('refreshSelectedModels()');
   assert.match(nodes.get('selectedModelState').textContent,/1 个模型/);
+  // Slow replies from the previous task must not steal the selected result or cancellation.
+  const live=[{id:'left',status:'running',task:'first'},{id:'right',status:'queued',task:'second'}];
+  let finishLeft;
+  context.get=async url=>{
+    if(url.includes('status=active'))return {runs:live};
+    if(url.endsWith('/left'))return new Promise(resolve=>{finishLeft=resolve;});
+    return {...live[1],result:'RIGHT',calls:[],stages:[]};
+  };
+  await run('refreshActiveTasks()');
+  assert.equal(nodes.get('activeTasks').children.length,3);
+  const slow=run("selectActiveTask('left')");
+  await run("selectActiveTask('right')");
+  finishLeft({...live[0],result:'LEFT',calls:[],stages:[]});await slow;
+  assert.equal(nodes.get('result').textContent,'RIGHT');
+  assert.equal(nodes.get('autoRun').disabled,false);
+  const cancelled=[];
+  context.post=async (url,body)=>{assert.equal(url,'/api/tasks/cancel');cancelled.push(body.id);return {};};
+  await run('cancelRunningTask()');assert.deepEqual(cancelled,['right']);
   console.log('UI task/history checks: PASS');
 })().catch(error => {console.error(error);process.exitCode = 1;});
